@@ -17,13 +17,24 @@ import {
   MessageSquare,
   AlertCircle,
   CheckCircle,
-
   Loader,
   MapPin,
   Volume2,
   Pause,
-  Play
+  Play,
+  Moon,
+  Sun,
+  Bookmark,
+  BookmarkCheck,
+  User,
+  LogOut,
+  History,
+  Settings,
+  Rss
 } from 'lucide-react';
+import { useAuth } from './context/AuthContext';
+import AuthModal from './components/AuthModal';
+import { API_URL, API_BASE_URL } from './config';
 
 
 const Toast = ({ message, type, onClose }) => {
@@ -35,11 +46,11 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose]);
 
   return (
-    <div className={`fixed bottom-4 right-4 z-[110] flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border animate-fade-in ${type === 'error' ? 'bg-red-50 border-red-100 text-red-800' : 'bg-green-50 border-green-100 text-green-800'
+    <div className={`fixed bottom-4 right-4 z-[110] flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border animate-fade-in ${type === 'error' ? 'bg-red-50 dark:bg-red-900/30 border-red-100 dark:border-red-800 text-red-800 dark:text-red-300' : 'bg-green-50 dark:bg-green-900/30 border-green-100 dark:border-green-800 text-green-800 dark:text-green-300'
       }`}>
       {type === 'error' ? <AlertCircle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
       <p className="font-medium text-sm">{message}</p>
-      <button onClick={onClose} className="p-1 hover:bg-black/5 rounded-full transition-colors">
+      <button onClick={onClose} className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors">
         <X className="w-4 h-4" />
       </button>
     </div>
@@ -47,6 +58,8 @@ const Toast = ({ message, type, onClose }) => {
 };
 
 const NewsApp = () => {
+  const { user, darkMode, toggleDarkMode, logout, addBookmark, removeBookmark, isBookmarked, addToHistory } = useAuth();
+
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -58,6 +71,8 @@ const NewsApp = () => {
   const [toast, setToast] = useState(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   // TTS State
   const [isSynthesizing, setIsSynthesizing] = useState(false);
@@ -82,16 +97,61 @@ const NewsApp = () => {
     { id: 'science', name: 'Science', icon: <Microscope className="w-5 h-5" /> }
   ];
 
+  const userMenuItems = [
+    { id: 'bookmarks', name: 'My Bookmarks', icon: <Bookmark className="w-5 h-5" /> },
+    { id: 'history', name: 'Reading History', icon: <History className="w-5 h-5" /> },
+    { id: 'feeds', name: 'Custom Feeds', icon: <Rss className="w-5 h-5" /> },
+    { id: 'settings', name: 'Settings', icon: <Settings className="w-5 h-5" /> }
+  ];
+
   useEffect(() => {
-    setPage(1);
-    setArticles([]);
-    setHasMore(true);
-    // Initial load
-    loadArticles(1, true);
+    if (selectedCategory === 'bookmarks' || selectedCategory === 'history') {
+      loadUserContent();
+    } else {
+      setPage(1);
+      setArticles([]);
+      setHasMore(true);
+      loadArticles(1, true);
+    }
   }, [selectedCategory]);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
+  };
+
+  const loadUserContent = async () => {
+    if (!user) {
+      showToast('Please login to view this section', 'error');
+      setSelectedCategory('all');
+      return;
+    }
+
+    setLoading(true);
+    const token = localStorage.getItem('token');
+
+    try {
+      const endpoint = selectedCategory === 'bookmarks'
+        ? `${API_URL}/user/bookmarks`
+        : `${API_URL}/user/history`;
+
+      const response = await fetch(endpoint, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        if (selectedCategory === 'history') {
+          setArticles(result.data.map(item => item.article).filter(Boolean));
+        } else {
+          setArticles(result.data);
+        }
+        setHasMore(false);
+      }
+    } catch (error) {
+      showToast('Failed to load content', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadArticles = async (pageNum = 1, isNewCategory = false) => {
@@ -99,7 +159,7 @@ const NewsApp = () => {
     else setLoadingMore(true);
 
     try {
-      const response = await fetch(`http://localhost:5001/api/news?category=${selectedCategory}&page=${pageNum}&limit=12`);
+      const response = await fetch(`${API_URL}/news?category=${selectedCategory}&page=${pageNum}&limit=12`);
       const result = await response.json();
 
       if (result.success) {
@@ -127,6 +187,35 @@ const NewsApp = () => {
     loadArticles(nextPage);
   };
 
+  const handleArticleClick = (article) => {
+    setSelectedArticle(article);
+    // Add to reading history if logged in
+    if (user) {
+      addToHistory(article._id);
+    }
+  };
+
+  const handleBookmark = async (e, article) => {
+    e.stopPropagation();
+
+    if (!user) {
+      showToast('Please login to bookmark articles', 'error');
+      setShowAuthModal(true);
+      return;
+    }
+
+    const bookmarked = isBookmarked(article._id);
+    const result = bookmarked
+      ? await removeBookmark(article._id)
+      : await addBookmark(article._id);
+
+    if (result.success) {
+      showToast(bookmarked ? 'Bookmark removed' : 'Article bookmarked');
+    } else {
+      showToast(result.error || 'Failed to update bookmark', 'error');
+    }
+  };
+
   const handleSummarize = async (e, article) => {
     e.stopPropagation();
     setSummarizing(true);
@@ -134,7 +223,7 @@ const NewsApp = () => {
     setShowSummaryModal(true);
 
     try {
-      const response = await fetch(`http://localhost:5001/api/news/${article._id}/summarize`, {
+      const response = await fetch(`${API_URL}/news/${article._id}/summarize`, {
         method: 'POST'
       });
       const result = await response.json();
@@ -169,15 +258,14 @@ const NewsApp = () => {
       setIsSynthesizing(true);
       setAudioError(null);
 
-      const response = await fetch(`http://localhost:5001/api/news/${selectedArticle._id}/tts`, {
+      const response = await fetch(`${API_URL}/news/${selectedArticle._id}/tts`, {
         method: 'POST'
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setAudioUrl(`http://localhost:5001${data.audioUrl}`);
-        // Auto play after synthesis
+        setAudioUrl(`${API_BASE_URL}${data.audioUrl}`);
         setTimeout(() => {
           const audio = document.getElementById('tts-audio');
           if (audio) {
@@ -229,20 +317,21 @@ const NewsApp = () => {
 
   const SkeletonCard = () => (
     <div className="premium-card p-5 animate-pulse">
-      <div className="w-full h-48 bg-slate-100 rounded-xl mb-4" />
-      <div className="h-4 bg-slate-100 rounded w-2/3 mb-3" />
-      <div className="h-6 bg-slate-100 rounded w-full mb-3" />
-      <div className="h-4 bg-slate-100 rounded w-full mb-1" />
-      <div className="h-4 bg-slate-100 rounded w-4/5" />
+      <div className="w-full h-48 rounded-xl mb-4" style={{ backgroundColor: 'var(--border)' }} />
+      <div className="h-4 rounded w-2/3 mb-3" style={{ backgroundColor: 'var(--border)' }} />
+      <div className="h-6 rounded w-full mb-3" style={{ backgroundColor: 'var(--border)' }} />
+      <div className="h-4 rounded w-full mb-1" style={{ backgroundColor: 'var(--border)' }} />
+      <div className="h-4 rounded w-4/5" style={{ backgroundColor: 'var(--border)' }} />
     </div>
   );
 
   return (
-    <div className="min-h-screen flex bg-slate-50/50">
+    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--background)' }}>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
 
       {/* Sidebar */}
-      <aside className="w-72 bg-white border-r border-slate-200 hidden lg:flex flex-col sticky top-0 h-screen">
+      <aside className="w-72 border-r hidden lg:flex flex-col sticky top-0 h-screen sidebar" style={{ backgroundColor: 'var(--sidebar-bg)', borderColor: 'var(--border)' }}>
         <div className="p-8 flex items-center gap-3">
           <div className="p-2 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/30">
             <Newspaper className="w-6 h-6 text-white" />
@@ -250,7 +339,9 @@ const NewsApp = () => {
           <span className="text-xl font-bold tracking-tight gradient-text">Khabar AI</span>
         </div>
 
-        <nav className="flex-1 px-4 space-y-2">
+        <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
+          {/* Main Categories */}
+          <p className="text-xs font-bold uppercase tracking-widest px-4 pt-2 pb-1" style={{ color: 'var(--text-muted)' }}>Categories</p>
           {categories.map((cat) => (
             <button
               key={cat.id}
@@ -261,18 +352,95 @@ const NewsApp = () => {
                 }
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${selectedCategory === cat.id
-                ? 'bg-blue-50 text-blue-600 shadow-sm'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'hover:bg-slate-50 dark:hover:bg-slate-800'
                 }`}
+              style={{ color: selectedCategory === cat.id ? undefined : 'var(--text-muted)' }}
             >
               {cat.icon}
               {cat.name}
-              {selectedCategory === cat.id && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600" />}
+              {selectedCategory === cat.id && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400" />}
             </button>
           ))}
+
+          {/* User Section */}
+          {user && (
+            <>
+              <div className="pt-4 pb-2">
+                <p className="text-xs font-bold uppercase tracking-widest px-4" style={{ color: 'var(--text-muted)' }}>Your Library</p>
+              </div>
+              {userMenuItems.slice(0, 2).map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setSelectedCategory(item.id);
+                    setSelectedArticle(null);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${selectedCategory === item.id
+                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                  style={{ color: selectedCategory === item.id ? undefined : 'var(--text-muted)' }}
+                >
+                  {item.icon}
+                  {item.name}
+                </button>
+              ))}
+            </>
+          )}
         </nav>
 
+        {/* Bottom Section */}
+        <div className="p-4 border-t" style={{ borderColor: 'var(--border)' }}>
+          {/* Dark Mode Toggle */}
+          <button
+            onClick={toggleDarkMode}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all hover:bg-slate-50 dark:hover:bg-slate-800"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            {darkMode ? 'Light Mode' : 'Dark Mode'}
+          </button>
 
+          {/* User / Login */}
+          {user ? (
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all hover:bg-slate-50 dark:hover:bg-slate-800"
+                style={{ color: 'var(--text-main)' }}
+              >
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                  {user.name?.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-semibold truncate">{user.name}</p>
+                  <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{user.email}</p>
+                </div>
+              </button>
+
+              {showUserMenu && (
+                <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl shadow-xl border p-2" style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}>
+                  <button
+                    onClick={() => { logout(); setShowUserMenu(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all"
+            >
+              <User className="w-5 h-5" />
+              Sign In
+            </button>
+          )}
+        </div>
       </aside>
 
       {/* Main Content */}
@@ -284,15 +452,41 @@ const NewsApp = () => {
             <span className="text-lg font-bold gradient-text">Khabar AI</span>
           </div>
           <div className="hidden lg:block">
-            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-widest leading-none">
-              {selectedArticle ? 'Reading Article' : `Feed / ${categories.find(c => c.id === selectedCategory).name}`}
+            <h2 className="text-sm font-semibold uppercase tracking-widest leading-none" style={{ color: 'var(--text-muted)' }}>
+              {selectedArticle ? 'Reading Article' : `Feed / ${categories.find(c => c.id === selectedCategory)?.name || selectedCategory}`}
             </h2>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Mobile Dark Mode Toggle */}
+            <button
+              onClick={toggleDarkMode}
+              className="p-2 rounded-lg transition-colors lg:hidden"
+              style={{ backgroundColor: 'var(--card)', color: 'var(--text-muted)' }}
+            >
+              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+
+            <div className="text-sm font-medium px-3 py-1.5 rounded-lg border flex items-center gap-2" style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
               <Clock className="w-4 h-4" />
               {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
+
+            {/* Mobile User Button */}
+            {!user ? (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="p-2 rounded-lg bg-blue-600 text-white lg:hidden"
+              >
+                <User className="w-5 h-5" />
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm lg:hidden"
+              >
+                {user.name?.charAt(0).toUpperCase()}
+              </button>
+            )}
           </div>
         </header>
 
@@ -302,7 +496,8 @@ const NewsApp = () => {
             <div className="animate-fade-in max-w-4xl mx-auto">
               <button
                 onClick={() => setSelectedArticle(null)}
-                className="flex items-center gap-2 text-slate-500 hover:text-blue-600 mb-8 font-semibold transition-colors group"
+                className="flex items-center gap-2 hover:text-blue-600 mb-8 font-semibold transition-colors group"
+                style={{ color: 'var(--text-muted)' }}
               >
                 <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                 Back to Feed
@@ -311,16 +506,25 @@ const NewsApp = () => {
               <div className="space-y-8">
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full uppercase tracking-wider">
+                    <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded-full uppercase tracking-wider">
                       {selectedArticle.category}
                     </span>
-                    <span className="text-slate-400 text-sm">{formatDate(selectedArticle.publishedAt)}</span>
+                    <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{formatDate(selectedArticle.publishedAt)}</span>
+
+                    {/* Bookmark Button */}
+                    <button
+                      onClick={(e) => handleBookmark(e, selectedArticle)}
+                      className={`ml-auto p-2 rounded-lg transition-colors ${isBookmarked(selectedArticle._id) ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                      style={{ color: isBookmarked(selectedArticle._id) ? undefined : 'var(--text-muted)' }}
+                    >
+                      {isBookmarked(selectedArticle._id) ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+                    </button>
                   </div>
-                  <h1 className="text-4xl lg:text-5xl font-extrabold text-slate-900 leading-[1.15]">
+                  <h1 className="text-4xl lg:text-5xl font-extrabold leading-[1.15]" style={{ color: 'var(--text-main)' }}>
                     {selectedArticle.title}
                   </h1>
-                  <div className="flex items-center gap-4 text-slate-500 pt-4 border-t border-slate-100">
-                    <span className="font-semibold text-slate-900">{selectedArticle.source}</span>
+                  <div className="flex items-center gap-4 pt-4 border-t" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                    <span className="font-semibold" style={{ color: 'var(--text-main)' }}>{selectedArticle.source}</span>
                     {selectedArticle.author && <span>By {selectedArticle.author}</span>}
                   </div>
                 </div>
@@ -337,15 +541,15 @@ const NewsApp = () => {
                   </div>
                 )}
 
-                <div className="prose prose-slate prose-lg max-w-none">
-                  <p className="text-xl lg:text-2xl text-slate-600 font-medium leading-relaxed mb-8">
+                <div className="prose prose-slate dark:prose-invert prose-lg max-w-none">
+                  <p className="text-xl lg:text-2xl font-medium leading-relaxed mb-8" style={{ color: 'var(--text-muted)' }}>
                     {selectedArticle.description}
                   </p>
 
                   {selectedArticle.content && (
                     <div className="space-y-6">
                       {selectedArticle.content.split('\n\n').map((paragraph, index) => (
-                        <p key={index} className="text-slate-800 leading-[1.8]">
+                        <p key={index} className="leading-[1.8]" style={{ color: 'var(--text-main)' }}>
                           {paragraph}
                         </p>
                       ))}
@@ -353,7 +557,7 @@ const NewsApp = () => {
                   )}
                 </div>
 
-                <div className="sticky bottom-8 bg-white/80 backdrop-blur-xl border border-slate-200/50 p-4 rounded-2xl shadow-2xl flex gap-3 max-w-md mx-auto">
+                <div className="sticky bottom-8 backdrop-blur-xl border p-4 rounded-2xl shadow-2xl flex gap-3 max-w-md mx-auto" style={{ backgroundColor: 'var(--glass)', borderColor: 'var(--border)' }}>
                   <button
                     onClick={(e) => handleSummarize(e, selectedArticle)}
                     className="flex-1 btn-primary flex items-center justify-center gap-2"
@@ -365,7 +569,8 @@ const NewsApp = () => {
                     href={selectedArticle.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center w-14 h-12 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-all font-bold"
+                    className="flex items-center justify-center w-14 h-12 rounded-xl transition-all font-bold"
+                    style={{ backgroundColor: 'var(--card)', color: 'var(--text-main)', border: '1px solid var(--border)' }}
                   >
                     <ExternalLink className="w-5 h-5" />
                   </a>
@@ -378,9 +583,13 @@ const NewsApp = () => {
               {/* Category Header */}
               <div className="flex items-end justify-between">
                 <div>
-                  <p className="text-blue-600 font-bold uppercase tracking-[0.2em] text-xs mb-3">Trending Now</p>
-                  <h1 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">
-                    {categories.find(c => c.id === selectedCategory).name}
+                  <p className="text-blue-600 dark:text-blue-400 font-bold uppercase tracking-[0.2em] text-xs mb-3">
+                    {selectedCategory === 'bookmarks' ? 'Saved Articles' : selectedCategory === 'history' ? 'Recently Read' : 'Trending Now'}
+                  </p>
+                  <h1 className="text-4xl lg:text-5xl font-black tracking-tight" style={{ color: 'var(--text-main)' }}>
+                    {categories.find(c => c.id === selectedCategory)?.name ||
+                      userMenuItems.find(i => i.id === selectedCategory)?.name ||
+                      selectedCategory}
                   </h1>
                 </div>
               </div>
@@ -389,7 +598,7 @@ const NewsApp = () => {
                 {articles.map((article, idx) => (
                   <article
                     key={article._id}
-                    onClick={() => setSelectedArticle(article)}
+                    onClick={() => handleArticleClick(article)}
                     className={`premium-card p-5 cursor-pointer group animate-fade-in`}
                     style={{ animationDelay: `${(idx % 12) * 0.05}s` }}
                   >
@@ -400,30 +609,37 @@ const NewsApp = () => {
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       />
                       <div className="absolute top-4 left-4">
-                        <span className="px-3 py-1 bg-white/90 backdrop-blur font-bold text-[10px] uppercase tracking-wider rounded-lg shadow-sm">
+                        <span className="px-3 py-1 bg-white/95 dark:bg-slate-900/90 backdrop-blur font-bold text-[10px] uppercase tracking-wider rounded-lg shadow-sm text-slate-900 dark:text-slate-100">
                           {article.source}
                         </span>
                       </div>
+                      {/* Bookmark button on card */}
+                      <button
+                        onClick={(e) => handleBookmark(e, article)}
+                        className={`absolute top-4 right-4 p-2 rounded-lg backdrop-blur transition-all ${isBookmarked(article._id) ? 'bg-blue-600 text-white' : 'bg-white/95 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-800 text-slate-900 dark:text-slate-100'}`}
+                      >
+                        {isBookmarked(article._id) ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+                      </button>
                     </div>
 
                     <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-slate-400 text-[11px] font-bold uppercase tracking-widest">
+                      <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
                         <Clock className="w-3.5 h-3.5" />
                         {formatDate(article.publishedAt)}
                       </div>
 
-                      <h3 className="text-xl font-bold text-slate-900 leading-tight group-hover:text-blue-600 transition-colors line-clamp-2">
+                      <h3 className="text-xl font-bold leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2" style={{ color: 'var(--text-main)' }}>
                         {article.title}
                       </h3>
 
-                      <p className="text-slate-500 text-sm leading-relaxed line-clamp-3">
+                      <p className="text-sm leading-relaxed line-clamp-3" style={{ color: 'var(--text-muted)' }}>
                         {article.description}
                       </p>
 
-                      <div className="pt-4 flex items-center justify-between border-t border-slate-50 mt-auto">
+                      <div className="pt-4 flex items-center justify-between border-t mt-auto" style={{ borderColor: 'var(--border)' }}>
                         <button
                           onClick={(e) => handleSummarize(e, article)}
-                          className="text-xs font-bold text-blue-600 flex items-center gap-1.5 hover:gap-2.5 transition-all"
+                          className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5 hover:gap-2.5 transition-all"
                         >
                           <Sparkles className="w-3.5 h-3.5" />
                           AI SUMMARY
@@ -438,12 +654,16 @@ const NewsApp = () => {
               </div>
 
               {!loading && articles.length === 0 && (
-                <div className="bg-white rounded-3xl p-20 text-center border border-dashed border-slate-200">
-                  <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Newspaper className="w-10 h-10 text-slate-300" />
+                <div className="rounded-3xl p-20 text-center border border-dashed" style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}>
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: 'var(--background)' }}>
+                    <Newspaper className="w-10 h-10" style={{ color: 'var(--text-muted)' }} />
                   </div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-2">No stories found</h3>
-                  <p className="text-slate-500">We couldn't find any articles in this category right now.</p>
+                  <h3 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-main)' }}>
+                    {selectedCategory === 'bookmarks' ? 'No bookmarks yet' : selectedCategory === 'history' ? 'No reading history' : 'No stories found'}
+                  </h3>
+                  <p style={{ color: 'var(--text-muted)' }}>
+                    {selectedCategory === 'bookmarks' ? 'Start saving articles to see them here.' : selectedCategory === 'history' ? 'Articles you read will appear here.' : "We couldn't find any articles in this category right now."}
+                  </p>
                 </div>
               )}
 
@@ -452,7 +672,8 @@ const NewsApp = () => {
                   <button
                     onClick={handleLoadMore}
                     disabled={loadingMore}
-                    className="px-8 py-4 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-8 py-4 border font-bold rounded-xl shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text-main)' }}
                   >
                     {loadingMore ? (
                       <>
@@ -478,57 +699,55 @@ const NewsApp = () => {
             onClick={() => setShowSummaryModal(false)}
           />
           <div
-            className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl relative animate-fade-in flex flex-col max-h-[85vh]"
+            className="rounded-[2rem] w-full max-w-2xl shadow-2xl relative animate-fade-in flex flex-col max-h-[85vh]"
+            style={{ backgroundColor: 'var(--card)' }}
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
           >
             {/* Drag Handle for Mobile */}
             <div className="w-full flex justify-center pt-3 pb-1 lg:hidden">
-              <div className="w-12 h-1.5 bg-slate-300 rounded-full" />
+              <div className="w-12 h-1.5 rounded-full" style={{ backgroundColor: 'var(--border)' }} />
             </div>
 
-            <div className="p-6 pt-2 flex items-center justify-between bg-white border-b border-slate-100">
+            <div className="p-6 pt-2 flex items-center justify-between border-b" style={{ borderColor: 'var(--border)' }}>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900">AI Quick Summary</h3>
-                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Powered by Gemma 3</p>
+                  <h3 className="font-bold" style={{ color: 'var(--text-main)' }}>AI Quick Summary</h3>
+                  <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">Powered by Gemma 3</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowSummaryModal(false)}
-                className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
+                className="p-2 rounded-lg transition-colors hover:bg-slate-200 dark:hover:bg-slate-700"
                 aria-label="Close modal"
               >
-                <X className="w-5 h-5 text-slate-500" />
+                <X className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
               </button>
             </div>
 
             <div className="p-8 pb-10 overflow-y-auto custom-scrollbar">
               {summarizing ? (
                 <div className="space-y-4 py-4">
-                  <div className="h-4 bg-slate-100 rounded w-full animate-pulse" />
-                  <div className="h-4 bg-slate-100 rounded w-5/6 animate-pulse" />
-                  <div className="h-4 bg-slate-100 rounded w-full animate-pulse" />
-                  <div className="h-4 bg-slate-100 rounded w-4/6 animate-pulse" />
-                  <p className="text-center text-slate-400 text-sm font-medium pt-8">
+                  <div className="h-4 rounded w-full animate-pulse" style={{ backgroundColor: 'var(--border)' }} />
+                  <div className="h-4 rounded w-5/6 animate-pulse" style={{ backgroundColor: 'var(--border)' }} />
+                  <div className="h-4 rounded w-full animate-pulse" style={{ backgroundColor: 'var(--border)' }} />
+                  <div className="h-4 rounded w-4/6 animate-pulse" style={{ backgroundColor: 'var(--border)' }} />
+                  <p className="text-center text-sm font-medium pt-8" style={{ color: 'var(--text-muted)' }}>
                     Synthesizing Article...
                   </p>
                 </div>
               ) : (
-                <div className="prose prose-slate max-w-none">
-                  <div className="text-slate-800 text-lg leading-relaxed bg-blue-50/50 p-6 rounded-2xl border border-blue-100/50">
-                    <MessageSquare className="w-8 h-8 text-blue-200 mb-4" />
+                <div className="prose prose-slate dark:prose-invert max-w-none">
+                  <div className="text-lg leading-relaxed p-6 rounded-2xl border" style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--text-main)' }}>
+                    <MessageSquare className="w-8 h-8 mb-4" style={{ color: 'var(--text-muted)' }} />
                     <div className="space-y-4">
                       {summary.split('\n').filter(line => line.trim()).map((line, idx) => {
-                        // Check if line is a bullet point
                         const isBullet = line.trim().startsWith('-') || line.trim().startsWith('*');
                         const content = isBullet ? line.trim().substring(1).trim() : line;
-
-                        // Parse bold text (**text**)
                         const parts = content.split(/(\*\*[^*]+\*\*)/g);
 
                         return (
@@ -537,7 +756,7 @@ const NewsApp = () => {
                             <p className="m-0">
                               {parts.map((part, i) => {
                                 if (part.startsWith('**') && part.endsWith('**')) {
-                                  return <strong key={i} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
+                                  return <strong key={i} className="font-bold" style={{ color: 'var(--text-main)' }}>{part.slice(2, -2)}</strong>;
                                 }
                                 return part;
                               })}
@@ -551,16 +770,16 @@ const NewsApp = () => {
               )}
             </div>
 
-            <div className="p-6 bg-slate-50/50 flex flex-col sm:flex-row gap-3">
+            <div className="p-6 flex flex-col sm:flex-row gap-3" style={{ backgroundColor: 'var(--background)' }}>
               {!summarizing && summary && (
                 <button
                   onClick={handleTTS}
                   disabled={isSynthesizing}
                   className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${isSynthesizing
-                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                      : isPlaying
-                        ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-100'
-                        : 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-100'
+                    ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
+                    : isPlaying
+                      ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-100 dark:border-red-800'
+                      : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-100 dark:border-blue-800'
                     }`}
                 >
                   {isSynthesizing ? (
