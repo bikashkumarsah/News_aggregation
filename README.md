@@ -1,125 +1,153 @@
-# News Aggregator
+# 📰 Khabar AI
 
-A real-time news aggregation platform that fetches, classifies, and displays news from multiple sources across various categories.
+A modern, AI-powered news aggregation platform with personalized recommendations, text-to-speech, AI summaries, and automated email newsletters.
 
-## Features
+![Khabar AI](https://img.shields.io/badge/Khabar-AI-6366f1?style=for-the-badge&logo=newspaper&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=node.js&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
+![MongoDB](https://img.shields.io/badge/MongoDB-Local-47A248?style=flat-square&logo=mongodb&logoColor=white)
 
-- 🔄 Real-time RSS feed fetching from 36+ trusted sources (USA & Nepal)
-- 🤖 Automatic news classification using NLP (supports English & Nepali)
-- 🔍 Smart search functionality
-- 📱 Responsive design
-- 🗂️ Multiple categories (Technology, Business, Sports, Entertainment, Health, Science)
-- 💾 MongoDB storage for large-scale data
-- 📰 Clean, distraction-free reading experience
-- 🌐 Full article content extraction (5000+ characters)
-- 🗑️ Automatic cleanup of articles older than 1 week
+## ✨ Features
 
-## News Sources
+### 🤖 AI-Powered
+- **AI Summaries** - Get instant bullet-point summaries of any article (powered by Gemma 3)
+- **Personalized Recommendations** - ML-based article suggestions based on your reading history
+- **Smart Classification** - Automatic categorization using NLP (English & Nepali)
 
-### USA Sources (Top 5 per category)
+### 📱 User Experience
+- **Dark Mode** - Beautiful dark theme that syncs across devices
+- **Text-to-Speech** - Listen to article summaries (English & Nepali voices)
+- **Responsive Design** - Works perfectly on desktop, tablet, and mobile
+- **Network Access** - Access from any device on your local network
 
-**Technology:**
-- TechCrunch
-- The Verge
-- Wired
+### 👤 User Features
+- **Authentication** - Secure JWT-based login and registration
+- **Bookmarks** - Save articles for later reading
+- **Reading History** - Track what you've read
+- **Custom RSS Feeds** - Add your own news sources
 
-**Business:**
-- CNBC
-- Fortune
-- MarketWatch
+### 📧 Email Newsletters
+- **Daily Digest** - Automated personalized newsletters at 7 AM (Nepal time)
+- **Beautiful Templates** - Modern, dark-mode compatible email designs
+- **Interest Tags** - Shows your top categories and reading preferences
+- **One-Click Access** - Open articles directly from email
 
-**Sports:**
-- ESPN
-- Yahoo Sports
-- CBS Sports
+### 📰 News Aggregation
+- **36+ RSS Sources** - Trusted feeds from USA & Nepal
+- **Real-time Updates** - Fresh news every 30 minutes
+- **Full Content** - Up to 5000 characters per article
+- **Auto Cleanup** - Removes articles older than 7 days
 
-**Entertainment:**
-- Variety
-- The Hollywood Reporter
-- Entertainment Weekly
+## 🗞️ News Sources
 
-**Health:**
-- Medical News Today
-- Healthline
-- US News Health
+### USA Sources
+| Category | Sources |
+|----------|---------|
+| **Technology** | TechCrunch, The Verge, Wired |
+| **Business** | CNBC, Fortune, MarketWatch |
+| **Sports** | ESPN, Yahoo Sports, CBS Sports |
+| **Entertainment** | Variety, Hollywood Reporter, Entertainment Weekly |
+| **Health** | Medical News Today, Healthline, US News Health |
+| **Science** | Science Daily, NASA, Science News |
 
-**Science:**
-- Science Daily
-- NASA
-- Science News
+### Nepal Sources
+| Source | Languages |
+|--------|-----------|
+| Online Khabar | English & Nepali |
+| The Himalayan Times | English |
+| My Republica | English |
+| Kathmandu Post | English |
 
-### Nepal Sources (English & Nepali)
+## 🛠️ Tech Stack
 
-**All Categories:**
-- Online Khabar (English & Nepali)
-- The Himalayan Times
-- My Republica
-- Kathmandu Post
+### Frontend
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| React | 19.x | UI Framework |
+| Tailwind CSS | 3.x | Styling |
+| Lucide React | Latest | Icons |
+| Context API | - | State Management |
 
-*Note: All sources provide RSS feeds with full article content, not just headlines. Nepali language articles are automatically parsed and classified.*
+### Backend
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| Node.js | 18+ | Runtime |
+| Express.js | 4.x | API Server |
+| MongoDB | Local | Database |
+| Nodemailer | Latest | Email Service |
+| Node-Cron | Latest | Scheduled Jobs |
+| ONNX Runtime | Latest | TTS Models |
+| Natural | 6.x | NLP Classification |
 
-## Tech Stack
+### AI Services
+| Service | Purpose |
+|---------|---------|
+| Gemma 3 (Google) | Article Summarization |
+| Piper TTS | Text-to-Speech (English) |
+| Google TTS | Text-to-Speech (Nepali) |
 
-**Frontend:**
-- React 19 (`react@^19.2.0`)
-- Tailwind CSS (`tailwindcss@^3.3.0`)
-- Lucide React Icons (`lucide-react@^0.548.0`)
-
-**Backend:**
-- Node.js (v14+)
-- Express.js (`express@^4.18.2`)
-- MongoDB (Local)
-- RSS Parser (`rss-parser@^3.13.0`)
-- Natural (`natural@^6.7.0`) - NLP Library
-- ONNX Runtime (`onnxruntime-node`) - For TTS models
-
-## Prerequisites
-
-Before running this project, make sure you have the following installed:
-
-- [Node.js](https://nodejs.org/) (v14 or higher)
-- [npm](https://www.npmjs.com/) (comes with Node.js)
-- [MongoDB](https://www.mongodb.com/try/download/community) (Local installation)
-- Git
-
-## Project Structure
+## 📁 Project Structure
 
 ```
-minimal/
-├── news-aggregator/          # React Frontend
-│   ├── src/
-│   │   ├── App.js
-│   │   └── index.js
-│   ├── public/
-│   ├── package.json
-│   └── .gitignore
+khabar/
+├── minimal/
+│   ├── news-aggregator/          # React Frontend
+│   │   ├── src/
+│   │   │   ├── App.js            # Main application
+│   │   │   ├── config.js         # Dynamic API configuration
+│   │   │   ├── context/
+│   │   │   │   └── AuthContext.js # Authentication state
+│   │   │   └── components/
+│   │   │       └── AuthModal.js   # Login/Register modal
+│   │   ├── public/
+│   │   ├── tailwind.config.js
+│   │   └── package.json
+│   │
+│   └── news-backend/             # Node.js Backend
+│       ├── models/
+│       │   ├── Article.js        # Article schema
+│       │   ├── User.js           # User schema
+│       │   ├── en_US-*.onnx      # English TTS model
+│       │   └── ne_NP-*.onnx      # Nepali TTS model
+│       ├── routes/
+│       │   ├── authRoutes.js     # Authentication endpoints
+│       │   └── userRoutes.js     # User data endpoints
+│       ├── services/
+│       │   ├── emailService.js   # Email templates & sending
+│       │   ├── newsletterScheduler.js # 7 AM daily emails
+│       │   └── preferenceService.js   # AI recommendations
+│       ├── middleware/
+│       │   └── authMiddleware.js # JWT verification
+│       ├── server.js             # Main API server
+│       ├── newsFetcher.js        # RSS feed processor
+│       ├── updateNews.js         # Manual news update
+│       ├── scheduleNews.js       # Automated updates
+│       ├── testEmail.js          # Email testing utility
+│       ├── updateIP.js           # Network IP helper
+│       ├── tts_service.py        # Python TTS service
+│       ├── .env                  # Environment config
+│       └── package.json
 │
-└── news-backend/             # Node.js Backend
-    ├── models/               # AI Models (ONNX)
-    ├── server.js             # API server
-    ├── newsFetcher.js        # RSS fetching & classification
-    ├── updateNews.js         # One-time news update
-    ├── scheduleNews.js       # Scheduled news updates
-    ├── cleanupOldNews.js     # Manual cleanup script
-    ├── package.json
-    └── .gitignore
+└── README.md
 ```
 
-## Installation
+## 🚀 Installation
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- [MongoDB](https://www.mongodb.com/try/download/community) (Local)
+- [Python 3](https://www.python.org/) (for TTS)
+- Git
 
 ### 1. Clone the Repository
 
 ```bash
 git clone <your-repository-url>
-cd <repository-name>
+cd khabar
 ```
 
 ### 2. Install MongoDB
-
-**Windows:**
-- Download from https://www.mongodb.com/try/download/community
-- Install and run MongoDB as a service
-- MongoDB will run on `mongodb://localhost:27017`
 
 **Mac:**
 ```bash
@@ -127,6 +155,10 @@ brew tap mongodb/brew
 brew install mongodb-community
 brew services start mongodb-community
 ```
+
+**Windows:**
+- Download from https://www.mongodb.com/try/download/community
+- Install and run as a service
 
 **Linux:**
 ```bash
@@ -137,248 +169,283 @@ sudo systemctl start mongodb
 ### 3. Backend Setup
 
 ```bash
-cd news-backend
+cd minimal/news-backend
 
 # Install dependencies
 npm install
 
-# Start the backend server
+# Create environment file
+cp .env.example .env
+# Edit .env with your settings (see Configuration section)
+
+# Start the server
 npm run dev
 ```
 
-The backend API will run on `http://localhost:5001`
-
 ### 4. Frontend Setup
 
-Open a new terminal:
-
 ```bash
-cd news-aggregator
+cd minimal/news-aggregator
 
 # Install dependencies
 npm install
 
-# Start the React app
+# Start the app
 npm start
 ```
 
-The frontend will run on `http://localhost:3000`
+### 5. Fetch Initial News
 
-## Usage
-
-### Running the Application
-
-1. **Start MongoDB** (if not running as a service)
    ```bash
-   mongod
-   ```
-
-2. **Start Backend Server**
-   ```bash
-   cd news-backend
-   npm run dev
-   ```
-
-3. **Start Frontend**
-   ```bash
-   cd news-aggregator
-   npm start
-   ```
-
-4. **Fetch Initial News Data**
-   
-   In a new terminal:
-   ```bash
-   cd news-backend
+cd minimal/news-backend
    npm run update-news
    ```
 
-### Scheduled News Updates
+## ⚙️ Configuration
 
-To automatically fetch news every 30 minutes and delete old articles:
+### Environment Variables (`.env`)
 
-```bash
-cd news-backend
-npm run schedule-news
+```env
+# MongoDB Connection
+MONGODB_URI=mongodb://localhost:27017/newsDB
+
+# JWT Secret
+JWT_SECRET=your_secret_key_here
+
+# Server
+PORT=5001
+FRONTEND_URL=http://192.168.x.x:3000  # Your local network IP
+
+# SMTP Email (Gmail)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password  # Gmail App Password
 ```
 
-Keep this running in a separate terminal. This will:
-- ✅ Fetch new articles every 30 minutes
-- ✅ Automatically delete articles older than 1 week
-- ✅ Skip duplicate articles
+### Gmail App Password Setup
 
-### Manual Cleanup
+1. Go to https://myaccount.google.com/apppasswords
+2. Sign in and enable 2-Step Verification if needed
+3. Select "Mail" for app, "Mac/Other" for device
+4. Copy the 16-character password to `SMTP_PASS`
 
-To manually delete old articles (older than 1 week):
+### Network Access (Cross-Device)
+
+To access the app from phones/tablets on the same network:
 
 ```bash
-cd news-backend
-npm run cleanup-old
+# Auto-detect and update your IP
+cd minimal/news-backend
+node updateIP.js
 ```
 
-## API Endpoints
+Then access:
+- **Frontend:** `http://YOUR_IP:3000`
+- **Backend:** `http://YOUR_IP:5001`
+
+## 📧 Email Newsletter System
+
+### Daily Newsletter Schedule
+
+Newsletters are sent automatically at **7:00 AM Nepal Time** to users with daily digest enabled.
+
+### Email Templates
+
+| Template | Trigger | Description |
+|----------|---------|-------------|
+| Welcome | User signup | Feature introduction |
+| Daily Digest | 7 AM daily | Standard news digest |
+| Personalized | 7 AM daily | AI-curated based on preferences |
+| Weekly | Weekly | Stats + top stories |
+
+### Testing Emails
+
+```bash
+cd minimal/news-backend
+
+# Send test email to yourself
+node testEmail.js
+
+# Send to specific email
+node testEmail.js user@example.com
+
+# Send to all eligible users
+node testEmail.js --all
+
+# Send to specific user from database
+node testEmail.js --user user@example.com
+
+# List all users
+node testEmail.js --list
+
+# Enable daily digest for a user
+node testEmail.js --enable user@example.com
+```
+
+## 📡 API Endpoints
+
+### Public Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/news` | Get all news articles |
-| GET | `/api/news?category=technology` | Get news by category |
-| GET | `/api/news/:id` | Get single article by ID |
-| POST | `/api/news` | Add new article |
-| POST | `/api/news/bulk` | Bulk insert articles |
-| DELETE | `/api/news/:id` | Delete article by ID |
-| GET | `/api/categories` | Get categories with counts |
+| GET | `/api/news` | Get all articles |
+| GET | `/api/news?category=technology` | Filter by category |
+| GET | `/api/news?page=1&limit=12` | Pagination |
+| GET | `/api/news/:id` | Get single article |
+| POST | `/api/news/:id/summarize` | AI summarize article |
+| POST | `/api/news/:id/tts` | Generate TTS audio |
+| GET | `/api/categories` | Get category counts |
 
-## Available Scripts
+### Authentication Endpoints
 
-### Backend
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Create account |
+| POST | `/api/auth/login` | Login |
+| GET | `/api/auth/me` | Get current user |
+| PUT | `/api/auth/profile` | Update profile |
 
-- `npm start` - Start the server
-- `npm run dev` - Start server with nodemon (auto-restart)
-- `npm run update-news` - Fetch news once (with auto-delete old articles)
-- `npm run schedule-news` - Start scheduled updates (every 30 min + auto-cleanup)
-- `npm run cleanup-old` - Manually delete articles older than 1 week
+### User Endpoints (Protected)
 
-### Frontend
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/user/bookmarks` | Get bookmarks |
+| POST | `/api/user/bookmarks/:id` | Add bookmark |
+| DELETE | `/api/user/bookmarks/:id` | Remove bookmark |
+| GET | `/api/user/history` | Get reading history |
+| POST | `/api/user/history/:id` | Add to history |
+| GET | `/api/user/recommendations` | Get AI recommendations |
+| PUT | `/api/user/email-preferences` | Update email settings |
+| POST | `/api/user/test/send-newsletter` | Trigger newsletter |
 
-- `npm start` - Start development server
-- `npm run build` - Build for production
-- `npm test` - Run tests
+## 📜 Available Scripts
 
-## Configuration
+### Backend (`news-backend/`)
 
-### Backend Port
-
-Default: `5001`
-
-To change, edit `server.js`:
-```javascript
-const PORT = 5001; // Change this
+```bash
+npm start              # Start server
+npm run dev            # Start with auto-reload (nodemon)
+npm run update-news    # Fetch news once
+npm run schedule-news  # Start scheduled updates (30 min)
+npm run cleanup-old    # Delete articles > 7 days old
 ```
 
-### MongoDB Connection
+### Frontend (`news-aggregator/`)
 
-Default: `mongodb://localhost:27017/newsDB`
-
-To change, edit `server.js`, `updateNews.js`, and `scheduleNews.js`:
-```javascript
-mongoose.connect('mongodb://localhost:27017/newsDB', { ... })
+```bash
+npm start    # Start development server
+npm run build # Build for production
+npm test     # Run tests
 ```
 
-### Update Interval
-x
-Default: 30 minutes
+### Utility Scripts
 
-To change, edit `scheduleNews.js`:
-```javascript
-const UPDATE_INTERVAL = 30 * 60 * 1000; // Change this (in milliseconds)
+```bash
+# Email Testing
+node testEmail.js --help
+
+# Network IP Update
+node updateIP.js
 ```
 
-### Article Retention Period
+## 🎨 Features Showcase
 
-Default: 7 days (1 week)
+### AI Summary
+Click "AI Summary" on any article to get:
+- Bullet-point summary
+- Key facts highlighted in **bold**
+- Language-aware (English/Nepali)
 
-To change, edit `scheduleNews.js` and `cleanupOldNews.js`:
-```javascript
-oneWeekAgo.setDate(oneWeekAgo.getDate() - 7); // Change -7 to your desired days
-```
+### Text-to-Speech
+After generating a summary:
+- Click "Listen to Summary" 
+- English articles use high-quality Piper TTS
+- Nepali articles use Google TTS
 
-### Content Storage
+### Dark Mode
+- Toggle in sidebar or header
+- Syncs to your account
+- Email templates auto-adapt to system preference
 
-- **Description**: Up to 500 characters
-- **Full Content**: Up to 5000 characters per article
-- **Minimum Content Length**: 200 characters (articles with less are skipped)
+### Personalized Recommendations
+Based on your reading history:
+- Category preferences (%)
+- Preferred sources
+- Top keywords/topics
 
-### RSS Feed Management
+## 🔧 Troubleshooting
 
-To add/remove RSS feeds, edit `newsFetcher.js`:
-```javascript
-const RSS_FEEDS = {
-  technology: [
-    'https://your-rss-feed-url.com/feed',
-    // Add more feeds here
-  ],
-  // ... other categories
-};
-```
+### Backend Issues
 
-**Important Notes:**
-- The database is **NOT cleared** when running `scheduleNews.js` or `updateNews.js`
-- Articles older than 1 week are **automatically deleted** during updates
-- Only articles with substantial content (200+ characters) are saved
-- Nepali language articles are supported and automatically classified
+| Problem | Solution |
+|---------|----------|
+| MongoDB won't connect | Run `mongod` or check if service is running |
+| Port 5001 in use | Change `PORT` in `.env` |
+| SMTP errors | Verify Gmail App Password |
 
-## Features to Implement
+### Frontend Issues
 
-- [ ] AI-powered article summarization
-- [ ] User authentication
-- [ ] Bookmarking articles
-- [ ] Reading history
-- [ ] Custom RSS feed sources
-- [ ] Email notifications
-- [ ] Dark mode
-- [ ] Multi-language support (expand beyond English/Nepali)
+| Problem | Solution |
+|---------|----------|
+| API connection failed | Check backend is running on correct port |
+| Network access not working | Run `node updateIP.js` and restart |
+| Styles not loading | Run `npm install` and restart |
 
-## Troubleshooting
+### Email Issues
 
-### Backend won't start
-- Ensure MongoDB is running: `mongod`
-- Check if port 5001 is available
-- Verify all dependencies: `npm install`
+| Problem | Solution |
+|---------|----------|
+| Emails not sending | Check SMTP settings in `.env` |
+| "Less secure app" error | Use Gmail App Password, not regular password |
+| Newsletter not arriving | Check `emailPreferences.dailyDigest` is `true` |
 
-### Frontend won't start
-- Ensure React dependencies are installed: `npm install`
-- Check if port 3000 is available
-- Clear cache: `npm cache clean --force`
+## 🗓️ Version History
 
-### No news articles showing
-- Run news fetcher: `npm run update-news`
-- Check MongoDB connection
-- Verify RSS feeds are accessible
+### v3.0 (January 2026) - Current
+- ✅ **User Authentication** - JWT-based login/registration
+- ✅ **Bookmarks & History** - Save and track articles
+- ✅ **AI Summaries** - Gemma 3 powered article summarization
+- ✅ **Text-to-Speech** - English & Nepali voice synthesis
+- ✅ **Dark Mode** - Beautiful dark theme with sync
+- ✅ **Email Newsletters** - Automated daily digest at 7 AM
+- ✅ **Personalized Recommendations** - ML-based article suggestions
+- ✅ **Network Access** - Cross-device support on local network
+- ✅ **Modern Email Templates** - Dark mode compatible, mobile responsive
 
-### CORS errors
-- Ensure backend is running on port 5001
-- Check CORS configuration in `server.js`
+### v2.0 (November 2025)
+- Enhanced RSS sources (36+ feeds)
+- Full content extraction (5000 chars)
+- Nepali language support
+- Auto-cleanup of old articles
 
-### Old articles not being deleted
-- Check MongoDB indexes: Ensure `publishedAt` index exists
-- Verify date format in database
-- Run manual cleanup: `npm run cleanup-old`
+### v1.0 (Initial)
+- Basic RSS fetching
+- Category-based aggregation
 
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## Version History
-
-### v2.0 (November 10, 2025)
-- **Enhanced RSS Sources**: Added 36+ feeds across USA and Nepal (English & Nepali).
-- **Full Content Extraction**: Increased character limit to 5000 and improved scraping logic.
-- **Nepali Support**: Added automatic classification for Nepali language news.
-- **Auto-Cleanup**: Implemented automatic deletion of articles older than 7 days.
-- **Structural Cleanup**: Consolidated redundant documentation and organized AI models.
-
-### v1.0
-- Initial release with basic RSS fetching and aggregation features.
-
-## License
+## 📄 License
 
 This project is licensed under the ISC License.
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
-- News sources for providing RSS feeds (USA & Nepal)
-- MongoDB for database
-- React and Node.js communities
-- Natural NLP library for text classification
+- **News Sources** - RSS feeds from USA & Nepal publishers
+- **Google** - Gemma 3 AI for summarization
+- **Piper TTS** - High-quality voice synthesis
+- **MongoDB** - Database engine
+- **React & Node.js** - Framework communities
 
-## Contact
+## 📬 Contact
 
 For questions or support, please open an issue in the repository.
 
 ---
 
-**Note:** This project is for educational purposes. Always respect the terms of service of news sources and their content usage policies. All articles link directly to their original publishers.
+<p align="center">
+  <b>Made with ❤️ by Bikash Kumar Sah</b><br>
+  <i>Your AI-powered news companion</i>
+</p>
+
+---
+
+**Disclaimer:** This project is for educational purposes. Respect the terms of service of news sources. All articles link to original publishers.
