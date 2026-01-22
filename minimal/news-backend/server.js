@@ -3,19 +3,30 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
-
-const app = express();
-const PORT = 5001;
-
-// Middleware
-app.use(cors());
-app.use(express.json());
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
 
+// Load environment variables
+require('dotenv').config();
+
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+
+const app = express();
+const PORT = process.env.PORT || 5001;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
 // Serve static audio files
 app.use('/audio', express.static(path.join(__dirname, 'public/audio')));
+
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
 
 
 // MongoDB Connection (Local MongoDB)
@@ -338,8 +349,8 @@ app.post('/api/news/:id/tts', async (req, res) => {
     // Determine which model to use based on source/URL
     const isNepali = article.url.match(/(onlinekhabar\.com|ratopati\.com|setopati\.com|nagariknews\.com|\.np)/i);
     const modelPath = isNepali
-      ? "/Users/bikashkumarsah/Downloads/khabar/ne_NP-google-medium.onnx"
-      : "/Users/bikashkumarsah/Downloads/khabar/en_US-lessac-medium.onnx";
+      ? path.join(__dirname, 'models', 'ne_NP-google-medium.onnx')
+      : path.join(__dirname, 'models', 'en_US-lessac-medium.onnx');
 
     console.log(` Generating TTS for article: ${article.title} (${isNepali ? 'Nepali' : 'English'})`);
 
