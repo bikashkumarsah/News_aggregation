@@ -14,6 +14,9 @@ require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 
+// Import services
+const { startNewsletterScheduler } = require('./services/newsletterScheduler');
+
 const app = express();
 const PORT = process.env.PORT || 5001;
 
@@ -37,51 +40,9 @@ mongoose.connect('mongodb://localhost:27017/newsDB', {
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch(err => console.error('❌ MongoDB connection error:', err));
 
-// News Article Schema
-const articleSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: true
-  },
-  description: {
-    type: String,
-    required: true
-  },
-  content: String,
-  category: {
-    type: String,
-    required: true,
-    enum: ['technology', 'business', 'sports', 'entertainment', 'health', 'science']
-  },
-  source: {
-    type: String,
-    required: true
-  },
-  author: String,
-  url: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  urlToImage: String,
-  summary: String,
-  publishedAt: {
-    type: Date,
-    default: Date.now
-  },
-  fetchedAt: Date,
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-});
-
-// Create indexes for better performance
-articleSchema.index({ category: 1, publishedAt: -1 });
-articleSchema.index({ url: 1 });
-
-// Create Model
-const Article = mongoose.model('Article', articleSchema);
+// Import models
+const Article = require('./models/Article');
+const User = require('./models/User');
 
 // ============ API ROUTES ============
 
@@ -450,4 +411,8 @@ app.get('/', (req, res) => {
 // Start Server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+
+  // Start the newsletter scheduler
+  startNewsletterScheduler();
+  console.log('📧 Newsletter scheduler initialized');
 });

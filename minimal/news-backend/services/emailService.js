@@ -2,38 +2,38 @@ const nodemailer = require('nodemailer');
 
 // Create transporter based on environment variables
 const createTransporter = () => {
-    // Check if SMTP settings are configured
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-        return nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: parseInt(process.env.SMTP_PORT) || 587,
-            secure: process.env.SMTP_PORT === '465',
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
-            }
-        });
-    }
+  // Check if SMTP settings are configured
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT) || 587,
+      secure: process.env.SMTP_PORT === '465',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+  }
 
-    // If no SMTP configured, use ethereal for testing
-    console.log('⚠️ No SMTP configured. Email service will use test mode.');
-    return null;
+  // If no SMTP configured, use ethereal for testing
+  console.log('⚠️ No SMTP configured. Email service will use test mode.');
+  return null;
 };
 
 let transporter = null;
 
 const getTransporter = () => {
-    if (!transporter) {
-        transporter = createTransporter();
-    }
-    return transporter;
+  if (!transporter) {
+    transporter = createTransporter();
+  }
+  return transporter;
 };
 
 // Email Templates
 const templates = {
-    welcome: (name) => ({
-        subject: 'Welcome to Khabar AI! 📰',
-        html: `
+  welcome: (name) => ({
+    subject: 'Welcome to Khabar AI! 📰',
+    html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
           <h1 style="color: #2563eb; margin: 0;">Khabar AI</h1>
@@ -66,11 +66,11 @@ const templates = {
         </div>
       </div>
     `
-    }),
+  }),
 
-    dailyDigest: (name, articles) => ({
-        subject: '📰 Your Daily News Digest - Khabar AI',
-        html: `
+  dailyDigest: (name, articles) => ({
+    subject: '📰 Your Daily News Digest - Khabar AI',
+    html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
           <h1 style="color: #2563eb; margin: 0;">Khabar AI</h1>
@@ -106,11 +106,11 @@ const templates = {
         </div>
       </div>
     `
-    }),
+  }),
 
-    weeklyDigest: (name, articles, stats) => ({
-        subject: '📊 Your Weekly News Roundup - Khabar AI',
-        html: `
+  weeklyDigest: (name, articles, stats) => ({
+    subject: '📊 Your Weekly News Roundup - Khabar AI',
+    html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
           <h1 style="color: #2563eb; margin: 0;">Khabar AI</h1>
@@ -153,44 +153,173 @@ const templates = {
         </div>
       </div>
     `
-    })
+  }),
+
+  // Personalized newsletter based on AI-learned preferences
+  personalizedNewsletter: (name, articles, preferences) => {
+    // Get top categories from preferences
+    const topCategories = preferences?.categoryScores
+      ? Object.entries(preferences.categoryScores)
+        .filter(([_, score]) => score > 0)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([cat, score]) => ({ category: cat, score }))
+      : [];
+
+    const topSources = preferences?.preferredSources?.slice(0, 3) || [];
+    const topKeywords = preferences?.topKeywords?.slice(0, 5) || [];
+
+    return {
+      subject: `🎯 ${name}, your personalized news for today - Khabar AI`,
+      html: `
+      <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
+        <!-- Header -->
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="color: #2563eb; margin: 0; font-size: 28px;">Khabar AI</h1>
+          <p style="color: #64748b; margin-top: 8px; font-size: 14px;">🎯 Personalized Daily Digest</p>
+        </div>
+        
+        <!-- Greeting -->
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 30px; margin-bottom: 30px; color: white;">
+          <h2 style="margin: 0 0 10px 0; font-size: 24px;">Good morning, ${name}! ☀️</h2>
+          <p style="margin: 0; opacity: 0.9; font-size: 15px;">
+            We've curated today's news based on your reading preferences.
+          </p>
+        </div>
+
+        <!-- Your Interests Section -->
+        ${topCategories.length > 0 ? `
+        <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+          <h3 style="color: #0f172a; margin: 0 0 16px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">
+            📊 Your Interests
+          </h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${topCategories.map(({ category, score }) => `
+              <span style="display: inline-block; background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%); color: #1e40af; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 20px; text-transform: capitalize;">
+                ${category} (${score}%)
+              </span>
+            `).join('')}
+          </div>
+          ${topSources.length > 0 ? `
+          <p style="color: #64748b; font-size: 12px; margin: 12px 0 0 0;">
+            <strong>Favorite sources:</strong> ${topSources.map(s => s.source).join(', ')}
+          </p>
+          ` : ''}
+        </div>
+        ` : ''}
+
+        <!-- Recommended Articles -->
+        <h3 style="color: #0f172a; margin: 0 0 16px 0; font-size: 16px;">
+          ✨ Recommended for You
+        </h3>
+        
+        ${articles.map((article, idx) => `
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 16px; ${idx === 0 ? 'border-left: 4px solid #667eea;' : ''}">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+              <span style="display: inline-block; background: ${getCategoryColor(article.category)}; color: white; font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 4px; text-transform: uppercase;">
+                ${article.category}
+              </span>
+              <span style="color: #94a3b8; font-size: 11px;">
+                ${article.source}
+              </span>
+            </div>
+            <h3 style="color: #0f172a; margin: 0 0 8px 0; font-size: 16px; line-height: 1.4;">
+              <a href="${article.url}" style="color: #0f172a; text-decoration: none;">${article.title}</a>
+            </h3>
+            <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.5;">
+              ${article.description?.substring(0, 120) || ''}...
+            </p>
+            <a href="${article.url}" style="display: inline-block; color: #667eea; font-size: 13px; font-weight: 600; margin-top: 12px; text-decoration: none;">
+              Read Article →
+            </a>
+          </div>
+        `).join('')}
+
+        <!-- CTA Button -->
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}" 
+             style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 15px; box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);">
+            Explore More News →
+          </a>
+        </div>
+
+        ${topKeywords.length > 0 ? `
+        <!-- Trending Topics -->
+        <div style="background: #fef3c7; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;">
+          <p style="color: #92400e; font-size: 12px; margin: 0;">
+            <strong>🔥 Topics you're following:</strong> ${topKeywords.map(k => k.keyword).join(', ')}
+          </p>
+        </div>
+        ` : ''}
+
+        <!-- Footer -->
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center;">
+          <p style="color: #94a3b8; font-size: 12px; margin: 0 0 8px 0;">
+            This digest was personalized based on your reading history.
+          </p>
+          <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/settings" style="color: #667eea; text-decoration: none;">Manage preferences</a>
+            &nbsp;•&nbsp;
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/unsubscribe" style="color: #94a3b8; text-decoration: none;">Unsubscribe</a>
+          </p>
+        </div>
+      </div>
+    `
+    };
+  }
+};
+
+// Helper function for category colors
+const getCategoryColor = (category) => {
+  const colors = {
+    technology: '#3b82f6',
+    business: '#10b981',
+    sports: '#f59e0b',
+    entertainment: '#ec4899',
+    health: '#ef4444',
+    science: '#8b5cf6'
+  };
+  return colors[category] || '#64748b';
 };
 
 // Send email function
 const sendEmail = async (to, template, data) => {
-    const transport = getTransporter();
+  const transport = getTransporter();
 
-    if (!transport) {
-        console.log(`📧 [TEST MODE] Would send "${template}" email to ${to}`);
-        return { success: true, testMode: true };
-    }
+  if (!transport) {
+    console.log(`📧 [TEST MODE] Would send "${template}" email to ${to}`);
+    return { success: true, testMode: true };
+  }
 
-    try {
-        const emailContent = templates[template](...data);
+  try {
+    const emailContent = templates[template](...data);
 
-        await transport.sendMail({
-            from: `"Khabar AI" <${process.env.SMTP_USER}>`,
-            to,
-            subject: emailContent.subject,
-            html: emailContent.html
-        });
+    await transport.sendMail({
+      from: `"Khabar AI" <${process.env.SMTP_USER}>`,
+      to,
+      subject: emailContent.subject,
+      html: emailContent.html
+    });
 
-        console.log(`✅ Email sent: ${template} to ${to}`);
-        return { success: true };
-    } catch (error) {
-        console.error(`❌ Email error: ${error.message}`);
-        return { success: false, error: error.message };
-    }
+    console.log(`✅ Email sent: ${template} to ${to}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Email error: ${error.message}`);
+    return { success: false, error: error.message };
+  }
 };
 
 // Convenience functions
 const sendWelcomeEmail = (email, name) => sendEmail(email, 'welcome', [name]);
 const sendDailyDigest = (email, name, articles) => sendEmail(email, 'dailyDigest', [name, articles]);
 const sendWeeklyDigest = (email, name, articles, stats) => sendEmail(email, 'weeklyDigest', [name, articles, stats]);
+const sendPersonalizedNewsletter = (email, name, articles, preferences) =>
+  sendEmail(email, 'personalizedNewsletter', [name, articles, preferences]);
 
 module.exports = {
-    sendEmail,
-    sendWelcomeEmail,
-    sendDailyDigest,
-    sendWeeklyDigest
+  sendEmail,
+  sendWelcomeEmail,
+  sendDailyDigest,
+  sendWeeklyDigest,
+  sendPersonalizedNewsletter
 };
