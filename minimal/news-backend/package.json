@@ -1,0 +1,35 @@
+{
+  "name": "news-backend",
+  "version": "1.0.0",
+  "description": "News aggregator backend API with MongoDB",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "update-news": "node updateNews.js",
+    "schedule-news": "node scheduleNews.js",
+    "cleanup-old": "node cleanupOldNews.js"
+  },
+  "keywords": [
+    "news",
+    "aggregator",
+    "rss",
+    "mongodb",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cheerio": "^1.1.2",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "mongoose": "^8.19.2",
+    "natural": "^8.1.0",
+    "node-fetch": "^2.7.0",
+    "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
