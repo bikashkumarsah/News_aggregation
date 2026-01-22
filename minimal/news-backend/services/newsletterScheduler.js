@@ -151,9 +151,50 @@ const triggerNewsletterForUser = async (userId) => {
 
 /**
  * Manually trigger newsletters for all eligible users (for testing)
+ * This respects the digest time setting
  */
 const triggerAllNewsletters = async () => {
     return await processNewsletters();
+};
+
+/**
+ * Send newsletters to ALL users with daily digest enabled NOW
+ * Bypasses time check - useful for testing and manual sends
+ */
+const sendToAllUsersNow = async () => {
+    try {
+        console.log(`\n📧 Sending newsletters to ALL eligible users (bypassing time check)...`);
+
+        // Find all users with daily digest enabled
+        const users = await User.find({
+            'emailPreferences.dailyDigest': true
+        });
+
+        console.log(`Found ${users.length} users with daily digest enabled`);
+
+        if (users.length === 0) {
+            return { sent: 0, failed: 0 };
+        }
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const user of users) {
+            console.log(`\n📤 Sending to ${user.email}...`);
+            const success = await sendNewsletterToUser(user);
+            if (success) successCount++;
+            else failCount++;
+
+            // Small delay between emails to avoid overwhelming SMTP
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        console.log(`\n📊 Newsletter results: ${successCount} sent, ${failCount} failed`);
+        return { sent: successCount, failed: failCount };
+    } catch (error) {
+        console.error('Error sending newsletters:', error);
+        throw error;
+    }
 };
 
 module.exports = {
@@ -161,5 +202,6 @@ module.exports = {
     stopNewsletterScheduler,
     processNewsletters,
     triggerNewsletterForUser,
-    triggerAllNewsletters
+    triggerAllNewsletters,
+    sendToAllUsersNow
 };

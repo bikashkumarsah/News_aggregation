@@ -20,8 +20,11 @@ const { startNewsletterScheduler } = require('./services/newsletterScheduler');
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// Middleware
-app.use(cors());
+// Middleware - Enable CORS for all network origins
+app.use(cors({
+  origin: true, // Allow all origins
+  credentials: true
+}));
 app.use(express.json());
 
 // Serve static audio files
@@ -408,9 +411,10 @@ app.get('/', (req, res) => {
   });
 });
 
-// Start Server
-app.listen(PORT, () => {
+// Start Server - bind to 0.0.0.0 for network access
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📡 Network access: http://192.168.1.199:${PORT}`);
 
   // Start the newsletter scheduler
   startNewsletterScheduler();
