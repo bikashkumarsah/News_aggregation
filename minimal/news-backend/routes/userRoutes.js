@@ -1,6 +1,8 @@
 const express = require('express');
 const User = require('../models/User');
 const { protect } = require('../middleware/authMiddleware');
+const { updateUserPreferences, getRecommendations } = require('../services/preferenceService');
+const { triggerNewsletterForUser } = require('../services/newsletterScheduler');
 
 const router = express.Router();
 
@@ -308,6 +310,70 @@ router.get('/email-preferences', protect, async (req, res) => {
         res.json({
             success: true,
             data: user.emailPreferences
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// ============ TESTING & NEWSLETTER ============
+
+// @route   POST /api/user/test/update-preferences
+// @desc    Manually trigger preference update (Testing)
+// @access  Private
+router.post('/test/update-preferences', protect, async (req, res) => {
+    try {
+        const preferences = await updateUserPreferences(req.user._id);
+        res.json({
+            success: true,
+            message: 'Preferences updated based on reading history',
+            data: preferences
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// @route   POST /api/user/test/send-newsletter
+// @desc    Manually trigger personalized newsletter (Testing)
+// @access  Private
+router.post('/test/send-newsletter', protect, async (req, res) => {
+    try {
+        const success = await triggerNewsletterForUser(req.user._id);
+        if (success) {
+            res.json({
+                success: true,
+                message: 'Personalized newsletter sent successfully'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: 'Failed to send newsletter. Check server logs.'
+            });
+        }
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// @route   GET /api/user/recommendations
+// @desc    Get personalized article recommendations
+// @access  Private
+router.get('/recommendations', protect, async (req, res) => {
+    try {
+        const recommendations = await getRecommendations(req.user._id);
+        res.json({
+            success: true,
+            data: recommendations
         });
     } catch (error) {
         res.status(500).json({

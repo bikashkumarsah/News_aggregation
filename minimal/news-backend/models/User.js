@@ -66,11 +66,51 @@ const userSchema = new mongoose.Schema({
         breakingNews: {
             type: Boolean,
             default: false
+        },
+        digestTime: {
+            type: String,
+            default: '07:00' // 7 AM default
+        }
+    },
+    // AI-learned preferences based on reading history
+    preferences: {
+        // Category weights (0-100 score based on reading patterns)
+        categoryScores: {
+            technology: { type: Number, default: 0 },
+            business: { type: Number, default: 0 },
+            sports: { type: Number, default: 0 },
+            entertainment: { type: Number, default: 0 },
+            health: { type: Number, default: 0 },
+            science: { type: Number, default: 0 }
+        },
+        // Preferred sources based on reading history
+        preferredSources: [{
+            source: String,
+            score: { type: Number, default: 0 }
+        }],
+        // Keywords extracted from read articles
+        topKeywords: [{
+            keyword: String,
+            count: { type: Number, default: 0 }
+        }],
+        // Last time preferences were updated
+        lastUpdated: {
+            type: Date,
+            default: Date.now
+        },
+        // Total articles read (for normalization)
+        totalArticlesRead: {
+            type: Number,
+            default: 0
         }
     },
     darkMode: {
         type: Boolean,
         default: false
+    },
+    lastNewsletterSent: {
+        type: Date,
+        default: null
     },
     createdAt: {
         type: Date,
