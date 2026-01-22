@@ -61,16 +61,17 @@ A real-time news aggregation platform that fetches, classifies, and displays new
 ## Tech Stack
 
 **Frontend:**
-- React 19
-- Tailwind CSS
-- Lucide React Icons
+- React 19 (`react@^19.2.0`)
+- Tailwind CSS (`tailwindcss@^3.3.0`)
+- Lucide React Icons (`lucide-react@^0.548.0`)
 
 **Backend:**
-- Node.js
-- Express.js
+- Node.js (v14+)
+- Express.js (`express@^4.18.2`)
 - MongoDB (Local)
-- RSS Parser
-- Natural (NLP Library)
+- RSS Parser (`rss-parser@^3.13.0`)
+- Natural (`natural@^6.7.0`) - NLP Library
+- ONNX Runtime (`onnxruntime-node`) - For TTS models
 
 ## Prerequisites
 
@@ -84,7 +85,7 @@ Before running this project, make sure you have the following installed:
 ## Project Structure
 
 ```
-project/
+minimal/
 ├── news-aggregator/          # React Frontend
 │   ├── src/
 │   │   ├── App.js
@@ -94,6 +95,7 @@ project/
 │   └── .gitignore
 │
 └── news-backend/             # Node.js Backend
+    ├── models/               # AI Models (ONNX)
     ├── server.js             # API server
     ├── newsFetcher.js        # RSS fetching & classification
     ├── updateNews.js         # One-time news update
@@ -349,6 +351,18 @@ const RSS_FEEDS = {
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
+
+## Version History
+
+### v2.0 (November 10, 2025)
+- **Enhanced RSS Sources**: Added 36+ feeds across USA and Nepal (English & Nepali).
+- **Full Content Extraction**: Increased character limit to 5000 and improved scraping logic.
+- **Nepali Support**: Added automatic classification for Nepali language news.
+- **Auto-Cleanup**: Implemented automatic deletion of articles older than 7 days.
+- **Structural Cleanup**: Consolidated redundant documentation and organized AI models.
+
+### v1.0
+- Initial release with basic RSS fetching and aggregation features.
 
 ## License
 
