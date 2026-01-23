@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const mongoose = require('mongoose');
 const User = require('../models/User');
-const { updateUserPreferences, getRecommendations } = require('./preferenceService');
+const { updateUserPreferences, getNewsletterRecommendations } = require('./preferenceService');
 const { sendPersonalizedNewsletter } = require('./emailService');
 
 /**
@@ -21,7 +21,7 @@ const sendNewsletterToUser = async (user) => {
         await updateUserPreferences(user._id);
 
         // Get personalized recommendations
-        const recommendations = await getRecommendations(user._id, 5);
+        const recommendations = await getNewsletterRecommendations(user._id, 5);
 
         if (!recommendations || recommendations.length === 0) {
             console.log(`No recommendations available for ${user.email}`);

@@ -208,6 +208,7 @@ const search = async ({
   source,
   from, // ISO date or ms or seconds
   to,
+  excludeMongoIds,
   limit = 10,
   offset = 0
 }) => {
@@ -216,8 +217,14 @@ const search = async ({
   const vector = await textToVector(query);
 
   const must = [];
-  if (category) must.push({ key: 'category', match: { value: category } });
-  if (source) must.push({ key: 'source', match: { value: source } });
+  if (category) {
+    if (Array.isArray(category)) must.push({ key: 'category', match: { any: category } });
+    else must.push({ key: 'category', match: { value: category } });
+  }
+  if (source) {
+    if (Array.isArray(source)) must.push({ key: 'source', match: { any: source } });
+    else must.push({ key: 'source', match: { value: source } });
+  }
   if (topics && topics.length > 0) must.push({ key: 'topics', match: { any: topics } });
 
   const parseToSeconds = (v) => {
@@ -240,12 +247,20 @@ const search = async ({
     });
   }
 
+  const must_not = [];
+  if (excludeMongoIds && excludeMongoIds.length > 0) {
+    // Exclude already-read / already-sent articles
+    must_not.push({ key: 'mongoId', match: { any: excludeMongoIds } });
+  }
+
   const body = {
     vector,
     limit: Math.min(Math.max(parseInt(limit, 10) || 10, 1), 50),
     offset: Math.max(parseInt(offset, 10) || 0, 0),
     with_payload: true,
-    ...(must.length ? { filter: { must } } : {})
+    ...((must.length || must_not.length)
+      ? { filter: { ...(must.length ? { must } : {}), ...(must_not.length ? { must_not } : {}) } }
+      : {})
   };
 
   const res = await requestJson('POST', `/collections/${QDRANT_COLLECTION}/points/search`, body);
