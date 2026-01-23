@@ -62,6 +62,41 @@ Fallback:
 
 ---
 
+## 3.1) Semantic recommendations (Qdrant + multilingual embeddings)
+
+To improve relevance (especially English + Nepali), the newsletter can use **Qdrant semantic retrieval** driven by the user’s reading history.
+
+### What changes?
+- Instead of selecting candidates only by keywords/categories, we build a **user interest query** from the last ~30 days of reading history (titles + descriptions).
+- We embed that text and use Qdrant to fetch the closest recent articles (**search by meaning**).
+
+### Implementation
+- **File**: `minimal/news-backend/services/preferenceService.js`
+- **Functions**:
+  - `getSemanticRecommendations(userId, limit)` — Qdrant-first semantic retrieval
+  - `getNewsletterRecommendations(userId, limit)` — semantic-first, fallback to `getRecommendations`
+
+### Filtering / safety rules
+The semantic recommender also:
+- Restricts freshness (last ~24 hours)
+- Optionally filters by the user’s top `topics` and top `category` values
+- Excludes articles already present in the user’s recent reading history
+- Applies a light rerank:
+  - boosts preferred sources/categories/topics
+  - keeps semantic similarity as the primary signal
+- Limits too many results from the same source (basic diversity)
+
+### Requirement: Qdrant must be indexed with the embedding model you use
+After enabling embeddings, reindex Qdrant:
+
+```bash
+cd minimal/news-backend
+npm install
+npm run index-qdrant
+```
+
+---
+
 ## 4) Newsletter scheduling & sending
 
 ### Scheduler
@@ -79,7 +114,7 @@ In `processNewsletters()`:
 ### What gets sent?
 In `sendNewsletterToUser(user)`:
 1. `updateUserPreferences(user._id)` (refresh profile)
-2. `getRecommendations(user._id, 5)` (pick articles)
+2. `getNewsletterRecommendations(user._id, 5)` (semantic-first pick; fallback if needed)
 3. `sendPersonalizedNewsletter(email, name, articles, preferences)`
 4. Save `lastNewsletterSent = now`
 

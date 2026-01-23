@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Article = require('../models/Article');
+const { isQdrantReachable, search: qdrantSearch } = require('./qdrantService');
 
 /**
  * Preference Learning Service
@@ -256,6 +257,175 @@ const getRecommendations = async (userId, limit = 10) => {
 };
 
 /**
+ * Semantic recommendations using Qdrant + multilingual embeddings.
+ *
+ * Approach:
+ * - Build a "user interest query" from the user's recent reading history (titles/descriptions)
+ * - Use Qdrant semantic search with filters (recency, top topics/categories)
+ * - Exclude articles the user already read
+ * - Light rerank with source/category/topic preference
+ */
+const getSemanticRecommendations = async (userId, limit = 10) => {
+    const qdrantOk = await isQdrantReachable();
+    if (!qdrantOk) return null;
+
+    const user = await User.findById(userId).populate('readHistory.article');
+    if (!user || !user.readHistory || user.readHistory.length === 0) return null;
+
+    // Use last 30 days of reads (same window as updateUserPreferences)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentHistory = user.readHistory.filter(item =>
+        item.article && item.readAt >= thirtyDaysAgo
+    );
+    if (recentHistory.length === 0) return null;
+
+    // Build a single text prompt representing the user's interests.
+    // We prioritize recency by repeating recent items slightly.
+    const MAX_ITEMS = 25;
+    const MAX_CHARS = 4000;
+    let queryText = '';
+
+    for (let i = 0; i < Math.min(MAX_ITEMS, recentHistory.length); i++) {
+        const article = recentHistory[i].article;
+        if (!article) continue;
+
+        const snippet = `${article.title || ''}. ${article.description || ''}`.trim();
+        if (!snippet) continue;
+
+        // Recency weighting: first few items repeated more
+        const repeat = i < 3 ? 3 : i < 8 ? 2 : 1;
+        for (let r = 0; r < repeat; r++) {
+            if ((queryText.length + snippet.length + 2) > MAX_CHARS) break;
+            queryText += (queryText ? '\n' : '') + snippet;
+        }
+        if (queryText.length >= MAX_CHARS) break;
+    }
+
+    if (!queryText) return null;
+
+    // Build filters from learned preferences (if present)
+    const topCategories = user.preferences?.categoryScores
+        ? Object.entries(user.preferences.categoryScores)
+            .filter(([_, score]) => score > 0)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([category]) => category)
+        : [];
+
+    // Count topics from reading history and take top ones (optional filter)
+    const topicCount = {};
+    for (const item of recentHistory.slice(0, 50)) {
+        const art = item.article;
+        const topics = Array.isArray(art?.topics) ? art.topics : [];
+        for (const t of topics) {
+            const key = String(t).toLowerCase();
+            topicCount[key] = (topicCount[key] || 0) + 1;
+        }
+    }
+    const topTopics = Object.entries(topicCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([t]) => t);
+
+    // Exclude already read articles (up to last 200)
+    const excludeMongoIds = recentHistory
+        .slice(0, 200)
+        .map((i) => i.article?._id?.toString())
+        .filter(Boolean);
+
+    // Freshness: last 24 hours
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+    // Get more candidates than we need, then rerank
+    const candidateLimit = Math.min(Math.max(limit * 6, 20), 50);
+
+    const qdrantResults = await qdrantSearch({
+        query: queryText,
+        topics: topTopics,
+        category: topCategories.length ? topCategories : undefined,
+        from: oneDayAgo.toISOString(),
+        excludeMongoIds,
+        limit: candidateLimit,
+        offset: 0
+    });
+
+    const ranked = qdrantResults
+        .map((r) => ({ mongoId: r?.payload?.mongoId, score: typeof r?.score === 'number' ? r.score : 0 }))
+        .filter((r) => Boolean(r.mongoId));
+
+    if (!ranked.length) return null;
+
+    const ids = ranked.map((r) => r.mongoId);
+    const docs = await Article.find({ _id: { $in: ids } });
+    const byId = new Map(docs.map((d) => [d._id.toString(), d]));
+
+    const preferredSources = (user.preferences?.preferredSources || []).slice(0, 8).map(s => s.source);
+    const preferredSourceSet = new Set(preferredSources);
+    const topCategorySet = new Set(topCategories);
+    const topTopicSet = new Set(topTopics);
+
+    const rerankScore = (doc, semanticScore) => {
+        let bonus = 0;
+
+        if (preferredSourceSet.has(doc.source)) bonus += 0.15;
+        if (topCategorySet.has(doc.category)) bonus += 0.10;
+
+        const docTopics = Array.isArray(doc.topics) ? doc.topics : [];
+        const topicMatches = docTopics.filter(t => topTopicSet.has(String(t).toLowerCase())).length;
+        bonus += Math.min(0.20, topicMatches * 0.10);
+
+        // Recency bonus: prefer very recent articles
+        const hoursAgo = (Date.now() - new Date(doc.publishedAt).getTime()) / (1000 * 60 * 60);
+        bonus += Math.max(0, (24 - hoursAgo) / 24) * 0.05; // up to +0.05
+
+        return (semanticScore || 0) + bonus;
+    };
+
+    // Preserve qdrant order initially, then rerank
+    const candidates = ranked
+        .map((r) => {
+            const doc = byId.get(r.mongoId);
+            if (!doc) return null;
+            return { doc, score: rerankScore(doc, r.score) };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.score - a.score);
+
+    // Diversity: avoid too many from the same source
+    const picked = [];
+    const perSource = {};
+    for (const c of candidates) {
+        const src = c.doc.source || 'unknown';
+        perSource[src] = perSource[src] || 0;
+        if (perSource[src] >= 2) continue;
+        picked.push(c.doc);
+        perSource[src] += 1;
+        if (picked.length >= limit) break;
+    }
+
+    return picked.length ? picked : null;
+};
+
+/**
+ * Newsletter recommendations:
+ * - Prefer semantic (Qdrant) recommendations if available
+ * - Fallback to the existing keyword/category scoring logic
+ */
+const getNewsletterRecommendations = async (userId, limit = 5) => {
+    try {
+        const semantic = await getSemanticRecommendations(userId, limit);
+        if (semantic && semantic.length) return semantic;
+        return await getRecommendations(userId, limit);
+    } catch (error) {
+        // Never break newsletter sending because of search/index issues
+        console.warn(`Newsletter semantic recommendations failed, falling back: ${error.message}`);
+        return await getRecommendations(userId, limit);
+    }
+};
+
+/**
  * Update preferences for all users (to be run daily)
  */
 const updateAllUserPreferences = async () => {
@@ -279,6 +449,8 @@ const updateAllUserPreferences = async () => {
 module.exports = {
     updateUserPreferences,
     getRecommendations,
+    getNewsletterRecommendations,
+    getSemanticRecommendations,
     updateAllUserPreferences,
     extractKeywords
 };
