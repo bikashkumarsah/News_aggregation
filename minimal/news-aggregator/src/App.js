@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Newspaper,
   Cpu,
@@ -21,7 +21,8 @@ import {
   MapPin,
   Volume2,
   Pause,
-  Play,
+  Search,
+  SlidersHorizontal,
   Moon,
   Sun,
   Bookmark,
@@ -74,11 +75,23 @@ const NewsApp = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
+  // Advanced Search & Filtering (Topics + Semantic Search)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTopics, setSelectedTopics] = useState([]);
+  const [sourceFilter, setSourceFilter] = useState('');
+  const [dateRange, setDateRange] = useState(''); // '', '24h', '7d', '30d'
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchEngine, setSearchEngine] = useState(null); // 'qdrant' | 'mongo' | 'mongo_fallback'
+
   // TTS State
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
   const [audioError, setAudioError] = useState(null);
+
+  // Track search state changes so we can reload when filters are cleared
+  const prevHasSearchFiltersRef = useRef(false);
+  const prevCategoryRef = useRef(selectedCategory);
 
 
   // Swipe to close state
@@ -97,6 +110,15 @@ const NewsApp = () => {
     { id: 'science', name: 'Science', icon: <Microscope className="w-5 h-5" /> }
   ];
 
+  const topicOptions = [
+    { id: 'finance', name: 'Finance' },
+    { id: 'politics', name: 'Politics' },
+    { id: 'international', name: 'International' },
+    { id: 'culture', name: 'Culture' },
+    { id: 'art', name: 'Art' },
+    { id: 'sports', name: 'Sports' }
+  ];
+
   const userMenuItems = [
     { id: 'bookmarks', name: 'My Bookmarks', icon: <Bookmark className="w-5 h-5" /> },
     { id: 'history', name: 'Reading History', icon: <History className="w-5 h-5" /> },
@@ -104,7 +126,62 @@ const NewsApp = () => {
     { id: 'settings', name: 'Settings', icon: <Settings className="w-5 h-5" /> }
   ];
 
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+  };
+
+  const isSearchableCategory = !['bookmarks', 'history', 'local'].includes(selectedCategory);
+  const hasSearchFilters = useMemo(() => {
+    return Boolean(
+      searchQuery.trim() ||
+      selectedTopics.length > 0 ||
+      sourceFilter.trim() ||
+      dateRange
+    );
+  }, [searchQuery, selectedTopics, sourceFilter, dateRange]);
+
+  const isSearchMode = isSearchableCategory && hasSearchFilters;
+
+  const resultTopicCounts = useMemo(() => {
+    const counts = {};
+    for (const a of articles) {
+      const topics = Array.isArray(a?.topics) ? a.topics : [];
+      for (const t of topics) {
+        counts[t] = (counts[t] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [articles]);
+
+  const toggleTopic = (topicId) => {
+    setSelectedTopics((prev) =>
+      prev.includes(topicId) ? prev.filter((t) => t !== topicId) : [...prev, topicId]
+    );
+  };
+
+  const clearSearchAndFilters = () => {
+    prevHasSearchFiltersRef.current = false;
+    setSearchQuery('');
+    setSelectedTopics([]);
+    setSourceFilter('');
+    setDateRange('');
+    setSearchEngine(null);
+    setShowFilters(false);
+  };
+
+  const getFromDateForRange = (range) => {
+    const now = Date.now();
+    if (range === '24h') return new Date(now - 24 * 60 * 60 * 1000);
+    if (range === '7d') return new Date(now - 7 * 24 * 60 * 60 * 1000);
+    if (range === '30d') return new Date(now - 30 * 24 * 60 * 60 * 1000);
+    return null;
+  };
+
   useEffect(() => {
+    // Close filter panel on section change
+    setShowFilters(false);
+    setSearchEngine(null);
+
     if (selectedCategory === 'bookmarks' || selectedCategory === 'history') {
       loadUserContent();
     } else {
@@ -113,11 +190,48 @@ const NewsApp = () => {
       setHasMore(true);
       loadArticles(1, true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCategory]);
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-  };
+  // Debounced reload when search query / filters change (including when cleared)
+  useEffect(() => {
+    const categoryChanged = prevCategoryRef.current !== selectedCategory;
+    prevCategoryRef.current = selectedCategory;
+
+    // If category changed, the selectedCategory effect already reloads.
+    if (categoryChanged) {
+      prevHasSearchFiltersRef.current = hasSearchFilters;
+      return;
+    }
+
+    if (!isSearchableCategory) {
+      prevHasSearchFiltersRef.current = false;
+      return;
+    }
+
+    const shouldReload = hasSearchFilters || prevHasSearchFiltersRef.current;
+    prevHasSearchFiltersRef.current = hasSearchFilters;
+
+    if (!shouldReload) return;
+
+    const timer = setTimeout(() => {
+      setPage(1);
+      setArticles([]);
+      setHasMore(true);
+      loadArticles(1, true);
+    }, 350);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    searchQuery,
+    selectedTopics,
+    sourceFilter,
+    dateRange,
+    hasSearchFilters,
+    isSearchableCategory,
+    selectedCategory
+  ]);
 
   const loadUserContent = async () => {
     if (!user) {
@@ -159,18 +273,56 @@ const NewsApp = () => {
     else setLoadingMore(true);
 
     try {
-      const response = await fetch(`${API_URL}/news?category=${selectedCategory}&page=${pageNum}&limit=12`);
-      const result = await response.json();
+      // Use advanced search endpoint when filters are active (semantic search + topic filters)
+      if (isSearchMode) {
+        const params = new URLSearchParams();
+        params.set('page', pageNum.toString());
+        params.set('limit', '12');
 
-      if (result.success) {
-        if (isNewCategory) {
-          setArticles(result.data);
+        if (searchQuery.trim()) params.set('q', searchQuery.trim());
+        if (selectedTopics.length > 0) params.set('topics', selectedTopics.join(','));
+        if (sourceFilter.trim()) params.set('source', sourceFilter.trim());
+
+        // Use existing category as an additional filter (except "all")
+        if (selectedCategory !== 'all') params.set('category', selectedCategory);
+
+        const fromDate = getFromDateForRange(dateRange);
+        if (fromDate) params.set('from', fromDate.toISOString());
+
+        const response = await fetch(`${API_URL}/search?${params.toString()}`);
+        const result = await response.json();
+
+        if (result.success) {
+          setSearchEngine(result.engine || 'mongo');
+
+          if (isNewCategory) setArticles(result.data);
+          else setArticles((prev) => [...prev, ...result.data]);
+
+          // Qdrant doesn't return total; Mongo does. Fall back to "hasMore if we got a full page".
+          if (typeof result.total === 'number') {
+            const currentOffset = (pageNum - 1) * 12;
+            setHasMore(currentOffset + (result.data?.length || 0) < result.total);
+          } else {
+            setHasMore((result.data || []).length === 12);
+          }
         } else {
-          setArticles(prev => [...prev, ...result.data]);
+          showToast(result.error || 'Search failed', 'error');
         }
-        setHasMore(result.hasMore);
       } else {
-        showToast(result.error || 'Failed to fetch articles', 'error');
+        setSearchEngine(null);
+        const response = await fetch(`${API_URL}/news?category=${selectedCategory}&page=${pageNum}&limit=12`);
+        const result = await response.json();
+
+        if (result.success) {
+          if (isNewCategory) {
+            setArticles(result.data);
+          } else {
+            setArticles(prev => [...prev, ...result.data]);
+          }
+          setHasMore(result.hasMore);
+        } else {
+          showToast(result.error || 'Failed to fetch articles', 'error');
+        }
       }
     } catch (error) {
       console.error('Failed to fetch articles:', error);
@@ -505,11 +657,25 @@ const NewsApp = () => {
 
               <div className="space-y-8">
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded-full uppercase tracking-wider">
                       {selectedArticle.category}
                     </span>
                     <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{formatDate(selectedArticle.publishedAt)}</span>
+
+                    {Array.isArray(selectedArticle.topics) && selectedArticle.topics.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {selectedArticle.topics.slice(0, 6).map((t) => (
+                          <span
+                            key={t}
+                            className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                            style={{ backgroundColor: 'var(--background)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Bookmark Button */}
                     <button
@@ -580,8 +746,8 @@ const NewsApp = () => {
           ) : (
             /* Feed View */
             <div className="space-y-12 pb-12">
-              {/* Category Header */}
-              <div className="flex items-end justify-between">
+              {/* Category Header + Advanced Search */}
+              <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
                 <div>
                   <p className="text-blue-600 dark:text-blue-400 font-bold uppercase tracking-[0.2em] text-xs mb-3">
                     {selectedCategory === 'bookmarks' ? 'Saved Articles' : selectedCategory === 'history' ? 'Recently Read' : 'Trending Now'}
@@ -592,6 +758,139 @@ const NewsApp = () => {
                       selectedCategory}
                   </h1>
                 </div>
+
+                {isSearchableCategory && (
+                  <div className="w-full lg:max-w-md">
+                    {/* Search Input */}
+                    <div className="premium-card p-3 flex items-center gap-2">
+                      <Search className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
+                      <input
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search by topic, people, places..."
+                        className="flex-1 bg-transparent outline-none text-sm font-semibold"
+                        style={{ color: 'var(--text-main)' }}
+                      />
+
+                      {(searchQuery.trim() || selectedTopics.length > 0 || sourceFilter.trim() || dateRange) && (
+                        <button
+                          onClick={() => {
+                            clearSearchAndFilters();
+                            setPage(1);
+                            setArticles([]);
+                            setHasMore(true);
+                            loadArticles(1, true);
+                          }}
+                          className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                          aria-label="Clear search"
+                        >
+                          <X className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        aria-label="Toggle filters"
+                        title="Filters"
+                      >
+                        <SlidersHorizontal className="w-4 h-4" style={{ color: showFilters ? 'var(--text-main)' : 'var(--text-muted)' }} />
+                      </button>
+                    </div>
+
+                    {/* Filters Panel */}
+                    {showFilters && (
+                      <div className="mt-3 premium-card p-4 space-y-4">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                            Topics
+                          </p>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {topicOptions.map((t) => {
+                              const active = selectedTopics.includes(t.id);
+                              return (
+                                <button
+                                  key={t.id}
+                                  onClick={() => toggleTopic(t.id)}
+                                  className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${active ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                                    }`}
+                                  style={{
+                                    backgroundColor: active ? undefined : 'var(--card)',
+                                    borderColor: active ? undefined : 'var(--border)',
+                                    color: active ? undefined : 'var(--text-main)'
+                                  }}
+                                >
+                                  {t.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                              Source
+                            </label>
+                            <input
+                              value={sourceFilter}
+                              onChange={(e) => setSourceFilter(e.target.value)}
+                              placeholder="e.g. NASA"
+                              className="mt-2 w-full px-3 py-2 rounded-xl border bg-transparent text-sm outline-none"
+                              style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                              Date
+                            </label>
+                            <select
+                              value={dateRange}
+                              onChange={(e) => setDateRange(e.target.value)}
+                              className="mt-2 w-full px-3 py-2 rounded-xl border bg-transparent text-sm outline-none"
+                              style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+                            >
+                              <option value="">Any time</option>
+                              <option value="24h">Last 24 hours</option>
+                              <option value="7d">Last 7 days</option>
+                              <option value="30d">Last 30 days</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                            {searchEngine ? `Engine: ${searchEngine}` : isSearchMode ? 'Engine: ...' : ''}
+                          </div>
+                          <button
+                            onClick={() => {
+                              clearSearchAndFilters();
+                              setPage(1);
+                              setArticles([]);
+                              setHasMore(true);
+                              loadArticles(1, true);
+                            }}
+                            className="px-4 py-2 rounded-xl font-bold text-sm border transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
+                            style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+                          >
+                            Clear
+                          </button>
+                        </div>
+
+                        {Object.keys(resultTopicCounts).length > 0 && (
+                          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            <span className="font-bold">In results:</span>{' '}
+                            {Object.entries(resultTopicCounts)
+                              .sort((a, b) => b[1] - a[1])
+                              .slice(0, 4)
+                              .map(([t, c]) => `${t} (${c})`)
+                              .join(' · ')}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -635,6 +934,20 @@ const NewsApp = () => {
                       <p className="text-sm leading-relaxed line-clamp-3" style={{ color: 'var(--text-muted)' }}>
                         {article.description}
                       </p>
+
+                      {Array.isArray(article.topics) && article.topics.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {article.topics.slice(0, 4).map((t) => (
+                            <span
+                              key={t}
+                              className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                              style={{ backgroundColor: 'var(--background)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
 
                       <div className="pt-4 flex items-center justify-between border-t mt-auto" style={{ borderColor: 'var(--border)' }}>
                         <button
@@ -696,7 +1009,12 @@ const NewsApp = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-8">
           <div
             className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
-            onClick={() => setShowSummaryModal(false)}
+            onClick={() => {
+              setShowSummaryModal(false);
+              setAudioUrl(null);
+              setIsPlaying(false);
+              setAudioError(null);
+            }}
           />
           <div
             className="rounded-[2rem] w-full max-w-2xl shadow-2xl relative animate-fade-in flex flex-col max-h-[85vh]"
@@ -717,11 +1035,16 @@ const NewsApp = () => {
                 </div>
                 <div>
                   <h3 className="font-bold" style={{ color: 'var(--text-main)' }}>AI Quick Summary</h3>
-                  <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">Powered by Gemma 3</p>
+                  <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest"></p>
                 </div>
               </div>
               <button
-                onClick={() => setShowSummaryModal(false)}
+                onClick={() => {
+                  setShowSummaryModal(false);
+                  setAudioUrl(null);
+                  setIsPlaying(false);
+                  setAudioError(null);
+                }}
                 className="p-2 rounded-lg transition-colors hover:bg-slate-200 dark:hover:bg-slate-700"
                 aria-label="Close modal"
               >
@@ -772,25 +1095,33 @@ const NewsApp = () => {
 
             <div className="p-6 flex flex-col sm:flex-row gap-3" style={{ backgroundColor: 'var(--background)' }}>
               {!summarizing && summary && (
-                <button
-                  onClick={handleTTS}
-                  disabled={isSynthesizing}
-                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${isSynthesizing
-                    ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
-                    : isPlaying
-                      ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-100 dark:border-red-800'
-                      : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-100 dark:border-blue-800'
-                    }`}
-                >
-                  {isSynthesizing ? (
-                    <Loader className="w-5 h-5 animate-spin" />
-                  ) : isPlaying ? (
-                    <Pause className="w-5 h-5" />
-                  ) : (
-                    <Volume2 className="w-5 h-5" />
+                <div className="flex-1 flex flex-col gap-2">
+                  <button
+                    onClick={handleTTS}
+                    disabled={isSynthesizing}
+                    className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${isSynthesizing
+                      ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
+                      : isPlaying
+                        ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-100 dark:border-red-800'
+                        : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-100 dark:border-blue-800'
+                      }`}
+                  >
+                    {isSynthesizing ? (
+                      <Loader className="w-5 h-5 animate-spin" />
+                    ) : isPlaying ? (
+                      <Pause className="w-5 h-5" />
+                    ) : (
+                      <Volume2 className="w-5 h-5" />
+                    )}
+                    {isSynthesizing ? 'Creating Voice...' : isPlaying ? 'Pause Summary' : 'Listen to Summary'}
+                  </button>
+
+                  {audioError && (
+                    <p className="text-xs font-semibold text-red-600 dark:text-red-400">
+                      {audioError}
+                    </p>
                   )}
-                  {isSynthesizing ? 'Creating Voice...' : isPlaying ? 'Pause Summary' : 'Listen to Summary'}
-                </button>
+                </div>
               )}
 
               {audioUrl && (
@@ -809,6 +1140,7 @@ const NewsApp = () => {
                   setShowSummaryModal(false);
                   setAudioUrl(null);
                   setIsPlaying(false);
+                  setAudioError(null);
                 }}
                 className="btn-primary flex-1"
               >

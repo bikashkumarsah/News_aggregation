@@ -13,6 +13,7 @@ require('dotenv').config();
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const searchRoutes = require('./routes/searchRoutes');
 
 // Import services
 const { startNewsletterScheduler } = require('./services/newsletterScheduler');
@@ -33,6 +34,7 @@ app.use('/audio', express.static(path.join(__dirname, 'public/audio')));
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/search', searchRoutes);
 
 
 // MongoDB Connection (Local MongoDB)
@@ -241,7 +243,7 @@ app.post('/api/news/:id/summarize', async (req, res) => {
     const isNepali = article.url.match(/(onlinekhabar\.com|ratopati\.com|setopati\.com|nagariknews\.com|\.np)/i);
     const summaryLanguage = isNepali ? 'Nepali (in Devanagari script)' : 'English';
 
-    const prompt = `Summarize the following news article in 3-5 concise bullet points. The summary must be in ${summaryLanguage}. Format the output as a Markdown list (using -). **Bold** key entities, names, numbers, and important statistics for easier scanning. Do not include any introductory text like "Here is a summary".\n\nTitle: ${article.title}\nDescription: ${article.description}\nContent: ${fullContent || article.description}`;
+    const prompt = `Summarize the following news article in 2-3 concise bullet points. The summary must be in ${summaryLanguage}. Format the output as a Markdown list (using -). **Bold** key entities, names, numbers, and important statistics for easier scanning. Do not include any introductory text like "Here is a summary".\n\nTitle: ${article.title}\nDescription: ${article.description}\nContent: ${fullContent || article.description}`;
 
     const response = await fetch(GEMINI_URL, {
       method: 'POST',

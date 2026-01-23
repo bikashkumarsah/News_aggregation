@@ -14,6 +14,7 @@ const articleSchema = new mongoose.Schema({
   title: String,
   description: String,
   content: String,
+  topics: [String],
   category: String,
   source: String,
   author: String,
@@ -31,6 +32,7 @@ const articleSchema = new mongoose.Schema({
 });
 
 articleSchema.index({ category: 1, publishedAt: -1 });
+articleSchema.index({ topics: 1, publishedAt: -1 });
 articleSchema.index({ url: 1 });
 articleSchema.index({ publishedAt: 1 }); // Index for deletion query
 

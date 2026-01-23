@@ -90,6 +90,11 @@ A modern, AI-powered news aggregation platform with personalized recommendations
 
 ```
 khabar/
+├── docs/
+│   ├── README_ARCHITECTURE.md                 # Theoretical architecture overview
+│   ├── README_QDRANT_EXPLAINER.md             # Qdrant concepts (presentation-friendly)
+│   ├── README_SEARCH_QDRANT.md                # Qdrant search + classification flow
+│   └── README_NEWSLETTER_PERSONALIZATION.md   # History → preferences → newsletter flow
 ├── minimal/
 │   ├── news-aggregator/          # React Frontend
 │   │   ├── src/
@@ -175,8 +180,8 @@ cd minimal/news-backend
 npm install
 
 # Create environment file
-cp .env.example .env
-# Edit .env with your settings (see Configuration section)
+touch .env
+# Add your settings (see Configuration section below)
 
 # Start the server
 npm run dev
@@ -221,6 +226,11 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-app-password  # Gmail App Password
+
+# Qdrant (Vector Database) - for semantic search + filtered retrieval
+QDRANT_URL=http://localhost:6333
+QDRANT_COLLECTION=khabar_articles
+QDRANT_VECTOR_SIZE=384
 ```
 
 ### Gmail App Password Setup
@@ -234,7 +244,7 @@ SMTP_PASS=your-app-password  # Gmail App Password
 
 To access the app from phones/tablets on the same network:
 
-```bash
+   ```bash
 # Auto-detect and update your IP
 cd minimal/news-backend
 node updateIP.js
@@ -243,6 +253,65 @@ node updateIP.js
 Then access:
 - **Frontend:** `http://YOUR_IP:3000`
 - **Backend:** `http://YOUR_IP:5001`
+
+### Vector Search (Qdrant) - Advanced Search & Topic Filtering
+
+Qdrant is used to power:
+- **Semantic search** (search by meaning, not just keywords)
+- **Fast filtering** using payload fields like `topics`, `category`, `source`, `publishedAt`
+
+#### Start Qdrant (Docker)
+
+   ```bash
+docker run -p 6333:6333 -p 6334:6334 --name qdrant -d qdrant/qdrant
+   ```
+
+#### Index existing articles into Qdrant
+
+After you already have articles in MongoDB:
+   
+   ```bash
+cd minimal/news-backend
+npm run index-qdrant
+```
+
+#### Backfill topics for existing articles (optional)
+
+If your DB already has articles from before topic tagging was added:
+
+```bash
+cd minimal/news-backend
+npm run backfill-topics
+```
+
+To recompute topics for all articles:
+
+```bash
+cd minimal/news-backend
+node scripts/backfillTopics.js --force
+```
+
+#### Search API
+
+The backend exposes:
+- `GET /api/search?q=...` (semantic search via Qdrant if available)
+- `GET /api/search?topics=finance,politics` (filter-only via MongoDB)
+
+Examples:
+
+```bash
+# Semantic search (vector)
+curl "http://localhost:5001/api/search?q=interest%20rates&limit=12&page=1"
+
+# Semantic search + topic filter
+curl "http://localhost:5001/api/search?q=budget&topics=finance&limit=12&page=1"
+
+# Filter-only feed by topic (latest first)
+curl "http://localhost:5001/api/search?topics=politics&limit=12&page=1"
+```
+
+> Note: Current implementation uses a **local hashing vectorizer** (works offline).
+> For “real” semantic embeddings, swap in a sentence-transformers / embeddings API in `minimal/news-backend/services/qdrantService.js` (`textToVector()`).
 
 ## 📧 Email Newsletter System
 

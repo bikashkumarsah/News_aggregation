@@ -10,6 +10,12 @@ const articleSchema = new mongoose.Schema({
         required: true
     },
     content: String,
+    // High-level topic tags used for filtering and Qdrant payload filters
+    // e.g. finance, politics, art, culture, international, sports
+    topics: {
+        type: [String],
+        default: []
+    },
     category: {
         type: String,
         required: true,
@@ -40,6 +46,7 @@ const articleSchema = new mongoose.Schema({
 
 // Create indexes for better performance
 articleSchema.index({ category: 1, publishedAt: -1 });
+articleSchema.index({ topics: 1, publishedAt: -1 });
 articleSchema.index({ url: 1 });
 
 module.exports = mongoose.model('Article', articleSchema);

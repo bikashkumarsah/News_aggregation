@@ -24,9 +24,11 @@ export const API_URL = `${API_BASE_URL}/api`;
 // Audio URL base (for TTS)
 export const AUDIO_BASE_URL = API_BASE_URL;
 
-export default {
+const config = {
   API_BASE_URL,
   API_URL,
   AUDIO_BASE_URL,
   hostname
 };
+
+export default config;
