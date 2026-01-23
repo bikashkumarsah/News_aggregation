@@ -1,6 +1,7 @@
 const express = require('express');
 const Article = require('../models/Article');
 const { isQdrantReachable, search: qdrantSearch } = require('../services/qdrantService');
+const { getTopicsForArticle } = require('../services/topicService');
 
 const router = express.Router();
 
@@ -95,8 +96,9 @@ router.get('/', async (req, res) => {
           })
           .filter(Boolean);
 
-        // Light rerank: prioritize keyword overlap in title/description to improve precision.
-        // (Still keeps Qdrant score as tie-breaker.)
+        // Light rerank:
+        // - Keep Qdrant semantic similarity as the primary signal (important for Nepali ↔ English queries)
+        // - Add small boosts for topic intent + keyword overlap (helps precision without harming cross-lingual)
         const tokenize = (text) =>
           (text || '')
             .toString()
@@ -121,11 +123,33 @@ router.get('/', async (req, res) => {
           return hits / qSet.size; // 0..1
         };
 
+        // Infer topic intent from the query text itself (sports/finance/politics/etc.)
+        const queryTopics = getTopicsForArticle({ title: qText }) || [];
+        const queryTopicSet = new Set(Array.isArray(queryTopics) ? queryTopics : []);
+
+        const topicMatchCount = (doc) => {
+          if (!queryTopicSet.size) return 0;
+          const docTopics = Array.isArray(doc.topics) ? doc.topics : [];
+          let c = 0;
+          for (const t of docTopics) {
+            if (queryTopicSet.has(String(t).toLowerCase())) c += 1;
+          }
+          return c;
+        };
+
+        const combinedScore = (doc, qScore) => {
+          const sem = typeof qScore === 'number' ? qScore : 0;
+          const lex = lexicalScore(doc); // 0..1
+          const topicBoost = topicMatchCount(doc); // small integer
+
+          // Weights tuned to keep semantic relevance dominant and help precision a bit.
+          return sem + (0.15 * topicBoost) + (0.05 * lex);
+        };
+
         ordered.sort((a, b) => {
-          const la = lexicalScore(a.doc);
-          const lb = lexicalScore(b.doc);
-          if (lb !== la) return lb - la;
-          return (b.score || 0) - (a.score || 0);
+          const sa = combinedScore(a.doc, a.score);
+          const sb = combinedScore(b.doc, b.score);
+          return sb - sa;
         });
 
         const finalDocs = ordered.map((x) => x.doc);

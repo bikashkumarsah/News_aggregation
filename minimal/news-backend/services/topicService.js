@@ -75,7 +75,16 @@ const TOPIC_RULES = {
             'basketball',
             'tennis',
             'olympics',
-            'world cup'
+            'world cup',
+            // Nepali / Devanagari
+            'खेल',
+            'खेलकुद',
+            'क्रिकेट',
+            'फुटबल',
+            'विश्वकप',
+            'टी २०',
+            'टी20',
+            't20'
         ],
         weak: [
             'game',
@@ -185,8 +194,9 @@ const normalizeText = (text) =>
     (text || '')
         .toString()
         .toLowerCase()
-        // Keep basic latin letters/numbers and whitespace
-        .replace(/[^a-z0-9\s]/g, ' ')
+        // Keep letters/marks/numbers from any script + whitespace (supports Nepali/Devanagari)
+        // Devanagari vowel signs are Unicode "Marks" (\p{M}) and must be preserved.
+        .replace(/[^\p{L}\p{M}\p{N}\s]/gu, ' ')
         .replace(/\s+/g, ' ')
         .trim();
 

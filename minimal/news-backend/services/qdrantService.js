@@ -4,17 +4,16 @@ const { getTopicsForArticle } = require('./topicService');
 /**
  * Qdrant integration (REST).
  *
- * This implementation uses a lightweight local text vectorizer (feature hashing)
- * so it works offline and doesn't require external embedding APIs.
- *
- * You can later replace `textToVector()` with a real embedding model
- * (sentence-transformers, OpenAI, Gemini embeddings, etc.) without changing routes.
+ * This implementation supports a real multilingual embedding model (English + Nepali)
+ * via Transformers.js, with a safe fallback to hashing vectors.
  */
 
 const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
 const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION || 'khabar_articles';
 const VECTOR_SIZE = parseInt(process.env.QDRANT_VECTOR_SIZE || '384', 10);
 const DISTANCE = process.env.QDRANT_DISTANCE || 'Cosine';
+
+const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER || 'transformers').toLowerCase();
 
 const requestJson = async (method, path, body) => {
   const url = `${QDRANT_URL}${path}`;
@@ -67,7 +66,7 @@ const ensureCollection = async () => {
 };
 
 // ───────────────────────────────────────────────────────────────
-// Lightweight local vectorizer (feature hashing)
+// Local vectorizers (hash fallback + real embeddings)
 // ───────────────────────────────────────────────────────────────
 
 const fnv1a32 = (str) => {
@@ -98,7 +97,7 @@ const l2Normalize = (vec) => {
   return vec.map((v) => v / norm);
 };
 
-const textToVector = (text, dim = VECTOR_SIZE) => {
+const textToHashVector = (text, dim = VECTOR_SIZE) => {
   const tokens = tokenize(text);
   const vec = new Array(dim).fill(0);
 
@@ -118,6 +117,31 @@ const textToVector = (text, dim = VECTOR_SIZE) => {
   }
 
   return l2Normalize(vec);
+};
+
+const textToVector = async (text) => {
+  if (EMBEDDING_PROVIDER === 'transformers') {
+    try {
+      const { embedText } = require('./embeddingService');
+      const vec = await embedText(text);
+
+      if (vec.length !== VECTOR_SIZE) {
+        throw new Error(
+          `Embedding dimension mismatch: got ${vec.length}, expected ${VECTOR_SIZE}. ` +
+          `Set QDRANT_VECTOR_SIZE to ${vec.length} (and recreate the Qdrant collection) or use a 384-dim model.`
+        );
+      }
+
+      return vec;
+    } catch (err) {
+      // If transformers isn't installed / model can't load, fall back to hashing
+      console.warn(`⚠️ Embedding provider "transformers" unavailable (${err.message}). Falling back to hashing vectors.`);
+      return textToHashVector(text, VECTOR_SIZE);
+    }
+  }
+
+  // Explicit fallback
+  return textToHashVector(text, VECTOR_SIZE);
 };
 
 // Qdrant PointId supports u64 or UUID. Mongo ObjectId is 24 hex chars.
@@ -146,10 +170,10 @@ const buildArticleText = (article) => {
   return `${title}\n${title}\n${desc}\n${desc}\n${content}`;
 };
 
-const buildPoint = (article) => {
+const buildPoint = async (article) => {
   const mongoId = article._id.toString();
   const id = objectIdToUuid(mongoId);
-  const vector = textToVector(buildArticleText(article));
+  const vector = await textToVector(buildArticleText(article));
   const topics = Array.isArray(article.topics) && article.topics.length > 0
     ? article.topics
     : getTopicsForArticle(article);
@@ -170,7 +194,7 @@ const buildPoint = (article) => {
 
 const upsertArticles = async (articles, { wait = true } = {}) => {
   await ensureCollection();
-  const points = articles.map(buildPoint);
+  const points = await Promise.all(articles.map((a) => buildPoint(a)));
   await requestJson('PUT', `/collections/${QDRANT_COLLECTION}/points?wait=${wait ? 'true' : 'false'}`, {
     points
   });
@@ -189,7 +213,7 @@ const search = async ({
 }) => {
   await ensureCollection();
 
-  const vector = textToVector(query);
+  const vector = await textToVector(query);
 
   const must = [];
   if (category) must.push({ key: 'category', match: { value: category } });
@@ -232,6 +256,7 @@ module.exports = {
   QDRANT_URL,
   QDRANT_COLLECTION,
   VECTOR_SIZE,
+  EMBEDDING_PROVIDER,
   isQdrantReachable,
   ensureCollection,
   upsertArticles,
