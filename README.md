@@ -272,6 +272,22 @@ After you already have articles in MongoDB:
    
    ```bash
 cd minimal/news-backend
+npm install
+npm run index-qdrant
+```
+
+#### Enable real multilingual embeddings (English + Nepali)
+
+By default, the code will try to use a real multilingual embedding model (Transformers.js) and fall back to hashing vectors if the model cannot load.
+
+Environment variables:
+- `EMBEDDING_PROVIDER=transformers` (default)
+- `EMBEDDING_MODEL=Xenova/paraphrase-multilingual-MiniLM-L12-v2` (default)
+
+After enabling embeddings, re-index Qdrant:
+
+```bash
+cd minimal/news-backend
 npm run index-qdrant
 ```
 
@@ -311,7 +327,7 @@ curl "http://localhost:5001/api/search?topics=politics&limit=12&page=1"
 ```
 
 > Note: Current implementation uses a **local hashing vectorizer** (works offline).
-> For “real” semantic embeddings, swap in a sentence-transformers / embeddings API in `minimal/news-backend/services/qdrantService.js` (`textToVector()`).
+> For higher-quality semantic embeddings (English + Nepali), the backend supports a real multilingual embedding model via Transformers.js.
 
 ## 📧 Email Newsletter System
 
