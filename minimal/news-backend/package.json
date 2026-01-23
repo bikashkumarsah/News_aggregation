@@ -8,7 +8,9 @@
     "dev": "nodemon server.js",
     "update-news": "node updateNews.js",
     "schedule-news": "node scheduleNews.js",
-    "cleanup-old": "node cleanupOldNews.js"
+    "cleanup-old": "node cleanupOldNews.js",
+    "index-qdrant": "node scripts/indexQdrant.js",
+    "backfill-topics": "node scripts/backfillTopics.js"
   },
   "keywords": [
     "news",

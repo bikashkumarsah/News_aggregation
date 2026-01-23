@@ -1,5 +1,6 @@
 const Parser = require('rss-parser');
 const fetch = require('node-fetch');
+const { getTopicsForArticle } = require('./services/topicService');
 
 const parser = new Parser({
   timeout: 10000,
@@ -234,6 +235,9 @@ async function fetchFeedNews(feedUrl, suggestedCategory) {
         publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
         fetchedAt: new Date()
       };
+
+      // Add topic tags for advanced filtering (finance/politics/art/culture/international/etc.)
+      article.topics = getTopicsForArticle(article);
 
       articles.push(article);
     }
