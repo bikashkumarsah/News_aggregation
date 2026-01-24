@@ -1,0 +1,333 @@
+{
+  "generatedAt": "2026-01-24T07:42:07.650Z",
+  "note": "Set `relevant` to true/false for each recommendation, then run the scorer.",
+  "userSample": [
+    {
+      "userId": "697474ed3fb43f3facdf82c8",
+      "email": "sagunrai2003@gmail.com",
+      "name": "Sagun rai"
+    },
+    {
+      "userId": "697475163fb43f3facdf82cd",
+      "email": "aaravsubedi123@gmail.com",
+      "name": "aarav subedi"
+    }
+  ],
+  "models": {
+    "minilm": {
+      "meta": {
+        "generatedAt": "2026-01-24T07:36:50.117Z",
+        "embeddingProvider": "transformers",
+        "embeddingModel": "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+        "qdrantCollection": "khabar_articles_minilm_384",
+        "vectorSize": 384,
+        "limit": 3
+      },
+      "label": "paraphrase-multilingual-MiniLM-L12-v2 (384d)",
+      "users": [
+        {
+          "userId": "697474ed3fb43f3facdf82c8",
+          "email": "sagunrai2003@gmail.com",
+          "name": "Sagun rai",
+          "recommendations": [
+            {
+              "_id": "697472b23b5d6a1237dc9971",
+              "title": "Vietnam Communist Party confirms To Lam as leader for next 5 years",
+              "description": "Lam has been party chief since mid-2024 when he replaced the late general secretary Nguyen Phu Trong.",
+              "content": "Lam has been party chief since mid-2024 when he replaced the late general secretary Nguyen Phu Trong.",
+              "url": "https://kathmandupost.com/world/2026/01/23/vietnam-communist-party-confirms-to-lam-as-leader-for-next-5-years",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-24T07:20:12.305Z",
+              "relevant": null
+            },
+            {
+              "_id": "697472b23b5d6a1237dc9977",
+              "title": "Juveniles transferred after clash at Bhaktapur correction centre",
+              "description": "Damaged structures and safety concerns prompt temporary relocation of inmates across Kathmandu Valley.",
+              "content": "Damaged structures and safety concerns prompt temporary relocation of inmates across Kathmandu Valley.",
+              "url": "https://kathmandupost.com/bhaktapur/2026/01/23/juveniles-transferred-after-clash-at-bhaktapur-correction-centre",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-24T07:20:12.305Z",
+              "relevant": null
+            },
+            {
+              "_id": "697472b23b5d6a1237dc9974",
+              "title": "President Paudel, Prime Minister Karki attend Basanta Shrawan ritual",
+              "description": "Leaders and officials join annual ceremony at Hanumandhoka Durbar Square.",
+              "content": "Leaders and officials join annual ceremony at Hanumandhoka Durbar Square.",
+              "url": "https://kathmandupost.com/visual-stories/2026/01/23/president-paudel-prime-minister-karki-attend-basanta-shrawan-ritual",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-24T07:20:12.305Z",
+              "relevant": null
+            }
+          ]
+        },
+        {
+          "userId": "697475163fb43f3facdf82cd",
+          "email": "aaravsubedi123@gmail.com",
+          "name": "aarav subedi",
+          "recommendations": [
+            {
+              "_id": "697472b23b5d6a1237dc9968",
+              "title": "Ashika Tamang denies withdrawing candidacy",
+              "description": "RSP candidate says fake email was sent to Election Commission in her name.",
+              "content": "RSP candidate says fake email was sent to Election Commission in her name.",
+              "url": "https://kathmandupost.com/national/2026/01/23/ashika-tamang-denies-withdrawing-candidacy",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-24T07:20:12.304Z",
+              "relevant": null
+            },
+            {
+              "_id": "697472b23b5d6a1237dc996b",
+              "title": "Former prime minister Baburam Bhattarai withdraws candidacy from Gorkha-2",
+              "description": "Says he will play an advisory role beyond party politics.",
+              "content": "Says he will play an advisory role beyond party politics.",
+              "url": "https://kathmandupost.com/politics/2026/01/23/former-prime-minister-baburam-bhattarai-withdraws-candidacy-from-gorkha-2",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-24T07:20:12.304Z",
+              "relevant": null
+            },
+            {
+              "_id": "697472b23b5d6a1237dc9977",
+              "title": "Juveniles transferred after clash at Bhaktapur correction centre",
+              "description": "Damaged structures and safety concerns prompt temporary relocation of inmates across Kathmandu Valley.",
+              "content": "Damaged structures and safety concerns prompt temporary relocation of inmates across Kathmandu Valley.",
+              "url": "https://kathmandupost.com/bhaktapur/2026/01/23/juveniles-transferred-after-clash-at-bhaktapur-correction-centre",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-24T07:20:12.305Z",
+              "relevant": null
+            }
+          ]
+        }
+      ]
+    },
+    "e5_small": {
+      "meta": {
+        "generatedAt": "2026-01-24T07:39:13.306Z",
+        "embeddingProvider": "transformers",
+        "embeddingModel": "Xenova/multilingual-e5-small",
+        "qdrantCollection": "khabar_articles_e5_small_384",
+        "vectorSize": 384,
+        "limit": 3
+      },
+      "label": "multilingual-e5-small (384d)",
+      "users": [
+        {
+          "userId": "697474ed3fb43f3facdf82c8",
+          "email": "sagunrai2003@gmail.com",
+          "name": "Sagun rai",
+          "recommendations": [
+            {
+              "_id": "697472b23b5d6a1237dc9971",
+              "title": "Vietnam Communist Party confirms To Lam as leader for next 5 years",
+              "description": "Lam has been party chief since mid-2024 when he replaced the late general secretary Nguyen Phu Trong.",
+              "content": "Lam has been party chief since mid-2024 when he replaced the late general secretary Nguyen Phu Trong.",
+              "url": "https://kathmandupost.com/world/2026/01/23/vietnam-communist-party-confirms-to-lam-as-leader-for-next-5-years",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-24T07:20:12.305Z",
+              "relevant": null
+            },
+            {
+              "_id": "697472b23b5d6a1237dc9977",
+              "title": "Juveniles transferred after clash at Bhaktapur correction centre",
+              "description": "Damaged structures and safety concerns prompt temporary relocation of inmates across Kathmandu Valley.",
+              "content": "Damaged structures and safety concerns prompt temporary relocation of inmates across Kathmandu Valley.",
+              "url": "https://kathmandupost.com/bhaktapur/2026/01/23/juveniles-transferred-after-clash-at-bhaktapur-correction-centre",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-24T07:20:12.305Z",
+              "relevant": null
+            },
+            {
+              "_id": "697472b23b5d6a1237dc9974",
+              "title": "President Paudel, Prime Minister Karki attend Basanta Shrawan ritual",
+              "description": "Leaders and officials join annual ceremony at Hanumandhoka Durbar Square.",
+              "content": "Leaders and officials join annual ceremony at Hanumandhoka Durbar Square.",
+              "url": "https://kathmandupost.com/visual-stories/2026/01/23/president-paudel-prime-minister-karki-attend-basanta-shrawan-ritual",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-24T07:20:12.305Z",
+              "relevant": null
+            }
+          ]
+        },
+        {
+          "userId": "697475163fb43f3facdf82cd",
+          "email": "aaravsubedi123@gmail.com",
+          "name": "aarav subedi",
+          "recommendations": [
+            {
+              "_id": "697472b23b5d6a1237dc9968",
+              "title": "Ashika Tamang denies withdrawing candidacy",
+              "description": "RSP candidate says fake email was sent to Election Commission in her name.",
+              "content": "RSP candidate says fake email was sent to Election Commission in her name.",
+              "url": "https://kathmandupost.com/national/2026/01/23/ashika-tamang-denies-withdrawing-candidacy",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-24T07:20:12.304Z",
+              "relevant": null
+            },
+            {
+              "_id": "697472b23b5d6a1237dc996b",
+              "title": "Former prime minister Baburam Bhattarai withdraws candidacy from Gorkha-2",
+              "description": "Says he will play an advisory role beyond party politics.",
+              "content": "Says he will play an advisory role beyond party politics.",
+              "url": "https://kathmandupost.com/politics/2026/01/23/former-prime-minister-baburam-bhattarai-withdraws-candidacy-from-gorkha-2",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-24T07:20:12.304Z",
+              "relevant": null
+            },
+            {
+              "_id": "697472b23b5d6a1237dc9977",
+              "title": "Juveniles transferred after clash at Bhaktapur correction centre",
+              "description": "Damaged structures and safety concerns prompt temporary relocation of inmates across Kathmandu Valley.",
+              "content": "Damaged structures and safety concerns prompt temporary relocation of inmates across Kathmandu Valley.",
+              "url": "https://kathmandupost.com/bhaktapur/2026/01/23/juveniles-transferred-after-clash-at-bhaktapur-correction-centre",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-24T07:20:12.305Z",
+              "relevant": null
+            }
+          ]
+        }
+      ]
+    },
+    "distiluse": {
+      "meta": {
+        "generatedAt": "2026-01-24T07:42:07.608Z",
+        "embeddingProvider": "transformers",
+        "embeddingModel": "Xenova/distiluse-base-multilingual-cased-v2",
+        "qdrantCollection": "khabar_articles_distiluse_512",
+        "vectorSize": 512,
+        "limit": 3
+      },
+      "label": "distiluse-base-multilingual-cased-v2 (512d)",
+      "users": [
+        {
+          "userId": "697474ed3fb43f3facdf82c8",
+          "email": "sagunrai2003@gmail.com",
+          "name": "Sagun rai",
+          "recommendations": [
+            {
+              "_id": "697472b23b5d6a1237dc9971",
+              "title": "Vietnam Communist Party confirms To Lam as leader for next 5 years",
+              "description": "Lam has been party chief since mid-2024 when he replaced the late general secretary Nguyen Phu Trong.",
+              "content": "Lam has been party chief since mid-2024 when he replaced the late general secretary Nguyen Phu Trong.",
+              "url": "https://kathmandupost.com/world/2026/01/23/vietnam-communist-party-confirms-to-lam-as-leader-for-next-5-years",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-24T07:20:12.305Z",
+              "relevant": null
+            },
+            {
+              "_id": "697472b23b5d6a1237dc9977",
+              "title": "Juveniles transferred after clash at Bhaktapur correction centre",
+              "description": "Damaged structures and safety concerns prompt temporary relocation of inmates across Kathmandu Valley.",
+              "content": "Damaged structures and safety concerns prompt temporary relocation of inmates across Kathmandu Valley.",
+              "url": "https://kathmandupost.com/bhaktapur/2026/01/23/juveniles-transferred-after-clash-at-bhaktapur-correction-centre",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-24T07:20:12.305Z",
+              "relevant": null
+            },
+            {
+              "_id": "697472b23b5d6a1237dc9974",
+              "title": "President Paudel, Prime Minister Karki attend Basanta Shrawan ritual",
+              "description": "Leaders and officials join annual ceremony at Hanumandhoka Durbar Square.",
+              "content": "Leaders and officials join annual ceremony at Hanumandhoka Durbar Square.",
+              "url": "https://kathmandupost.com/visual-stories/2026/01/23/president-paudel-prime-minister-karki-attend-basanta-shrawan-ritual",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-24T07:20:12.305Z",
+              "relevant": null
+            }
+          ]
+        },
+        {
+          "userId": "697475163fb43f3facdf82cd",
+          "email": "aaravsubedi123@gmail.com",
+          "name": "aarav subedi",
+          "recommendations": [
+            {
+              "_id": "697472b23b5d6a1237dc9968",
+              "title": "Ashika Tamang denies withdrawing candidacy",
+              "description": "RSP candidate says fake email was sent to Election Commission in her name.",
+              "content": "RSP candidate says fake email was sent to Election Commission in her name.",
+              "url": "https://kathmandupost.com/national/2026/01/23/ashika-tamang-denies-withdrawing-candidacy",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-24T07:20:12.304Z",
+              "relevant": null
+            },
+            {
+              "_id": "697472b23b5d6a1237dc996b",
+              "title": "Former prime minister Baburam Bhattarai withdraws candidacy from Gorkha-2",
+              "description": "Says he will play an advisory role beyond party politics.",
+              "content": "Says he will play an advisory role beyond party politics.",
+              "url": "https://kathmandupost.com/politics/2026/01/23/former-prime-minister-baburam-bhattarai-withdraws-candidacy-from-gorkha-2",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-24T07:20:12.304Z",
+              "relevant": null
+            },
+            {
+              "_id": "697472b23b5d6a1237dc9977",
+              "title": "Juveniles transferred after clash at Bhaktapur correction centre",
+              "description": "Damaged structures and safety concerns prompt temporary relocation of inmates across Kathmandu Valley.",
+              "content": "Damaged structures and safety concerns prompt temporary relocation of inmates across Kathmandu Valley.",
+              "url": "https://kathmandupost.com/bhaktapur/2026/01/23/juveniles-transferred-after-clash-at-bhaktapur-correction-centre",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-24T07:20:12.305Z",
+              "relevant": null
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -2,14 +2,14 @@
  * Real text embeddings (multilingual) for semantic search.
  *
  * Provider: Transformers.js (runs locally, downloads model weights on first run).
- * Model: paraphrase-multilingual-MiniLM-L12-v2 (384 dims, multilingual incl. Nepali)
+ * Default model: distiluse-base-multilingual-cased-v2 (768 dims, multilingual incl. Nepali)
  *
  * Notes:
  * - This module is optional: if the dependency isn't installed, callers can fall back.
  * - Uses dynamic import because @xenova/transformers is ESM.
  */
 
-const DEFAULT_MODEL = process.env.EMBEDDING_MODEL || 'Xenova/paraphrase-multilingual-MiniLM-L12-v2';
+const DEFAULT_MODEL = process.env.EMBEDDING_MODEL || 'Xenova/distiluse-base-multilingual-cased-v2';
 
 let extractorPromise = null;
 
@@ -30,14 +30,31 @@ const getExtractor = async () => {
     return extractorPromise;
 };
 
+const isE5Model = (modelName) => {
+    const m = (modelName || '').toLowerCase();
+    return m.includes('e5');
+};
+
+const prepareText = (text, role = 'passage') => {
+    // E5 models are trained with an instruction prefix.
+    // See: https://github.com/microsoft/unilm/tree/master/e5
+    if (isE5Model(DEFAULT_MODEL)) {
+        if (role === 'query') return `query: ${text || ''}`;
+        return `passage: ${text || ''}`;
+    }
+    return text || '';
+};
+
 /**
  * Embed a single string into a float vector.
  * @param {string} text
+ * @param {{role?: 'query'|'passage'}} [opts]
  * @returns {Promise<number[]>}
  */
-const embedText = async (text) => {
+const embedText = async (text, opts = {}) => {
     const extractor = await getExtractor();
-    const out = await extractor(text || '', { pooling: 'mean', normalize: true });
+    const prepared = prepareText(text, opts.role || 'passage');
+    const out = await extractor(prepared, { pooling: 'mean', normalize: true });
 
     // transformers.js returns a Tensor-like object with `.data` (TypedArray)
     const data = out?.data;
@@ -50,6 +67,8 @@ const embedText = async (text) => {
 
 module.exports = {
     embedText,
+    prepareText,
+    isE5Model,
     DEFAULT_MODEL
 };
 

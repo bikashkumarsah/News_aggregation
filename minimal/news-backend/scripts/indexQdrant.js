@@ -33,6 +33,7 @@ const BATCH_SIZE = Math.min(
 );
 
 const MAX_RETRIES = Math.min(Math.max(parseInt(process.env.QDRANT_INDEX_RETRIES || '5', 10) || 5, 0), 10);
+const INDEX_DAYS = parseInt(process.env.QDRANT_INDEX_DAYS || '', 10);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -75,6 +76,9 @@ async function main() {
   console.log(`- Vector size: ${VECTOR_SIZE}`);
   console.log(`- Embedding provider: ${EMBEDDING_PROVIDER}`);
   console.log(`- Batch size: ${BATCH_SIZE}`);
+  if (!Number.isNaN(INDEX_DAYS) && INDEX_DAYS > 0) {
+    console.log(`- Index window: last ${INDEX_DAYS} days`);
+  }
 
   const ok = await isQdrantReachable();
   if (!ok) {
@@ -87,8 +91,16 @@ async function main() {
   await mongoose.connect(MONGODB_URI);
   console.log('\n✅ Connected to MongoDB');
 
+  const indexQuery = (!Number.isNaN(INDEX_DAYS) && INDEX_DAYS > 0)
+    ? (() => {
+        const since = new Date();
+        since.setDate(since.getDate() - INDEX_DAYS);
+        return { publishedAt: { $gte: since } };
+      })()
+    : {};
+
   const cursor = Article.find(
-    {},
+    indexQuery,
     '_id title description content category source url publishedAt topics'
   )
     .sort({ publishedAt: -1 })

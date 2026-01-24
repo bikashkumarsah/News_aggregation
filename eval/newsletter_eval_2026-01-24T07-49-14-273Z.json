@@ -1,0 +1,1069 @@
+{
+  "generatedAt": "2026-01-24T07:49:19.655Z",
+  "note": "Set `relevant` to true/false for each recommendation, then run the scorer.",
+  "profilesFile": "/Users/bikashkumarsah/Downloads/khabar/eval/newsletter_profiles_2026-01-24T07-49-14-273Z.json",
+  "profiles": [
+    {
+      "profileId": "69724b6595aecb30a6fc0e0c-p1",
+      "baseUserId": "69724b6595aecb30a6fc0e0c",
+      "email": "sahbikash500@gmail.com",
+      "name": "Bikash Kumar Sah",
+      "historyArticleIds": [
+        "6972153547695a5cab55402f",
+        "6972153647695a5cab55415e",
+        "6972153547695a5cab55406b",
+        "6972153647695a5cab554098",
+        "69730f3a366b7b527fd41fe5",
+        "69730f3a366b7b527fd41fce",
+        "69730f3a366b7b527fd41fcb",
+        "69730f3a366b7b527fd41fb6",
+        "69730f3a366b7b527fd41fc5",
+        "69730f3a366b7b527fd41fb0",
+        "69730f3a366b7b527fd41fb9",
+        "69730f3a366b7b527fd41dfd",
+        "69730f3a366b7b527fd41fbf",
+        "69730f3a366b7b527fd41fc2",
+        "69730f3a366b7b527fd41fbc",
+        "69730f3a366b7b527fd42035",
+        "69730f3a366b7b527fd41fe8",
+        "6972153647695a5cab5540aa",
+        "6972153647695a5cab55417c",
+        "6972153647695a5cab55419a"
+      ]
+    },
+    {
+      "profileId": "697252d7a8fb60c6e2ecd733-p1",
+      "baseUserId": "697252d7a8fb60c6e2ecd733",
+      "email": "bikashsah6131@gmail.com",
+      "name": "Bikas",
+      "historyArticleIds": [
+        "697472b23b5d6a1237dc9987",
+        "697472b23b5d6a1237dc9a16",
+        "697472b23b5d6a1237dc9984",
+        "697472b23b5d6a1237dc998a",
+        "69730f3a366b7b527fd41ff7",
+        "6972153647695a5cab5540bf",
+        "6972153647695a5cab5540ce",
+        "6972153647695a5cab5540bc"
+      ]
+    },
+    {
+      "profileId": "697474ed3fb43f3facdf82c8-p1",
+      "baseUserId": "697474ed3fb43f3facdf82c8",
+      "email": "sagunrai2003@gmail.com",
+      "name": "Sagun rai",
+      "historyArticleIds": [
+        "6972153547695a5cab553ace",
+        "69730f3a366b7b527fd41d31",
+        "6972153547695a5cab553b82",
+        "6972153647695a5cab5540d1",
+        "6972153647695a5cab55415e",
+        "6972153547695a5cab55406b"
+      ]
+    },
+    {
+      "profileId": "697475163fb43f3facdf82cd-p1",
+      "baseUserId": "697475163fb43f3facdf82cd",
+      "email": "aaravsubedi123@gmail.com",
+      "name": "aarav subedi",
+      "historyArticleIds": [
+        "69725b6500c8723885a3febd",
+        "6972153547695a5cab553c93",
+        "6972153647695a5cab5540b0",
+        "697472b23b5d6a1237dc9968",
+        "697472b23b5d6a1237dc9956",
+        "697472b23b5d6a1237dc9962"
+      ]
+    },
+    {
+      "profileId": "69724b6595aecb30a6fc0e0c-p2",
+      "baseUserId": "69724b6595aecb30a6fc0e0c",
+      "email": "sahbikash500@gmail.com",
+      "name": "Bikash Kumar Sah",
+      "historyArticleIds": [
+        "6972153647695a5cab554098",
+        "69730f3a366b7b527fd41fe5",
+        "69730f3a366b7b527fd41fce",
+        "69730f3a366b7b527fd41fcb",
+        "69730f3a366b7b527fd41fb6",
+        "69730f3a366b7b527fd41fc5",
+        "69730f3a366b7b527fd41fb0",
+        "69730f3a366b7b527fd41fb9",
+        "69730f3a366b7b527fd41dfd",
+        "69730f3a366b7b527fd41fbf",
+        "69730f3a366b7b527fd41fc2",
+        "69730f3a366b7b527fd41fbc",
+        "69730f3a366b7b527fd42035",
+        "69730f3a366b7b527fd41fe8",
+        "6972153647695a5cab5540aa",
+        "6972153647695a5cab55417c",
+        "6972153647695a5cab55419a",
+        "69725b6600c8723885a3ff67",
+        "69730f3a366b7b527fd41feb",
+        "69725b6600c8723885a3ff6a"
+      ]
+    }
+  ],
+  "models": {
+    "minilm": {
+      "meta": {
+        "generatedAt": "2026-01-24T07:49:16.135Z",
+        "embeddingProvider": "transformers",
+        "embeddingModel": "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+        "qdrantCollection": "khabar_articles_minilm_384",
+        "vectorSize": 384,
+        "limit": 3
+      },
+      "label": "paraphrase-multilingual-MiniLM-L12-v2 (384d)",
+      "profiles": [
+        {
+          "profileId": "69724b6595aecb30a6fc0e0c-p1",
+          "baseUserId": "69724b6595aecb30a6fc0e0c",
+          "email": "sahbikash500@gmail.com",
+          "name": "Bikash Kumar Sah",
+          "historyPreview": [
+            {
+              "title": "‘In Botanical Time’ explores the ways Earth’s oldest plants cheat death",
+              "source": "Science News",
+              "category": "science",
+              "topics": []
+            },
+            {
+              "title": "टी-२० विश्वकप तयारी : अभ्यास खेलमा नेपालको लगातार हार",
+              "source": "Setopati",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ]
+            },
+            {
+              "title": "Netherlands beat Nepal by two runs in thrilling T20 WC qualifier clash",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ]
+            },
+            {
+              "title": "One in six children in Sudurpaschim suffers from wasting",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "सानोठिमी बाल सुधार गृहमा झडप : २ जना अस्पताल भर्ना, १६२ स्थानान्तरण",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "A futile mission",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Modi’s anti-women scheme",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "finance",
+                "politics"
+              ]
+            },
+            {
+              "title": "Nepali Congress set to declare Thapa as prime ministerial candidate",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ]
+            }
+          ],
+          "recommendations": []
+        },
+        {
+          "profileId": "697252d7a8fb60c6e2ecd733-p1",
+          "baseUserId": "697252d7a8fb60c6e2ecd733",
+          "email": "bikashsah6131@gmail.com",
+          "name": "Bikas",
+          "historyPreview": [
+            {
+              "title": "मेजर राई, राजकुमारी साह र जिवछ साह पनि नेकपाबाट निस्कासित",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "हरिबोल गजुरेलसहित ७ नेता नेकपाबाट निष्कासित",
+              "source": "Setopati",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "कैलाली–५ मा प्रेम आलेसँग रास्वपाबाट भिड्दै जनस्वास्थ्य अभियन्ता चन्द",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "स्वतन्त्र उम्मेदवार महावीर पुनलाई उज्यालो पार्टीको समर्थन",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "सिरहाका प्रमेन्द्र : सिभिल इन्जिनियरिङ पढेका मूर्तिकार",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Two camera traps damaged during tiger census",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Departmental sides Police and Army struggle against new clubs",
+              "source": "Kathamndu post RSS",
+              "category": "sports",
+              "topics": [
+                "sports",
+                "politics",
+                "international"
+              ]
+            },
+            {
+              "title": "Japan court sentences ex-PM Abe’s assassin to life in prison",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "finance",
+                "politics",
+                "international"
+              ]
+            }
+          ],
+          "recommendations": []
+        },
+        {
+          "profileId": "697474ed3fb43f3facdf82c8-p1",
+          "baseUserId": "697474ed3fb43f3facdf82c8",
+          "email": "sagunrai2003@gmail.com",
+          "name": "Sagun rai",
+          "historyPreview": [
+            {
+              "title": "Blue Origin’s satellite internet network TeraWave will move data at 6 Tbps",
+              "source": "TechCrunch",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "TikTok forms joint venture to keep operating in U.S., ending yearslong saga",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Thousands of Companies Are Driving China’s AI Boom. A Government Registry Tracks Them All",
+              "source": "WIRED",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Nepal lose to Sri Lanka ‘A’",
+              "source": "Kathamndu post RSS",
+              "category": "sports",
+              "topics": [
+                "sports"
+              ]
+            },
+            {
+              "title": "टी-२० विश्वकप तयारी : अभ्यास खेलमा नेपालको लगातार हार",
+              "source": "Setopati",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ]
+            },
+            {
+              "title": "Netherlands beat Nepal by two runs in thrilling T20 WC qualifier clash",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ]
+            }
+          ],
+          "recommendations": []
+        },
+        {
+          "profileId": "697475163fb43f3facdf82cd-p1",
+          "baseUserId": "697475163fb43f3facdf82cd",
+          "email": "aaravsubedi123@gmail.com",
+          "name": "aarav subedi",
+          "historyPreview": [
+            {
+              "title": "Bitcoin sinks below $90K as large investors sell their holdings and haven seekers go elsewhere",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "technology",
+              "topics": [
+                "finance"
+              ]
+            },
+            {
+              "title": "सेयर बजारमा ९ अंकको ‘करेक्सन’, ३ अर्बले खुम्चियो कारोबार रकम",
+              "source": "बिजनेस – Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Nepse slips 9.43 points as turnover declines",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "finance"
+              ]
+            },
+            {
+              "title": "Ashika Tamang denies withdrawing candidacy",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ]
+            },
+            {
+              "title": "Resham Chaudhary moves court against candidacy cancellation",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "49 candidates withdraw nominations",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ]
+            }
+          ],
+          "recommendations": []
+        },
+        {
+          "profileId": "69724b6595aecb30a6fc0e0c-p2",
+          "baseUserId": "69724b6595aecb30a6fc0e0c",
+          "email": "sahbikash500@gmail.com",
+          "name": "Bikash Kumar Sah",
+          "historyPreview": [
+            {
+              "title": "One in six children in Sudurpaschim suffers from wasting",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "सानोठिमी बाल सुधार गृहमा झडप : २ जना अस्पताल भर्ना, १६२ स्थानान्तरण",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "A futile mission",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Modi’s anti-women scheme",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "finance",
+                "politics"
+              ]
+            },
+            {
+              "title": "Nepali Congress set to declare Thapa as prime ministerial candidate",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ]
+            },
+            {
+              "title": "NEPSE this week",
+              "source": "Kathamndu post RSS",
+              "category": "business",
+              "topics": [
+                "finance"
+              ]
+            },
+            {
+              "title": "Nepal suffer second straight defeat at Women’s T20 World Cup Qualifier",
+              "source": "Kathamndu post RSS",
+              "category": "sports",
+              "topics": [
+                "sports",
+                "international"
+              ]
+            },
+            {
+              "title": "Nepal and China agree to expedite projects, boost border trade",
+              "source": "Kathamndu post RSS",
+              "category": "business",
+              "topics": [
+                "finance",
+                "politics",
+                "culture",
+                "international"
+              ]
+            }
+          ],
+          "recommendations": []
+        }
+      ]
+    },
+    "e5_small": {
+      "meta": {
+        "generatedAt": "2026-01-24T07:49:17.850Z",
+        "embeddingProvider": "transformers",
+        "embeddingModel": "Xenova/multilingual-e5-small",
+        "qdrantCollection": "khabar_articles_e5_small_384",
+        "vectorSize": 384,
+        "limit": 3
+      },
+      "label": "multilingual-e5-small (384d)",
+      "profiles": [
+        {
+          "profileId": "69724b6595aecb30a6fc0e0c-p1",
+          "baseUserId": "69724b6595aecb30a6fc0e0c",
+          "email": "sahbikash500@gmail.com",
+          "name": "Bikash Kumar Sah",
+          "historyPreview": [
+            {
+              "title": "‘In Botanical Time’ explores the ways Earth’s oldest plants cheat death",
+              "source": "Science News",
+              "category": "science",
+              "topics": []
+            },
+            {
+              "title": "टी-२० विश्वकप तयारी : अभ्यास खेलमा नेपालको लगातार हार",
+              "source": "Setopati",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ]
+            },
+            {
+              "title": "Netherlands beat Nepal by two runs in thrilling T20 WC qualifier clash",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ]
+            },
+            {
+              "title": "One in six children in Sudurpaschim suffers from wasting",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "सानोठिमी बाल सुधार गृहमा झडप : २ जना अस्पताल भर्ना, १६२ स्थानान्तरण",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "A futile mission",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Modi’s anti-women scheme",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "finance",
+                "politics"
+              ]
+            },
+            {
+              "title": "Nepali Congress set to declare Thapa as prime ministerial candidate",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ]
+            }
+          ],
+          "recommendations": []
+        },
+        {
+          "profileId": "697252d7a8fb60c6e2ecd733-p1",
+          "baseUserId": "697252d7a8fb60c6e2ecd733",
+          "email": "bikashsah6131@gmail.com",
+          "name": "Bikas",
+          "historyPreview": [
+            {
+              "title": "मेजर राई, राजकुमारी साह र जिवछ साह पनि नेकपाबाट निस्कासित",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "हरिबोल गजुरेलसहित ७ नेता नेकपाबाट निष्कासित",
+              "source": "Setopati",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "कैलाली–५ मा प्रेम आलेसँग रास्वपाबाट भिड्दै जनस्वास्थ्य अभियन्ता चन्द",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "स्वतन्त्र उम्मेदवार महावीर पुनलाई उज्यालो पार्टीको समर्थन",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "सिरहाका प्रमेन्द्र : सिभिल इन्जिनियरिङ पढेका मूर्तिकार",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Two camera traps damaged during tiger census",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Departmental sides Police and Army struggle against new clubs",
+              "source": "Kathamndu post RSS",
+              "category": "sports",
+              "topics": [
+                "sports",
+                "politics",
+                "international"
+              ]
+            },
+            {
+              "title": "Japan court sentences ex-PM Abe’s assassin to life in prison",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "finance",
+                "politics",
+                "international"
+              ]
+            }
+          ],
+          "recommendations": []
+        },
+        {
+          "profileId": "697474ed3fb43f3facdf82c8-p1",
+          "baseUserId": "697474ed3fb43f3facdf82c8",
+          "email": "sagunrai2003@gmail.com",
+          "name": "Sagun rai",
+          "historyPreview": [
+            {
+              "title": "Blue Origin’s satellite internet network TeraWave will move data at 6 Tbps",
+              "source": "TechCrunch",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "TikTok forms joint venture to keep operating in U.S., ending yearslong saga",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Thousands of Companies Are Driving China’s AI Boom. A Government Registry Tracks Them All",
+              "source": "WIRED",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Nepal lose to Sri Lanka ‘A’",
+              "source": "Kathamndu post RSS",
+              "category": "sports",
+              "topics": [
+                "sports"
+              ]
+            },
+            {
+              "title": "टी-२० विश्वकप तयारी : अभ्यास खेलमा नेपालको लगातार हार",
+              "source": "Setopati",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ]
+            },
+            {
+              "title": "Netherlands beat Nepal by two runs in thrilling T20 WC qualifier clash",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ]
+            }
+          ],
+          "recommendations": []
+        },
+        {
+          "profileId": "697475163fb43f3facdf82cd-p1",
+          "baseUserId": "697475163fb43f3facdf82cd",
+          "email": "aaravsubedi123@gmail.com",
+          "name": "aarav subedi",
+          "historyPreview": [
+            {
+              "title": "Bitcoin sinks below $90K as large investors sell their holdings and haven seekers go elsewhere",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "technology",
+              "topics": [
+                "finance"
+              ]
+            },
+            {
+              "title": "सेयर बजारमा ९ अंकको ‘करेक्सन’, ३ अर्बले खुम्चियो कारोबार रकम",
+              "source": "बिजनेस – Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Nepse slips 9.43 points as turnover declines",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "finance"
+              ]
+            },
+            {
+              "title": "Ashika Tamang denies withdrawing candidacy",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ]
+            },
+            {
+              "title": "Resham Chaudhary moves court against candidacy cancellation",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "49 candidates withdraw nominations",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ]
+            }
+          ],
+          "recommendations": []
+        },
+        {
+          "profileId": "69724b6595aecb30a6fc0e0c-p2",
+          "baseUserId": "69724b6595aecb30a6fc0e0c",
+          "email": "sahbikash500@gmail.com",
+          "name": "Bikash Kumar Sah",
+          "historyPreview": [
+            {
+              "title": "One in six children in Sudurpaschim suffers from wasting",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "सानोठिमी बाल सुधार गृहमा झडप : २ जना अस्पताल भर्ना, १६२ स्थानान्तरण",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "A futile mission",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Modi’s anti-women scheme",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "finance",
+                "politics"
+              ]
+            },
+            {
+              "title": "Nepali Congress set to declare Thapa as prime ministerial candidate",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ]
+            },
+            {
+              "title": "NEPSE this week",
+              "source": "Kathamndu post RSS",
+              "category": "business",
+              "topics": [
+                "finance"
+              ]
+            },
+            {
+              "title": "Nepal suffer second straight defeat at Women’s T20 World Cup Qualifier",
+              "source": "Kathamndu post RSS",
+              "category": "sports",
+              "topics": [
+                "sports",
+                "international"
+              ]
+            },
+            {
+              "title": "Nepal and China agree to expedite projects, boost border trade",
+              "source": "Kathamndu post RSS",
+              "category": "business",
+              "topics": [
+                "finance",
+                "politics",
+                "culture",
+                "international"
+              ]
+            }
+          ],
+          "recommendations": []
+        }
+      ]
+    },
+    "distiluse": {
+      "meta": {
+        "generatedAt": "2026-01-24T07:49:19.629Z",
+        "embeddingProvider": "transformers",
+        "embeddingModel": "Xenova/distiluse-base-multilingual-cased-v2",
+        "qdrantCollection": "khabar_articles_distiluse_768",
+        "vectorSize": 768,
+        "limit": 3
+      },
+      "label": "distiluse-base-multilingual-cased-v2 (768d)",
+      "profiles": [
+        {
+          "profileId": "69724b6595aecb30a6fc0e0c-p1",
+          "baseUserId": "69724b6595aecb30a6fc0e0c",
+          "email": "sahbikash500@gmail.com",
+          "name": "Bikash Kumar Sah",
+          "historyPreview": [
+            {
+              "title": "‘In Botanical Time’ explores the ways Earth’s oldest plants cheat death",
+              "source": "Science News",
+              "category": "science",
+              "topics": []
+            },
+            {
+              "title": "टी-२० विश्वकप तयारी : अभ्यास खेलमा नेपालको लगातार हार",
+              "source": "Setopati",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ]
+            },
+            {
+              "title": "Netherlands beat Nepal by two runs in thrilling T20 WC qualifier clash",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ]
+            },
+            {
+              "title": "One in six children in Sudurpaschim suffers from wasting",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "सानोठिमी बाल सुधार गृहमा झडप : २ जना अस्पताल भर्ना, १६२ स्थानान्तरण",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "A futile mission",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Modi’s anti-women scheme",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "finance",
+                "politics"
+              ]
+            },
+            {
+              "title": "Nepali Congress set to declare Thapa as prime ministerial candidate",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ]
+            }
+          ],
+          "recommendations": []
+        },
+        {
+          "profileId": "697252d7a8fb60c6e2ecd733-p1",
+          "baseUserId": "697252d7a8fb60c6e2ecd733",
+          "email": "bikashsah6131@gmail.com",
+          "name": "Bikas",
+          "historyPreview": [
+            {
+              "title": "मेजर राई, राजकुमारी साह र जिवछ साह पनि नेकपाबाट निस्कासित",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "हरिबोल गजुरेलसहित ७ नेता नेकपाबाट निष्कासित",
+              "source": "Setopati",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "कैलाली–५ मा प्रेम आलेसँग रास्वपाबाट भिड्दै जनस्वास्थ्य अभियन्ता चन्द",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "स्वतन्त्र उम्मेदवार महावीर पुनलाई उज्यालो पार्टीको समर्थन",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "सिरहाका प्रमेन्द्र : सिभिल इन्जिनियरिङ पढेका मूर्तिकार",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Two camera traps damaged during tiger census",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Departmental sides Police and Army struggle against new clubs",
+              "source": "Kathamndu post RSS",
+              "category": "sports",
+              "topics": [
+                "sports",
+                "politics",
+                "international"
+              ]
+            },
+            {
+              "title": "Japan court sentences ex-PM Abe’s assassin to life in prison",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "finance",
+                "politics",
+                "international"
+              ]
+            }
+          ],
+          "recommendations": []
+        },
+        {
+          "profileId": "697474ed3fb43f3facdf82c8-p1",
+          "baseUserId": "697474ed3fb43f3facdf82c8",
+          "email": "sagunrai2003@gmail.com",
+          "name": "Sagun rai",
+          "historyPreview": [
+            {
+              "title": "Blue Origin’s satellite internet network TeraWave will move data at 6 Tbps",
+              "source": "TechCrunch",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "TikTok forms joint venture to keep operating in U.S., ending yearslong saga",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Thousands of Companies Are Driving China’s AI Boom. A Government Registry Tracks Them All",
+              "source": "WIRED",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Nepal lose to Sri Lanka ‘A’",
+              "source": "Kathamndu post RSS",
+              "category": "sports",
+              "topics": [
+                "sports"
+              ]
+            },
+            {
+              "title": "टी-२० विश्वकप तयारी : अभ्यास खेलमा नेपालको लगातार हार",
+              "source": "Setopati",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ]
+            },
+            {
+              "title": "Netherlands beat Nepal by two runs in thrilling T20 WC qualifier clash",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ]
+            }
+          ],
+          "recommendations": []
+        },
+        {
+          "profileId": "697475163fb43f3facdf82cd-p1",
+          "baseUserId": "697475163fb43f3facdf82cd",
+          "email": "aaravsubedi123@gmail.com",
+          "name": "aarav subedi",
+          "historyPreview": [
+            {
+              "title": "Bitcoin sinks below $90K as large investors sell their holdings and haven seekers go elsewhere",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "technology",
+              "topics": [
+                "finance"
+              ]
+            },
+            {
+              "title": "सेयर बजारमा ९ अंकको ‘करेक्सन’, ३ अर्बले खुम्चियो कारोबार रकम",
+              "source": "बिजनेस – Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Nepse slips 9.43 points as turnover declines",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "finance"
+              ]
+            },
+            {
+              "title": "Ashika Tamang denies withdrawing candidacy",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ]
+            },
+            {
+              "title": "Resham Chaudhary moves court against candidacy cancellation",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "49 candidates withdraw nominations",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ]
+            }
+          ],
+          "recommendations": []
+        },
+        {
+          "profileId": "69724b6595aecb30a6fc0e0c-p2",
+          "baseUserId": "69724b6595aecb30a6fc0e0c",
+          "email": "sahbikash500@gmail.com",
+          "name": "Bikash Kumar Sah",
+          "historyPreview": [
+            {
+              "title": "One in six children in Sudurpaschim suffers from wasting",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "सानोठिमी बाल सुधार गृहमा झडप : २ जना अस्पताल भर्ना, १६२ स्थानान्तरण",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "A futile mission",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": []
+            },
+            {
+              "title": "Modi’s anti-women scheme",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "finance",
+                "politics"
+              ]
+            },
+            {
+              "title": "Nepali Congress set to declare Thapa as prime ministerial candidate",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ]
+            },
+            {
+              "title": "NEPSE this week",
+              "source": "Kathamndu post RSS",
+              "category": "business",
+              "topics": [
+                "finance"
+              ]
+            },
+            {
+              "title": "Nepal suffer second straight defeat at Women’s T20 World Cup Qualifier",
+              "source": "Kathamndu post RSS",
+              "category": "sports",
+              "topics": [
+                "sports",
+                "international"
+              ]
+            },
+            {
+              "title": "Nepal and China agree to expedite projects, boost border trade",
+              "source": "Kathamndu post RSS",
+              "category": "business",
+              "topics": [
+                "finance",
+                "politics",
+                "culture",
+                "international"
+              ]
+            }
+          ],
+          "recommendations": []
+        }
+      ]
+    }
+  }
+}
