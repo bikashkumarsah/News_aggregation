@@ -1,0 +1,1244 @@
+{
+  "generatedAt": "2026-01-24T08:56:10.797Z",
+  "note": "Label each item as relevant true/false, then score Precision@K.",
+  "k": 5,
+  "queries": [
+    {
+      "queryId": "q1",
+      "query": "nepal loss match",
+      "models": {
+        "minilm": {
+          "label": "paraphrase-multilingual-MiniLM-L12-v2 (384d)",
+          "embeddingModel": "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+          "qdrantCollection": "khabar_articles_minilm_384",
+          "vectorSize": 384,
+          "items": [
+            {
+              "rank": 1,
+              "qdrantScore": 0.61274946,
+              "relevant": true,
+              "_id": "6972153647695a5cab5540d1",
+              "title": "Nepal lose to Sri Lanka ‘A’",
+              "description": "Nepal will play the second and third T20s against Sri Lanka ‘A’ at the ground of Colts Cricket Club on January 22 and 24.",
+              "url": "https://kathmandupost.com/cricket/2026/01/21/nepal-lose-to-sri-lanka-a",
+              "source": "Kathamndu post RSS",
+              "category": "sports",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-22T12:16:47.675Z"
+            },
+            {
+              "rank": 2,
+              "qdrantScore": 0.5581945,
+              "relevant": true,
+              "_id": "6972153547695a5cab55406b",
+              "title": "Netherlands beat Nepal by two runs in thrilling T20 WC qualifier clash",
+              "description": "Late fight from Nepal falls short as Netherlands hold on for narrow victory.",
+              "url": "https://kathmandupost.com/sports/2026/01/22/netherlands-beat-nepal-by-two-runs-in-thrilling-t20-wc-qualifier-clash",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-22T12:16:47.668Z"
+            },
+            {
+              "rank": 3,
+              "qdrantScore": 0.48984054,
+              "relevant": false,
+              "_id": "6972153547695a5cab554065",
+              "title": "Family ties feature in Nepal’s parliamentary elections race",
+              "description": "Four married couples and two sibling pairs are contesting House of Representatives seats across parties and constituencies.",
+              "url": "https://kathmandupost.com/national/2026/01/22/family-ties-feature-in-nepal-s-parliamentary-elections-race",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-22T12:16:47.668Z"
+            },
+            {
+              "rank": 4,
+              "qdrantScore": 0.426956,
+              "relevant": false,
+              "_id": "69725b6600c8723885a401a2",
+              "title": "नवलपरासी-२ : जिल्लिए कँडेल, कांग्रेसको आधिकारिक उम्मेदवार बने थापा",
+              "description": "नवलपरासी पश्चिमको क्षेत्र नम्बर २ मा नेपाली कांग्रेसबाट दुई जनाले उम्मेदवारी दर्ता गरेकामा भीमबहादुर थापा भरतको उम्मेदवारी कायम भएको छ ।",
+              "url": "https://www.onlinekhabar.com/2026/01/1855286/nawalparasi-2-kandel-wins-thapa-becomes-official-congress-candidate",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-22T13:18:26.000Z"
+            },
+            {
+              "rank": 5,
+              "qdrantScore": 0.40396142,
+              "relevant": false,
+              "_id": "697472b23b5d6a1237dc993e",
+              "title": "Nepal signs LEAF Coalition deal that could bring up to $55 million in climate finance",
+              "description": "Landmark agreement makes Nepal the first Asian country to access LEAF funding, rewarding decades of community-led forest conservation and emissions reductions.",
+              "url": "https://kathmandupost.com/national/2026/01/24/nepal-signs-leaf-coalition-deal-that-could-bring-up-to-55-million-in-climate-finance",
+              "source": "Kathamndu post RSS",
+              "category": "business",
+              "topics": [
+                "finance"
+              ],
+              "publishedAt": "2026-01-24T07:20:12.301Z"
+            }
+          ]
+        },
+        "e5_small": {
+          "label": "multilingual-e5-small (384d)",
+          "embeddingModel": "Xenova/multilingual-e5-small",
+          "qdrantCollection": "khabar_articles_e5_small_384",
+          "vectorSize": 384,
+          "items": [
+            {
+              "rank": 1,
+              "qdrantScore": 0.871022,
+              "relevant": true,
+              "_id": "6972153647695a5cab5540d1",
+              "title": "Nepal lose to Sri Lanka ‘A’",
+              "description": "Nepal will play the second and third T20s against Sri Lanka ‘A’ at the ground of Colts Cricket Club on January 22 and 24.",
+              "url": "https://kathmandupost.com/cricket/2026/01/21/nepal-lose-to-sri-lanka-a",
+              "source": "Kathamndu post RSS",
+              "category": "sports",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-22T12:16:47.675Z"
+            },
+            {
+              "rank": 2,
+              "qdrantScore": 0.85413706,
+              "relevant": false,
+              "_id": "6972153647695a5cab5540b0",
+              "title": "Nepse slips 9.43 points as turnover declines",
+              "description": "Trading volume falls to Rs8.92 billion amid broad-based losses.",
+              "url": "https://kathmandupost.com/money/2026/01/21/nepse-slips-9-43-points-as-turnover-declines",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "finance"
+              ],
+              "publishedAt": "2026-01-22T12:16:47.673Z"
+            },
+            {
+              "rank": 3,
+              "qdrantScore": 0.8387244,
+              "relevant": true,
+              "_id": "6972153547695a5cab55406b",
+              "title": "Netherlands beat Nepal by two runs in thrilling T20 WC qualifier clash",
+              "description": "Late fight from Nepal falls short as Netherlands hold on for narrow victory.",
+              "url": "https://kathmandupost.com/sports/2026/01/22/netherlands-beat-nepal-by-two-runs-in-thrilling-t20-wc-qualifier-clash",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-22T12:16:47.668Z"
+            },
+            {
+              "rank": 4,
+              "qdrantScore": 0.83431125,
+              "relevant": false,
+              "_id": "6972153647695a5cab5540ce",
+              "title": "Departmental sides Police and Army struggle against new clubs",
+              "description": "Nepal Police FC and Tribhuvan Army FC settle for draws against emerging clubs Chitlang FC and Planning Boyz United, respectively. The results underline a shifting domestic football landscape where legacy alone is not enough.",
+              "url": "https://kathmandupost.com/football/2026/01/21/departmental-sides-police-and-army-struggle-against-new-clubs",
+              "source": "Kathamndu post RSS",
+              "category": "sports",
+              "topics": [
+                "sports",
+                "politics",
+                "international"
+              ],
+              "publishedAt": "2026-01-22T12:16:47.674Z"
+            },
+            {
+              "rank": 5,
+              "qdrantScore": 0.8295933,
+              "relevant": false,
+              "_id": "69725b6500c8723885a3fe6c",
+              "title": "Resham Chaudhary’s candidacy cancelled",
+              "description": "Kathmandu, January 22 The candidacy of Resham Chaudhary, Patron of the Nagarik Unmukti Party (NUP) Nepal, has been cancelled. Chaudhary had filed his nomination from Kailali Constituency No. 1. Meanwhile, the Election Commission is still reviewing a complaint filed against Lal Bikram Thapa, leader of the Rastriya Swatantra Party (RSP). Complaints had been lodged against […]\nThe post Resham Chaudhary’s candidacy cancelled appeared first on OnlineKhabar English News.",
+              "url": "https://english.onlinekhabar.com/resham-chaudharys-candidacy-cancelled.html",
+              "source": "OnlineKhabar English News",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-22T12:37:06.000Z"
+            }
+          ]
+        },
+        "distiluse": {
+          "label": "distiluse-base-multilingual-cased-v2 (768d)",
+          "embeddingModel": "Xenova/distiluse-base-multilingual-cased-v2",
+          "qdrantCollection": "khabar_articles_distiluse_768",
+          "vectorSize": 768,
+          "items": [
+            {
+              "rank": 1,
+              "qdrantScore": 0.46366364,
+              "relevant": true,
+              "_id": "6972153547695a5cab55406b",
+              "title": "Netherlands beat Nepal by two runs in thrilling T20 WC qualifier clash",
+              "description": "Late fight from Nepal falls short as Netherlands hold on for narrow victory.",
+              "url": "https://kathmandupost.com/sports/2026/01/22/netherlands-beat-nepal-by-two-runs-in-thrilling-t20-wc-qualifier-clash",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-22T12:16:47.668Z"
+            },
+            {
+              "rank": 2,
+              "qdrantScore": 0.43610543,
+              "relevant": true,
+              "_id": "6972153647695a5cab5540d1",
+              "title": "Nepal lose to Sri Lanka ‘A’",
+              "description": "Nepal will play the second and third T20s against Sri Lanka ‘A’ at the ground of Colts Cricket Club on January 22 and 24.",
+              "url": "https://kathmandupost.com/cricket/2026/01/21/nepal-lose-to-sri-lanka-a",
+              "source": "Kathamndu post RSS",
+              "category": "sports",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-22T12:16:47.675Z"
+            },
+            {
+              "rank": 3,
+              "qdrantScore": 0.3203559,
+              "relevant": true,
+              "_id": "69730f3a366b7b527fd41fb0",
+              "title": "Nepal suffer second straight defeat at Women’s T20 World Cup Qualifier",
+              "description": "Two of Nepal’s most experienced players, Sita Rana Magar and Rubina Chhetry, keep the team in the chase until the very end, turning the match into a nail-biter.",
+              "url": "https://kathmandupost.com/cricket/2026/01/23/nepal-suffer-second-straight-defeat-at-women-s-t20-world-cup-qualifier",
+              "source": "Kathamndu post RSS",
+              "category": "sports",
+              "topics": [
+                "sports",
+                "international"
+              ],
+              "publishedAt": "2026-01-23T06:03:33.031Z"
+            },
+            {
+              "rank": 4,
+              "qdrantScore": 0.32009614,
+              "relevant": false,
+              "_id": "6972153547695a5cab554065",
+              "title": "Family ties feature in Nepal’s parliamentary elections race",
+              "description": "Four married couples and two sibling pairs are contesting House of Representatives seats across parties and constituencies.",
+              "url": "https://kathmandupost.com/national/2026/01/22/family-ties-feature-in-nepal-s-parliamentary-elections-race",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-22T12:16:47.668Z"
+            },
+            {
+              "rank": 5,
+              "qdrantScore": 0.3106023,
+              "relevant": true,
+              "_id": "697472b23b5d6a1237dc99de",
+              "title": "श्रीलंका ‘ए’ सँग तेस्रो अभ्यास खेल खेल्दै नेपाल",
+              "description": "१० माघ, काठमाडौं । आईसीसी टी-२० विश्वकपको तयारीमा रहेको नेपाली पुरुष क्रिकेट टोलीले श्रीलंका ‘ए’ सँग आज तेस्रो तथा अन्तिम अभ्यास टी-२० खेल खेल्दै छ । खेल कोल्ट्स मैदानमा दिउँसो हुनेछ । नेपाल यसअघिका दुवै अभ्यास खेलमा पराजित भएको छ । अन्तिम खेलमा नेपाल जितको खोजीमा हुनेछ । पहिलो अभ्यास खेलमा नेपाल ६ विकेटले पराजित […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1856026/nepal-loses-in-second-practice-match-against-sri-lanka-a-2",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-24T01:10:52.000Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "queryId": "q2",
+      "query": "interest rate inflation",
+      "models": {
+        "minilm": {
+          "label": "paraphrase-multilingual-MiniLM-L12-v2 (384d)",
+          "embeddingModel": "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+          "qdrantCollection": "khabar_articles_minilm_384",
+          "vectorSize": 384,
+          "items": [
+            {
+              "rank": 1,
+              "qdrantScore": 0.39780635,
+              "relevant": true,
+              "_id": "697472b13b5d6a1237dc9643",
+              "title": "Natural-gas prices see ‘historic’ surge as U.S. braces for winter storm. What that means for heating bills.",
+              "description": "Consumers don’t have to worry yet about the three-session 62% spike in prices",
+              "url": "https://www.marketwatch.com/story/natural-gas-prices-see-historic-surge-as-u-s-braces-for-winter-storm-what-that-means-for-heating-bills-7e1b9fa2?mod=mw_rss_topstories",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-23T21:29:00.000Z"
+            },
+            {
+              "rank": 2,
+              "qdrantScore": 0.39679033,
+              "relevant": true,
+              "_id": "6972153547695a5cab553c33",
+              "title": "A new gold rush by these investors will push prices past $5,000 this year, says Goldman Sachs",
+              "description": "Goldman Sachs identifies central banks and private sector buyers as the chief vectors behind gold’s expected rise in 2026.",
+              "url": "https://www.marketwatch.com/story/with-gold-closing-in-on-5-000-goldman-sachs-again-boost-target-as-it-highlights-new-source-of-demand-fbec1485?mod=mw_rss_topstories",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-22T11:56:00.000Z"
+            },
+            {
+              "rank": 3,
+              "qdrantScore": 0.37646604,
+              "relevant": true,
+              "_id": "697472b13b5d6a1237dc9602",
+              "title": "Wall Street braced for a private credit meltdown. The risk of one is rising",
+              "description": "Private credit is expected to grow from $3.4 trillion in 2025 to an estimated $4.9 trillion by 2029. Wall Street is starting to raise alarms about the risks.",
+              "url": "https://www.cnbc.com/2026/01/23/wall-street-private-credit-risk-rising.html",
+              "source": "Business News",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-23T21:26:18.000Z"
+            },
+            {
+              "rank": 4,
+              "qdrantScore": 0.34515405,
+              "relevant": true,
+              "_id": "69730f3a366b7b527fd41d3a",
+              "title": "Bond investors should worry less about Treasury yields, and watch this move instead",
+              "description": "Tensions between the U.S. and its NATO allies over Greenland put some investors on edge",
+              "url": "https://www.marketwatch.com/story/bond-investors-should-worry-less-about-treasury-yields-and-watch-this-move-instead-937fc339?mod=mw_rss_topstories",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "technology",
+              "topics": [
+                "finance",
+                "international"
+              ],
+              "publishedAt": "2026-01-22T23:22:00.000Z"
+            },
+            {
+              "rank": 5,
+              "qdrantScore": 0.33670115,
+              "relevant": true,
+              "_id": "69725b6500c8723885a3fec0",
+              "title": "The state of the U.S. economy: strong growth, low layoffs and lingering inflation",
+              "description": "A consumer-fueled U.S. economy is still growing at a strong pace, a weak jobs market might be on the mend and inflation is still a lingering — if smaller — problem than it was a few years ago.",
+              "url": "https://www.marketwatch.com/story/u-s-inflation-rate-is-still-stuck-near-3-fed-appears-no-hurry-to-cut-interest-rates-again-e41b782b?mod=mw_rss_topstories",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "business",
+              "topics": [
+                "finance"
+              ],
+              "publishedAt": "2026-01-22T16:37:00.000Z"
+            }
+          ]
+        },
+        "e5_small": {
+          "label": "multilingual-e5-small (384d)",
+          "embeddingModel": "Xenova/multilingual-e5-small",
+          "qdrantCollection": "khabar_articles_e5_small_384",
+          "vectorSize": 384,
+          "items": [
+            {
+              "rank": 1,
+              "qdrantScore": 0.8516718,
+              "relevant": true,
+              "_id": "697472b13b5d6a1237dc9602",
+              "title": "Wall Street braced for a private credit meltdown. The risk of one is rising",
+              "description": "Private credit is expected to grow from $3.4 trillion in 2025 to an estimated $4.9 trillion by 2029. Wall Street is starting to raise alarms about the risks.",
+              "url": "https://www.cnbc.com/2026/01/23/wall-street-private-credit-risk-rising.html",
+              "source": "Business News",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-23T21:26:18.000Z"
+            },
+            {
+              "rank": 2,
+              "qdrantScore": 0.84410703,
+              "relevant": true,
+              "_id": "69725b6500c8723885a3fec0",
+              "title": "The state of the U.S. economy: strong growth, low layoffs and lingering inflation",
+              "description": "A consumer-fueled U.S. economy is still growing at a strong pace, a weak jobs market might be on the mend and inflation is still a lingering — if smaller — problem than it was a few years ago.",
+              "url": "https://www.marketwatch.com/story/u-s-inflation-rate-is-still-stuck-near-3-fed-appears-no-hurry-to-cut-interest-rates-again-e41b782b?mod=mw_rss_topstories",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "business",
+              "topics": [
+                "finance"
+              ],
+              "publishedAt": "2026-01-22T16:37:00.000Z"
+            },
+            {
+              "rank": 3,
+              "qdrantScore": 0.83973366,
+              "relevant": true,
+              "_id": "697472b13b5d6a1237dc9643",
+              "title": "Natural-gas prices see ‘historic’ surge as U.S. braces for winter storm. What that means for heating bills.",
+              "description": "Consumers don’t have to worry yet about the three-session 62% spike in prices",
+              "url": "https://www.marketwatch.com/story/natural-gas-prices-see-historic-surge-as-u-s-braces-for-winter-storm-what-that-means-for-heating-bills-7e1b9fa2?mod=mw_rss_topstories",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-23T21:29:00.000Z"
+            },
+            {
+              "rank": 4,
+              "qdrantScore": 0.83801866,
+              "relevant": true,
+              "_id": "697472b13b5d6a1237dc963a",
+              "title": "I’m inheriting $250K. Will paying off my student loans and credit-card debt hurt my credit score?",
+              "description": "“The money is coming from the proceeds of the sale of a family home.”",
+              "url": "https://www.marketwatch.com/story/im-inheriting-250k-will-paying-off-my-student-loans-and-credit-card-debt-hurt-my-credit-score-4679d9ab?mod=mw_rss_topstories",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "sports",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-23T23:00:00.000Z"
+            },
+            {
+              "rank": 5,
+              "qdrantScore": 0.8273568,
+              "relevant": true,
+              "_id": "697472b13b5d6a1237dc963d",
+              "title": "Investors should be wary of buying the dip if the S&P 500 falls to this level",
+              "description": "If December’s lows are broken during the first quarter of a new year, a bear market often follows.",
+              "url": "https://www.marketwatch.com/story/the-s-p-500-is-on-fire-but-a-retreat-to-this-level-would-unleash-the-bears-9739a9d8?mod=mw_rss_topstories",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "business",
+              "topics": [],
+              "publishedAt": "2026-01-23T22:27:00.000Z"
+            }
+          ]
+        },
+        "distiluse": {
+          "label": "distiluse-base-multilingual-cased-v2 (768d)",
+          "embeddingModel": "Xenova/distiluse-base-multilingual-cased-v2",
+          "qdrantCollection": "khabar_articles_distiluse_768",
+          "vectorSize": 768,
+          "items": [
+            {
+              "rank": 1,
+              "qdrantScore": 0.30846703,
+              "relevant": true,
+              "_id": "697472b13b5d6a1237dc9602",
+              "title": "Wall Street braced for a private credit meltdown. The risk of one is rising",
+              "description": "Private credit is expected to grow from $3.4 trillion in 2025 to an estimated $4.9 trillion by 2029. Wall Street is starting to raise alarms about the risks.",
+              "url": "https://www.cnbc.com/2026/01/23/wall-street-private-credit-risk-rising.html",
+              "source": "Business News",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-23T21:26:18.000Z"
+            },
+            {
+              "rank": 2,
+              "qdrantScore": 0.27633122,
+              "relevant": true,
+              "_id": "697472b13b5d6a1237dc9643",
+              "title": "Natural-gas prices see ‘historic’ surge as U.S. braces for winter storm. What that means for heating bills.",
+              "description": "Consumers don’t have to worry yet about the three-session 62% spike in prices",
+              "url": "https://www.marketwatch.com/story/natural-gas-prices-see-historic-surge-as-u-s-braces-for-winter-storm-what-that-means-for-heating-bills-7e1b9fa2?mod=mw_rss_topstories",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-23T21:29:00.000Z"
+            },
+            {
+              "rank": 3,
+              "qdrantScore": 0.2665317,
+              "relevant": true,
+              "_id": "69725b6500c8723885a3fec0",
+              "title": "The state of the U.S. economy: strong growth, low layoffs and lingering inflation",
+              "description": "A consumer-fueled U.S. economy is still growing at a strong pace, a weak jobs market might be on the mend and inflation is still a lingering — if smaller — problem than it was a few years ago.",
+              "url": "https://www.marketwatch.com/story/u-s-inflation-rate-is-still-stuck-near-3-fed-appears-no-hurry-to-cut-interest-rates-again-e41b782b?mod=mw_rss_topstories",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "business",
+              "topics": [
+                "finance"
+              ],
+              "publishedAt": "2026-01-22T16:37:00.000Z"
+            },
+            {
+              "rank": 4,
+              "qdrantScore": 0.24082914,
+              "relevant": true,
+              "_id": "697472b13b5d6a1237dc963d",
+              "title": "Investors should be wary of buying the dip if the S&P 500 falls to this level",
+              "description": "If December’s lows are broken during the first quarter of a new year, a bear market often follows.",
+              "url": "https://www.marketwatch.com/story/the-s-p-500-is-on-fire-but-a-retreat-to-this-level-would-unleash-the-bears-9739a9d8?mod=mw_rss_topstories",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "business",
+              "topics": [],
+              "publishedAt": "2026-01-23T22:27:00.000Z"
+            },
+            {
+              "rank": 5,
+              "qdrantScore": 0.23615943,
+              "relevant": true,
+              "_id": "69730f3a366b7b527fd41d3a",
+              "title": "Bond investors should worry less about Treasury yields, and watch this move instead",
+              "description": "Tensions between the U.S. and its NATO allies over Greenland put some investors on edge",
+              "url": "https://www.marketwatch.com/story/bond-investors-should-worry-less-about-treasury-yields-and-watch-this-move-instead-937fc339?mod=mw_rss_topstories",
+              "source": "MarketWatch.com - Top Stories",
+              "category": "technology",
+              "topics": [
+                "finance",
+                "international"
+              ],
+              "publishedAt": "2026-01-22T23:22:00.000Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "queryId": "q3",
+      "query": "election commission nepal",
+      "models": {
+        "minilm": {
+          "label": "paraphrase-multilingual-MiniLM-L12-v2 (384d)",
+          "embeddingModel": "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+          "qdrantCollection": "khabar_articles_minilm_384",
+          "vectorSize": 384,
+          "items": [
+            {
+              "rank": 1,
+              "qdrantScore": 0.5781831,
+              "relevant": true,
+              "_id": "6972153547695a5cab554065",
+              "title": "Family ties feature in Nepal’s parliamentary elections race",
+              "description": "Four married couples and two sibling pairs are contesting House of Representatives seats across parties and constituencies.",
+              "url": "https://kathmandupost.com/national/2026/01/22/family-ties-feature-in-nepal-s-parliamentary-elections-race",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-22T12:16:47.668Z"
+            },
+            {
+              "rank": 2,
+              "qdrantScore": 0.5043186,
+              "relevant": true,
+              "_id": "6972153647695a5cab5540f5",
+              "title": "अछाम-१ ले फर्काउला भीम रावल ?",
+              "description": "यहाँ एमालेले अघिल्लो निर्वाचनमा रावलको टिकट खोसेर उम्मेदवार बनाएका झपटबहादुर बोहोरालाई फेरि चुनावी प्रतिस्पर्धामा उतारेको छ ।",
+              "url": "https://www.onlinekhabar.com/2026/01/1855121/will-achham-1-bring-back-bhim-rawal",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-22T11:37:01.000Z"
+            },
+            {
+              "rank": 3,
+              "qdrantScore": 0.48285514,
+              "relevant": true,
+              "_id": "6972153647695a5cab5540f8",
+              "title": "सर्लाही-२ : राजेन्द्र र महेन्द्र पुरानो प्रतिस्पर्धी, थपिए नयाँ पनि",
+              "description": "सर्लाही प्रतिनिधिसभा क्षेत्र-२ मा पुरानै प्रतिस्पर्धीसँगै नयाँ थपिँदा चुनावी माहोल रोचक बनेको छ।",
+              "url": "https://www.onlinekhabar.com/2026/01/1855157/sarlahi-2-rajendra-and-mahendra-are-old-rivals-a-new-one-has-also-been-added",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-22T11:34:00.000Z"
+            },
+            {
+              "rank": 4,
+              "qdrantScore": 0.46188918,
+              "relevant": true,
+              "_id": "697472b23b5d6a1237dc9941",
+              "title": "Nepali Congress names Gagan Thapa its PM candidate",
+              "description": "Thapa, the new president of the party, pledges reforms, inclusiveness, and united push into March 5 parliamentary elections.",
+              "url": "https://kathmandupost.com/politics/2026/01/24/nepali-congress-names-gagan-thapa-its-pm-candidate",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-24T07:20:12.301Z"
+            },
+            {
+              "rank": 5,
+              "qdrantScore": 0.45916787,
+              "relevant": true,
+              "_id": "69725b6600c8723885a401ab",
+              "title": "पर्सा-१ मा तात्दैछ चुनावी माहोल",
+              "description": "२१ फागुनमा हुने प्रतिनिधिसभा निर्वाचनमा पर्सा निर्वाचन क्षेत्र नम्बर–१ मा पुराना दलका उम्मेदवारबाहेक केही नयाँ अनुहार पनि यसपटक मैदानमा उत्रिएका छन् ।",
+              "url": "https://www.onlinekhabar.com/2026/01/1855263/election-atmosphere-heating-up-in-parsa-1",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-22T12:59:47.000Z"
+            }
+          ]
+        },
+        "e5_small": {
+          "label": "multilingual-e5-small (384d)",
+          "embeddingModel": "Xenova/multilingual-e5-small",
+          "qdrantCollection": "khabar_articles_e5_small_384",
+          "vectorSize": 384,
+          "items": [
+            {
+              "rank": 1,
+              "qdrantScore": 0.86565846,
+              "relevant": true,
+              "_id": "69730f3a366b7b527fd41fbf",
+              "title": "Resham Chaudhary barred from House race",
+              "description": "Conviction in killings not annulled by presidential clemency, Election Commission says.",
+              "url": "https://kathmandupost.com/politics/2026/01/23/resham-chaudhary-barred-from-house-race",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-23T06:03:33.032Z"
+            },
+            {
+              "rank": 2,
+              "qdrantScore": 0.86550534,
+              "relevant": true,
+              "_id": "6972153647695a5cab5540aa",
+              "title": "Candidacies of Madhav Nepal, Resham Chaudhary challenged at Election Commission",
+              "description": "Election Commission says objections have been lodged against nominees ahead of the March 5 House of Representatives polls.",
+              "url": "https://kathmandupost.com/national/2026/01/21/candidacies-of-madhav-nepal-resham-chaudhary-challenged-at-election-commission",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-22T12:16:47.672Z"
+            },
+            {
+              "rank": 3,
+              "qdrantScore": 0.84942675,
+              "relevant": true,
+              "_id": "69725b6600c8723885a4013e",
+              "title": "Election police appointments set for January 29, deployment from February 8",
+              "description": "Around 188,000 personnel from the Nepali Army, Nepal Police, APF and the National Investigation Department will be deployed nationwide for the election security.",
+              "url": "https://kathmandupost.com/national/2026/01/22/election-police-appointments-set-for-january-29-deployment-from-february-8",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-22T17:16:17.163Z"
+            },
+            {
+              "rank": 4,
+              "qdrantScore": 0.8491996,
+              "relevant": true,
+              "_id": "6972153547695a5cab553b97",
+              "title": "95 polling centres classified as highly sensitive in Jhapa",
+              "description": "Jhapa, January 22 The Security Bodies have classified voting stations in three groups in order to make voters and polling centres in the district a fear-free environment for the upcoming election to the House of Representatives. Chief District Officer Shiva Lal Gelal said 95 voting centres in the district have been classified as highly sensitive. […]\nThe post 95 polling centres classified as highly sensitive in Jhapa appeared first on OnlineKhabar English News.",
+              "url": "https://english.onlinekhabar.com/95-polling-centres-classified-as-highly-sensitive-in-jhapa.html",
+              "source": "OnlineKhabar English News",
+              "category": "science",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-22T11:32:19.000Z"
+            },
+            {
+              "rank": 5,
+              "qdrantScore": 0.8436129,
+              "relevant": true,
+              "_id": "6972153647695a5cab5540a1",
+              "title": "Four ex-prime ministers trying their luck in March election",
+              "description": "Baburam Bhattarai, KP Sharma Oli, Pushpa Kamal Dahal and Madhav Kumar Nepal contest from Gorkha, Jhapa, Rukum East and Rautahat, respectively.",
+              "url": "https://kathmandupost.com/politics/2026/01/21/four-former-prime-ministers-enter-the-electoral-fray",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-22T12:16:47.671Z"
+            }
+          ]
+        },
+        "distiluse": {
+          "label": "distiluse-base-multilingual-cased-v2 (768d)",
+          "embeddingModel": "Xenova/distiluse-base-multilingual-cased-v2",
+          "qdrantCollection": "khabar_articles_distiluse_768",
+          "vectorSize": 768,
+          "items": [
+            {
+              "rank": 1,
+              "qdrantScore": 0.3479362,
+              "relevant": true,
+              "_id": "697472b23b5d6a1237dc9968",
+              "title": "Ashika Tamang denies withdrawing candidacy",
+              "description": "RSP candidate says fake email was sent to Election Commission in her name.",
+              "url": "https://kathmandupost.com/national/2026/01/23/ashika-tamang-denies-withdrawing-candidacy",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-24T07:20:12.304Z"
+            },
+            {
+              "rank": 2,
+              "qdrantScore": 0.3415488,
+              "relevant": true,
+              "_id": "6972153547695a5cab554065",
+              "title": "Family ties feature in Nepal’s parliamentary elections race",
+              "description": "Four married couples and two sibling pairs are contesting House of Representatives seats across parties and constituencies.",
+              "url": "https://kathmandupost.com/national/2026/01/22/family-ties-feature-in-nepal-s-parliamentary-elections-race",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-22T12:16:47.668Z"
+            },
+            {
+              "rank": 3,
+              "qdrantScore": 0.3216266,
+              "relevant": true,
+              "_id": "6972153647695a5cab55416a",
+              "title": "Press Council registers 163 complaints, tightens media monitoring ahead of elections",
+              "description": "KATHMANDU, JANUARY 22Press Council Nepal has intensified monitoring of media content, including social media platforms, ahead of the upcoming National Assembly and House of Represe...",
+              "url": "https://thehimalayantimes.com/nepal/press-council-registers-163-complaints-tightens-media-monitoring-ahead-of-elections",
+              "source": "https://thehimalayantimes.com",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-22T08:15:54.000Z"
+            },
+            {
+              "rank": 4,
+              "qdrantScore": 0.31981343,
+              "relevant": true,
+              "_id": "697472b23b5d6a1237dc9941",
+              "title": "Nepali Congress names Gagan Thapa its PM candidate",
+              "description": "Thapa, the new president of the party, pledges reforms, inclusiveness, and united push into March 5 parliamentary elections.",
+              "url": "https://kathmandupost.com/politics/2026/01/24/nepali-congress-names-gagan-thapa-its-pm-candidate",
+              "source": "Kathamndu post RSS",
+              "category": "technology",
+              "topics": [
+                "politics"
+              ],
+              "publishedAt": "2026-01-24T07:20:12.301Z"
+            },
+            {
+              "rank": 5,
+              "qdrantScore": 0.3092643,
+              "relevant": false,
+              "_id": "697472b23b5d6a1237dc9a22",
+              "title": "Multi-stakeholder interaction highlights urgent need to protect Nepal&#039;s biodiversity amid climate change and pollution",
+              "description": "HETAUDA, JANUARY 23Amid growing concerns over climate change and environmental pollution threatening Nepal's biodiversity, the Biodiversity and Climate Sub-Committee under the...",
+              "url": "https://thehimalayantimes.com/nepal/multi-stakeholder-interaction-highlights-urgent-need-to-protect-nepals-biodiversity-amid-climate-change-and-pollution",
+              "source": "https://thehimalayantimes.com",
+              "category": "science",
+              "topics": [],
+              "publishedAt": "2026-01-23T16:12:38.000Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "queryId": "q4",
+      "query": "टी-२० विश्वकप अभ्यास खेल हार",
+      "models": {
+        "minilm": {
+          "label": "paraphrase-multilingual-MiniLM-L12-v2 (384d)",
+          "embeddingModel": "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+          "qdrantCollection": "khabar_articles_minilm_384",
+          "vectorSize": 384,
+          "items": [
+            {
+              "rank": 1,
+              "qdrantScore": 0.63780177,
+              "relevant": true,
+              "_id": "6972153647695a5cab55415e",
+              "title": "टी-२० विश्वकप तयारी : अभ्यास खेलमा नेपालको लगातार हार",
+              "description": "बिहीबार भएको खेलमा नेपाल ७३ रनले पराजित भएको हो। यसअघि पहिलो अभ्यास खेलमा ४ विकेटको पराजित भएको थियो।",
+              "url": " https://www.setopati.com/sports/cricket/380482 ",
+              "source": "Setopati",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-22T11:28:00.000Z"
+            },
+            {
+              "rank": 2,
+              "qdrantScore": 0.5410316,
+              "relevant": true,
+              "_id": "6972153647695a5cab5540d1",
+              "title": "Nepal lose to Sri Lanka ‘A’",
+              "description": "Nepal will play the second and third T20s against Sri Lanka ‘A’ at the ground of Colts Cricket Club on January 22 and 24.",
+              "url": "https://kathmandupost.com/cricket/2026/01/21/nepal-lose-to-sri-lanka-a",
+              "source": "Kathamndu post RSS",
+              "category": "sports",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-22T12:16:47.675Z"
+            },
+            {
+              "rank": 3,
+              "qdrantScore": 0.52039444,
+              "relevant": true,
+              "_id": "697472b23b5d6a1237dc99e4",
+              "title": "महिला टी-२० विश्‍वकप ग्लोबल छनोटमा नेपालले जिम्बाबेसँग खेल्दै",
+              "description": "१० माघ, काठमाडौं । आईसीसी महिला टी-२० विश्‍वकप ग्लोबल छनोटको आफ्नो तेस्रो खेलमा नेपालले आज जिम्बाबेसँग खेल्दै छ । त्रिवि क्रिकेट मैदानमा खेल दिउँसो १ बजेदेखि सुरु हुनेछ । नेपाल यसअघि खेलेका दुई खेलमा पराजित भएको छ । जिम्बाबेले भने ३ खेल खेल्दा ३ वटै खेल हारेको छ । नेपाल पहिलो खेलमा थाइल्यान्डसँग ६ विकेटले […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1856021/nepal-playing-an-important-match-against-zimbabwe-2",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-24T00:40:00.000Z"
+            },
+            {
+              "rank": 4,
+              "qdrantScore": 0.51220727,
+              "relevant": true,
+              "_id": "697472b23b5d6a1237dc99de",
+              "title": "श्रीलंका ‘ए’ सँग तेस्रो अभ्यास खेल खेल्दै नेपाल",
+              "description": "१० माघ, काठमाडौं । आईसीसी टी-२० विश्वकपको तयारीमा रहेको नेपाली पुरुष क्रिकेट टोलीले श्रीलंका ‘ए’ सँग आज तेस्रो तथा अन्तिम अभ्यास टी-२० खेल खेल्दै छ । खेल कोल्ट्स मैदानमा दिउँसो हुनेछ । नेपाल यसअघिका दुवै अभ्यास खेलमा पराजित भएको छ । अन्तिम खेलमा नेपाल जितको खोजीमा हुनेछ । पहिलो अभ्यास खेलमा नेपाल ६ विकेटले पराजित […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1856026/nepal-loses-in-second-practice-match-against-sri-lanka-a-2",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-24T01:10:52.000Z"
+            },
+            {
+              "rank": 5,
+              "qdrantScore": 0.4015935,
+              "relevant": true,
+              "_id": "6972153647695a5cab554155",
+              "title": "आइसिसीको अल्टिमेटम बंगलादेशद्वारा अस्वीकार - 'भारतमा खेल्दैनौँ, बरु विश्वकप नै छुटोस्'",
+              "description": "आइसिसीले भारतमा गएर नखेले विश्वकपबाटै हटाइदिने चेतावनी दिए पनि बंगलादेशले आफ्नो अडान परिवर्तन गर्न अस्वीकार गरेको छ।",
+              "url": " https://www.setopati.com/sports/cricket/380489 ",
+              "source": "Setopati",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-22T12:11:00.000Z"
+            }
+          ]
+        },
+        "e5_small": {
+          "label": "multilingual-e5-small (384d)",
+          "embeddingModel": "Xenova/multilingual-e5-small",
+          "qdrantCollection": "khabar_articles_e5_small_384",
+          "vectorSize": 384,
+          "items": [
+            {
+              "rank": 1,
+              "qdrantScore": 0.89596367,
+              "relevant": true,
+              "_id": "6972153647695a5cab55415e",
+              "title": "टी-२० विश्वकप तयारी : अभ्यास खेलमा नेपालको लगातार हार",
+              "description": "बिहीबार भएको खेलमा नेपाल ७३ रनले पराजित भएको हो। यसअघि पहिलो अभ्यास खेलमा ४ विकेटको पराजित भएको थियो।",
+              "url": " https://www.setopati.com/sports/cricket/380482 ",
+              "source": "Setopati",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-22T11:28:00.000Z"
+            },
+            {
+              "rank": 2,
+              "qdrantScore": 0.86798966,
+              "relevant": true,
+              "_id": "697472b23b5d6a1237dc99de",
+              "title": "श्रीलंका ‘ए’ सँग तेस्रो अभ्यास खेल खेल्दै नेपाल",
+              "description": "१० माघ, काठमाडौं । आईसीसी टी-२० विश्वकपको तयारीमा रहेको नेपाली पुरुष क्रिकेट टोलीले श्रीलंका ‘ए’ सँग आज तेस्रो तथा अन्तिम अभ्यास टी-२० खेल खेल्दै छ । खेल कोल्ट्स मैदानमा दिउँसो हुनेछ । नेपाल यसअघिका दुवै अभ्यास खेलमा पराजित भएको छ । अन्तिम खेलमा नेपाल जितको खोजीमा हुनेछ । पहिलो अभ्यास खेलमा नेपाल ६ विकेटले पराजित […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1856026/nepal-loses-in-second-practice-match-against-sri-lanka-a-2",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-24T01:10:52.000Z"
+            },
+            {
+              "rank": 3,
+              "qdrantScore": 0.8677047,
+              "relevant": true,
+              "_id": "69730f3a366b7b527fd41fe8",
+              "title": "चोटका कारण एडम मिल्ने टी–२० विश्वकपबाट बाहिर, काइल जेमिसन टिममा",
+              "description": "९ माघ, काठमाडौं । न्युजिल्यान्डका पेस बलर एडम मिल्ने ह्यामस्ट्रिङ चोटका कारण २०२६ को टी–२० विश्वकपबाट बाहिरिएका छन् । उनको स्थानमा काइल जेमिसनलाई टिममा समावेश गरिएको छ । मिल्नेले एसए–२० लिगका क्रममा सनराइजर्स इस्टर्न केपबाट खेल्दा पहिलो ओभरमै चोट बोकेका थिए । स्क्यानपछि ह्यामस्ट्रिङमा गम्भीर चोट देखिएको न्यूजिल्यान्ड क्रिकेटले जनाएको छ । न्युजिल्यान्डका मुख्य प्रशिक्षक […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1855499/adam-milne-ruled-out-of-t20-world-cup-due-to-injury-kyle-jamieson-in-the-team",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-23T05:33:12.000Z"
+            },
+            {
+              "rank": 4,
+              "qdrantScore": 0.86142296,
+              "relevant": true,
+              "_id": "6972153647695a5cab5540fe",
+              "title": "बीसीबीले भन्यो – विश्‍वकप खेल्न भारत जाँदैनौं, घाटा आईसीसीलाई नै हुनेछ",
+              "description": "८ माघ, काठमाडौं । बंगलादेश क्रिकेट बोर्ड (बीसीबी), राष्ट्रिय टिमका खेलाडीहरू र सरकारका खेलकुद सल्लाहकारबीच ढाकामा भएको बैठकपछि पनि बंगलादेशले टी-२० विश्वकप भारतमा खेल्न नजाने अडान कायमै राखेको छ । बंगलादेशले भारतमा टी–२० विश्वकपका खेलहरू नखेल्ने र आफ्ना सबै खेलहरू श्रीलंकामा सार्नुपर्ने माग कायम राखेको हो । बैठकपछि आयोजित पत्रकार सम्मेलनमा बीसीबी अध्यक्ष अमिनुल इस्लामले […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1855140/bcb-says-we-will-not-go-to-india-to-play-the-world-cup-the-loss-will-be-on-the-icc",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-22T11:18:37.000Z"
+            },
+            {
+              "rank": 5,
+              "qdrantScore": 0.85793555,
+              "relevant": true,
+              "_id": "697472b23b5d6a1237dc99e4",
+              "title": "महिला टी-२० विश्‍वकप ग्लोबल छनोटमा नेपालले जिम्बाबेसँग खेल्दै",
+              "description": "१० माघ, काठमाडौं । आईसीसी महिला टी-२० विश्‍वकप ग्लोबल छनोटको आफ्नो तेस्रो खेलमा नेपालले आज जिम्बाबेसँग खेल्दै छ । त्रिवि क्रिकेट मैदानमा खेल दिउँसो १ बजेदेखि सुरु हुनेछ । नेपाल यसअघि खेलेका दुई खेलमा पराजित भएको छ । जिम्बाबेले भने ३ खेल खेल्दा ३ वटै खेल हारेको छ । नेपाल पहिलो खेलमा थाइल्यान्डसँग ६ विकेटले […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1856021/nepal-playing-an-important-match-against-zimbabwe-2",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-24T00:40:00.000Z"
+            }
+          ]
+        },
+        "distiluse": {
+          "label": "distiluse-base-multilingual-cased-v2 (768d)",
+          "embeddingModel": "Xenova/distiluse-base-multilingual-cased-v2",
+          "qdrantCollection": "khabar_articles_distiluse_768",
+          "vectorSize": 768,
+          "items": [
+            {
+              "rank": 1,
+              "qdrantScore": 0.5429111,
+              "relevant": true,
+              "_id": "697472b23b5d6a1237dc99e4",
+              "title": "महिला टी-२० विश्‍वकप ग्लोबल छनोटमा नेपालले जिम्बाबेसँग खेल्दै",
+              "description": "१० माघ, काठमाडौं । आईसीसी महिला टी-२० विश्‍वकप ग्लोबल छनोटको आफ्नो तेस्रो खेलमा नेपालले आज जिम्बाबेसँग खेल्दै छ । त्रिवि क्रिकेट मैदानमा खेल दिउँसो १ बजेदेखि सुरु हुनेछ । नेपाल यसअघि खेलेका दुई खेलमा पराजित भएको छ । जिम्बाबेले भने ३ खेल खेल्दा ३ वटै खेल हारेको छ । नेपाल पहिलो खेलमा थाइल्यान्डसँग ६ विकेटले […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1856021/nepal-playing-an-important-match-against-zimbabwe-2",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-24T00:40:00.000Z"
+            },
+            {
+              "rank": 2,
+              "qdrantScore": 0.5251077,
+              "relevant": true,
+              "_id": "697472b23b5d6a1237dc99de",
+              "title": "श्रीलंका ‘ए’ सँग तेस्रो अभ्यास खेल खेल्दै नेपाल",
+              "description": "१० माघ, काठमाडौं । आईसीसी टी-२० विश्वकपको तयारीमा रहेको नेपाली पुरुष क्रिकेट टोलीले श्रीलंका ‘ए’ सँग आज तेस्रो तथा अन्तिम अभ्यास टी-२० खेल खेल्दै छ । खेल कोल्ट्स मैदानमा दिउँसो हुनेछ । नेपाल यसअघिका दुवै अभ्यास खेलमा पराजित भएको छ । अन्तिम खेलमा नेपाल जितको खोजीमा हुनेछ । पहिलो अभ्यास खेलमा नेपाल ६ विकेटले पराजित […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1856026/nepal-loses-in-second-practice-match-against-sri-lanka-a-2",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-24T01:10:52.000Z"
+            },
+            {
+              "rank": 3,
+              "qdrantScore": 0.4759307,
+              "relevant": true,
+              "_id": "6972153647695a5cab5540fe",
+              "title": "बीसीबीले भन्यो – विश्‍वकप खेल्न भारत जाँदैनौं, घाटा आईसीसीलाई नै हुनेछ",
+              "description": "८ माघ, काठमाडौं । बंगलादेश क्रिकेट बोर्ड (बीसीबी), राष्ट्रिय टिमका खेलाडीहरू र सरकारका खेलकुद सल्लाहकारबीच ढाकामा भएको बैठकपछि पनि बंगलादेशले टी-२० विश्वकप भारतमा खेल्न नजाने अडान कायमै राखेको छ । बंगलादेशले भारतमा टी–२० विश्वकपका खेलहरू नखेल्ने र आफ्ना सबै खेलहरू श्रीलंकामा सार्नुपर्ने माग कायम राखेको हो । बैठकपछि आयोजित पत्रकार सम्मेलनमा बीसीबी अध्यक्ष अमिनुल इस्लामले […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1855140/bcb-says-we-will-not-go-to-india-to-play-the-world-cup-the-loss-will-be-on-the-icc",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-22T11:18:37.000Z"
+            },
+            {
+              "rank": 4,
+              "qdrantScore": 0.45570672,
+              "relevant": true,
+              "_id": "69725b6600c8723885a40190",
+              "title": "दक्षिण अफ्रिकाको टी-२० विश्वकप टोलीमा दुई परिवर्तन, रिकेल्टन र स्टब्स भित्रिए",
+              "description": "८ माघ, काठमाडौं । चोटका कारण दक्षिण अफ्रिकाका ब्याटर टोनी डे जोरजी र डोनोभन फेरेइरा आगामी आईसीसी टी-२० विश्वकप २०२६ बाट बाहिरिएका छन्। यसअघि घोषित दक्षिण अफ्रिकी टोलीमा परेका डे जोर्जी र फेरेइरा अब वेस्ट इन्डिजसँगको टी-२० शृंखलादेखि विश्वकपसम्मै गुमाउने भएको दक्षिण अफ्रिकी क्रिकेट बोर्डले जनाएको छ । डे जोर्जी भारतविरुद्धको एकदिवसीय सिरिजका क्रममा लागेको […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1855331/two-changes-in-south-africas-t20-world-cup-squad-rickelton-and-stubbs-come-in",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-22T14:24:45.000Z"
+            },
+            {
+              "rank": 5,
+              "qdrantScore": 0.42705992,
+              "relevant": false,
+              "_id": "6972153647695a5cab554104",
+              "title": "टी-२० विश्‍वकप सहभागिताबारे बंगलादेश क्रिकेट बोर्डले सरकारसँग अन्तिम छलफल गर्दै",
+              "description": "८ माघ, काठमाडौं । बंगलादेश क्रिकेट बोर्ड (बीसीबी) र बंगलादेश क्रिकेट टिमका प्रतिनिधिहरूले टी–२० विश्वकप २०२६ मा सहभागिता जनाउने विषयमा सरकारसँग अन्तिम छलफल सुरु गरेका छन्। ढाकाको इन्टरकन्टिनेन्टल होटलमा भइरहेको बैठकमा खेलकुद सल्लाहकार आसिफ नजरुलसँग छलफल भइरहेको छ। बैठकमा बीसीबी अध्यक्ष अमिनुल इस्लाम, सीईओ निजामुद्दिन तथा राष्ट्रिय टिमका खेलाडीहरू नुरुल हसन, शमीम हुसैन, हसन महमुद, […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1855120/bangladesh-cricket-board-in-final-discussions-with-government-over-t20-world-cup-participation",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-22T11:05:04.000Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "queryId": "q5",
+      "query": "फिल्म फेस्टिभल पटकथा",
+      "models": {
+        "minilm": {
+          "label": "paraphrase-multilingual-MiniLM-L12-v2 (384d)",
+          "embeddingModel": "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+          "qdrantCollection": "khabar_articles_minilm_384",
+          "vectorSize": 384,
+          "items": [
+            {
+              "rank": 1,
+              "qdrantScore": 0.35397443,
+              "relevant": true,
+              "_id": "69730f3a366b7b527fd41ee2",
+              "title": "‘Frank & Louis’ Director Hopes Her Sundance Movie Shines a Light on the Role of Caretaking in Prison",
+              "description": "Petra Volpe, the director behind 'Late Shift,' tapped Kingsley Ben-Adir and Rob Morgan to tell the story about finding humanity, dignity and compassion.",
+              "url": "https://www.hollywoodreporter.com/movies/movie-features/sundance-2026-frank-and-louis-director-interview-prison-care-1236467308/",
+              "source": "The Hollywood Reporter",
+              "category": "entertainment",
+              "topics": [
+                "culture",
+                "art"
+              ],
+              "publishedAt": "2026-01-23T01:27:54.000Z"
+            },
+            {
+              "rank": 2,
+              "qdrantScore": 0.34231117,
+              "relevant": false,
+              "_id": "6972153547695a5cab553e8e",
+              "title": "In ‘Complaint No. 713317,’ a Retired Couple Fights for Dignity in the Face of Kafka-Esque Bureaucracy When Its Fridge Breaks (Exclusive IFFR Clips)",
+              "description": "Writer-director Yasser Shafiey's debut feature starring Mahmoud Hemida and Sherine, set in Cairo and premiering at Rotterdam, explores love, loss, ageing and the hard-to-translate concept of \"Al Qahr.\"",
+              "url": "https://www.hollywoodreporter.com/movies/movie-news/iffr-2026-film-clips-complaint-no-713317-fridge-bureaucracy-1236478443/",
+              "source": "The Hollywood Reporter",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-22T09:00:00.000Z"
+            },
+            {
+              "rank": 3,
+              "qdrantScore": 0.33320248,
+              "relevant": false,
+              "_id": "69730f3a366b7b527fd41ed3",
+              "title": "‘Ha-chan, Shake Your Booty!’ Review: A Japanese Widow Dances Her Way Back to Life in a Lovely Comic Drama",
+              "description": "Director Josef Kubota Wladyka mixes surreal fantasies with emotion in a Tokyo-set indie starring Rinko Kikuchi premiering at Sundance.",
+              "url": "https://www.hollywoodreporter.com/movies/movie-reviews/ha-chan-shake-your-booty-review-rinko-kikuchi-1236477774/",
+              "source": "The Hollywood Reporter",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-23T04:15:00.000Z"
+            },
+            {
+              "rank": 4,
+              "qdrantScore": 0.3330502,
+              "relevant": true,
+              "_id": "6972153647695a5cab55415b",
+              "title": "श्री भागवती क्लबको मुख्य प्रायोजकमा एक्सपर्ट एजुकेसन एन्ड भिसा सर्भिसेज",
+              "description": "महाराजगञ्जस्थित एक्सपर्ट एजुकेसन एन्ड भिसा सर्भिसेजले नेपालको ए डिभिजन फुटबल टोली श्री भागवती क्लबलाई मुख्य प्रायोजकको रुपमा सम्झौता गरेको छ।",
+              "url": " https://www.setopati.com/sports/football/380487 ",
+              "source": "Setopati",
+              "category": "technology",
+              "topics": [
+                "sports"
+              ],
+              "publishedAt": "2026-01-22T11:53:00.000Z"
+            },
+            {
+              "rank": 5,
+              "qdrantScore": 0.3310842,
+              "relevant": false,
+              "_id": "69730f3a366b7b527fd41cb6",
+              "title": "How Claude Code Is Reshaping Software—and Anthropic",
+              "description": "WIRED spoke with Boris Cherny, head of Claude Code, about how the viral coding tool is changing the way Anthropic works.",
+              "url": "https://www.wired.com/story/claude-code-success-anthropic-business-model/",
+              "source": "WIRED",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-22T19:00:00.000Z"
+            }
+          ]
+        },
+        "e5_small": {
+          "label": "multilingual-e5-small (384d)",
+          "embeddingModel": "Xenova/multilingual-e5-small",
+          "qdrantCollection": "khabar_articles_e5_small_384",
+          "vectorSize": 384,
+          "items": [
+            {
+              "rank": 1,
+              "qdrantScore": 0.85803616,
+              "relevant": true,
+              "_id": "697472b13b5d6a1237dc9843",
+              "title": "अर्पण थापाले ‘फ्रेन्च किस’ निर्देशन गर्ने, थिन्ले ल्हामोसँग जोडी बाँध्ने",
+              "description": "काठमाडौं । अर्पण थापाको निर्देशनमा फिल्म ‘फ्रेन्च किस’ बन्ने भएको छ । वसन्तपञ्चमीको अवसरमा शुक्रबार निर्माता कम्पनी एटीएफ प्रोडक्सन प्रालिले फिल्म निर्माण गरेको हो । यो फिल्म थापाको पाँचौ निर्देशकीय प्र्रोजेक्ट हुनेछ । यसअघि उनले मुखौटा, आधा लभ, सुनकेशरी र घर निर्माण गरेका छन् । नयाँ फिल्म ‘फ्रेन्च किस’ लाई कमलादीस्थित गणेश मन्दिरमा शुभसाइत पूजा […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1855891/arpan-thapa-to-direct-french-kiss-pair-up-with-thinley-lhamo",
+              "source": "मनोरञ्जन – Online Khabar",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-23T10:54:35.000Z"
+            },
+            {
+              "rank": 2,
+              "qdrantScore": 0.85482264,
+              "relevant": true,
+              "_id": "697472b13b5d6a1237dc983d",
+              "title": "‘पूर्णबहादुरको सारंगी’ पछि ‘सिन्दुरे जात्रा’ मा जोडी बाँध्दै विजय र अञ्जना",
+              "description": "काठमाडौं । सारंगी फिल्म्सको प्रस्तुतिमा निर्माण हुन लागेको कथानक फिल्म ‘सिन्दुरे जात्रा’ को शीर्ष भूमिकामा विजय बराल र अञ्जना बराइली अनुबन्धित भएका छन् । सर्वकालिन ब्लकबस्टर ‘पूर्णबहादुरको सारंगी’ पछि यी दुई कलाकारले स्क्रिन सेयर गर्न लागेका हुन् । रोचक के छ भने, यो फिल्मलाई ‘पूर्णबहादुरको सारंगी’ फेम्ड सरोज पौडेलले निर्देशन गर्नेछन् । सरस्वती पूजाको अवसरमा […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1855918/after-purna-bahadurs-sarangi-vijay-and-anjana-are-pairing-up-in-sindure-jatra",
+              "source": "मनोरञ्जन – Online Khabar",
+              "category": "technology",
+              "topics": [
+                "finance",
+                "culture"
+              ],
+              "publishedAt": "2026-01-23T11:17:54.000Z"
+            },
+            {
+              "rank": 3,
+              "qdrantScore": 0.84958875,
+              "relevant": true,
+              "_id": "697472b13b5d6a1237dc9852",
+              "title": "पोताला दरबारअघि मिस पबीको फोटोसुट (तस्वीर)",
+              "description": "काठमाडौं । यतिबेला कलाकार तथा मोडल मिस पबी र बुद्धि तामाङ चीनको स्वशासित क्षेत्र तिब्बतको ल्हासा घुमघाममा ब्यस्त छन् । केही समययता त्यहाँ उनीहरूको घुमघाम ब्यापक देखिन्छ । चीनले पछिल्लो समय तिब्बतलाई सिजाङ भन्छ । चीनको यो शब्दावलीलाई लिएर भूराजनीतिक विवाद भैरहेको देखिन्छ । जसको प्रत्यक्ष उदाहरण काठमाडौं अन्तर्राष्ट्रिय पर्वतीय फिल्म फेस्टिभलमा देखियो । यी […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1855622/miss-pabis-photoshoot-in-front-of-potala-palace-photo",
+              "source": "मनोरञ्जन – Online Khabar",
+              "category": "technology",
+              "topics": [
+                "art",
+                "international"
+              ],
+              "publishedAt": "2026-01-23T07:46:05.000Z"
+            },
+            {
+              "rank": 4,
+              "qdrantScore": 0.8493415,
+              "relevant": true,
+              "_id": "697472b13b5d6a1237dc984c",
+              "title": "फिल्म ‘रोल नम्बर १’ को प्रदर्शन मिति तय",
+              "description": "काठमाडौं । कथानक फिल्म ‘रोल नम्बर १’ को प्रदर्शन मिति घोषणा गरिएको छ । वसन्तपञ्चमीको अवसरमा निर्माताले शुक्रबार प्रदर्शन मिति तय गरेका हुन् । जसअनुसार, यो फिल्म १५ जेठ, २०८३ मा हदमा प्रदर्शनमा आउनेछ । फिल्मका बालकलाकार अध्ययन गर्ने ‘पथिक ज्ञान निकेतन’ विद्यालयमा पुगेर सरस्वती पूजाको अवसरमा निर्माण टिमले रिलिज मिति सार्वजनिक गरेको हो । […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1855666/release-date-of-the-film-roll-no-1-set",
+              "source": "मनोरञ्जन – Online Khabar",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-23T08:22:55.000Z"
+            },
+            {
+              "rank": 5,
+              "qdrantScore": 0.8445283,
+              "relevant": false,
+              "_id": "69725b6600c8723885a4017f",
+              "title": "चुनावी प्रचारमा उम्मेदवारका ढर्रा",
+              "description": "साधारण तरिकाले मत माग्नेदेखि अनेक पपुलिस्ट व्यवहार देखाइरहेका उम्मेदवारसम्मले सामाजिक सञ्जालमा चाहिरहेका छन् ।",
+              "url": "https://www.onlinekhabar.com/2026/01/1855339/candidates-style-in-election-campaign",
+              "source": "Online Khabar",
+              "category": "technology",
+              "topics": [
+                "politics",
+                "culture"
+              ],
+              "publishedAt": "2026-01-22T15:56:17.000Z"
+            }
+          ]
+        },
+        "distiluse": {
+          "label": "distiluse-base-multilingual-cased-v2 (768d)",
+          "embeddingModel": "Xenova/distiluse-base-multilingual-cased-v2",
+          "qdrantCollection": "khabar_articles_distiluse_768",
+          "vectorSize": 768,
+          "items": [
+            {
+              "rank": 1,
+              "qdrantScore": 0.37473014,
+              "relevant": true,
+              "_id": "69730f3a366b7b527fd41faa",
+              "title": "Japanese Film Festival begins today",
+              "description": "The movies, subtitled in English, range from fantasy anime to tales about family dynamics.",
+              "url": "https://kathmandupost.com/art-culture/2026/01/23/japanese-film-festival-begins-today",
+              "source": "Kathamndu post RSS",
+              "category": "entertainment",
+              "topics": [
+                "culture",
+                "art"
+              ],
+              "publishedAt": "2026-01-23T06:03:33.030Z"
+            },
+            {
+              "rank": 2,
+              "qdrantScore": 0.35384387,
+              "relevant": true,
+              "_id": "69730f3a366b7b527fd41edc",
+              "title": "Oscars: Warner Bros. Wows With 30 Nominations as Other Major Studios Snubbed",
+              "description": "The bounty includes 16 nominations for Ryan Coogler's 'Sinners' – the most ever bestowed to a single film. Otherwise, there was little love for Hollywood's legacy movie studios.",
+              "url": "https://www.hollywoodreporter.com/movies/movie-news/2026-oscars-warner-bros-30-nominations-each-studio-1236481692/",
+              "source": "The Hollywood Reporter",
+              "category": "entertainment",
+              "topics": [
+                "culture",
+                "art"
+              ],
+              "publishedAt": "2026-01-23T02:21:03.000Z"
+            },
+            {
+              "rank": 3,
+              "qdrantScore": 0.34742138,
+              "relevant": true,
+              "_id": "6972153647695a5cab5540cb",
+              "title": "Queer, rural, and all too human stories on screen",
+              "description": "Showcased at the Queer Film Festival Kathmandu, these short films explore resilience and give voice to stories often ignored in mainstream cinema.",
+              "url": "https://kathmandupost.com/movie-review/2026/01/21/queer-rural-and-all-too-human-stories-on-screen",
+              "source": "Kathamndu post RSS",
+              "category": "entertainment",
+              "topics": [
+                "culture",
+                "art"
+              ],
+              "publishedAt": "2026-01-22T12:16:47.674Z"
+            },
+            {
+              "rank": 4,
+              "qdrantScore": 0.31413716,
+              "relevant": true,
+              "_id": "6972153547695a5cab553eb5",
+              "title": "आउने सातादेखि ‘हल्का रमाइलो’ र ‘जुठे’ प्रसारण नियमित हुने",
+              "description": "काठमाडौं । मरिचमान श्रेष्ठ ‘बल्छी धुर्बे’ यतिबेला आफ्नो डेब्यू निर्देशकीय र अभिनित कथानक फिल्म ‘गोबर गणेश’ को प्रचारप्रसारमा ब्यस्त छन् । यो फिल्मले घरेलु बक्सअफिसमा सुखद ब्यापार गरिरहेको छ । यसबीचमा उनको निर्देशन र लेखन रहेको टिभी श्रृंखला ‘जुठे’ दर्शकमाझ आउन सकिरहेको थिएन । अब भने, दर्शकले बल्छी धुर्बेको निर्देशन र अभिनय रहेको उक्त श्रृंखलालाई […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1855025/halka-ramala-and-juthe-to-be-broadcast-regularly-from-next-week",
+              "source": "मनोरञ्जन – Online Khabar",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-22T08:57:21.000Z"
+            },
+            {
+              "rank": 5,
+              "qdrantScore": 0.28931892,
+              "relevant": true,
+              "_id": "697472b13b5d6a1237dc9840",
+              "title": "‘होमबाउन्ड’ अस्करबाट बाहिरिँदा भारतीय फिल्म स्तब्ध",
+              "description": "मुम्बई । भारतका लागि यस पटकको अस्कर अवार्डबाट दुःखद खबर छ । सर्टलिस्टमा छनोट भएको भारतीय फिल्म ‘होमबाउन्ड’ ले मनोनयनमा स्थान बनाउन सकेन । यो नतिजापछि भारतीय फिल्मलाई धक्का लागेको छ । ‘होमबाउन्ड’ लाई यस वर्ष भारतको तर्फबाट अस्करमा ‘अफिसियल इन्ट्री’ का रूपमा पठाइएको थियो । यो फिल्म ‘बेस्ट इन्टरनेसनल फिचर फिल्म’ को विधामा उत्कृष्ट […]",
+              "url": "https://www.onlinekhabar.com/2026/01/1855953/indian-film-industry-shocked-as-homebound-exits-oscars",
+              "source": "मनोरञ्जन – Online Khabar",
+              "category": "technology",
+              "topics": [],
+              "publishedAt": "2026-01-23T11:16:45.000Z"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

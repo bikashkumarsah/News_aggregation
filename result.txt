@@ -1,0 +1,14 @@
+Search Precision@5
+
+- distiluse-base-multilingual-cased-v2 (768d): 0.880  (queries scored: 5, missing labels: 0)
+- multilingual-e5-small (384d): 0.840  (queries scored: 5, missing labels: 0)
+- paraphrase-multilingual-MiniLM-L12-v2 (384d): 0.760  (queries scored: 5, missing labels: 0)
+(base) bikashkumarsah@MacBook-Air-Bikash news-backend % npm install
+
+
+
+Precision@5 (manual labels) for newsletter
+
+- distiluse-base-multilingual-cased-v2 (768d): 0.950  (scored users: 4, missing labels: 0)
+- multilingual-e5-small (384d): 0.850  (scored users: 4, missing labels: 0)
+- paraphrase-multilingual-MiniLM-L12-v2 (384d): 0.700  (scored users: 4, missing labels: 0)

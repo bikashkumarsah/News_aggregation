@@ -93,6 +93,8 @@ khabar/
 ├── docs/
 │   ├── README_ARCHITECTURE.md                 # Theoretical architecture overview
 │   ├── README_QDRANT_EXPLAINER.md             # Qdrant concepts (presentation-friendly)
+│   ├── README_EMBEDDING_MODEL_EVAL.md         # Manual Precision@5 eval across embedding models
+│   ├── README_SEARCH_BAR_EVAL.md              # Manual Precision@5 eval for the search bar
 │   ├── README_SEARCH_QDRANT.md                # Qdrant search + classification flow
 │   └── README_NEWSLETTER_PERSONALIZATION.md   # History → preferences → newsletter flow
 ├── minimal/

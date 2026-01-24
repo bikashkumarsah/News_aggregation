@@ -7,13 +7,15 @@
  * Usage:
  *   node scripts/backfillTopics.js
  *   node scripts/backfillTopics.js --force   # recompute topics for ALL articles
+ *   node scripts/backfillTopics.js --keyword # keyword-only (skip embeddings)
+ *   node scripts/backfillTopics.js --semantic # semantic-only (embeddings)
  */
 
 require('dotenv').config();
 
 const mongoose = require('mongoose');
 const Article = require('../models/Article');
-const { getTopicsForArticle } = require('../services/topicService');
+const { getTopicsForArticleEnhanced } = require('../services/topicService');
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/newsDB';
 const BATCH_SIZE = Math.min(Math.max(parseInt(process.env.TOPICS_BACKFILL_BATCH || '200', 10) || 200, 10), 1000);
@@ -23,6 +25,16 @@ async function main() {
   console.log(`- MongoDB: ${MONGODB_URI}`);
   console.log(`- Batch size: ${BATCH_SIZE}`);
 
+  const forcedMode = process.argv.includes('--keyword')
+    ? 'keyword'
+    : process.argv.includes('--semantic')
+      ? 'semantic'
+      : null;
+  if (forcedMode) {
+    process.env.TOPIC_CLASSIFICATION_MODE = forcedMode;
+    console.log(`- Topic mode: ${forcedMode}`);
+  }
+
   await mongoose.connect(MONGODB_URI);
   console.log('✅ Connected to MongoDB');
 
@@ -31,11 +43,11 @@ async function main() {
   const query = force
     ? {}
     : {
-        $or: [
-          { topics: { $exists: false } },
-          { topics: { $size: 0 } }
-        ]
-      };
+      $or: [
+        { topics: { $exists: false } },
+        { topics: { $size: 0 } }
+      ]
+    };
 
   const totalToUpdate = await Article.countDocuments(query);
   console.log(force ? `Recomputing topics for ${totalToUpdate} articles` : `Found ${totalToUpdate} articles without topics`);
@@ -50,7 +62,7 @@ async function main() {
   let updated = 0;
 
   for await (const doc of cursor) {
-    const topics = getTopicsForArticle(doc);
+    const topics = await getTopicsForArticleEnhanced(doc);
     ops.push({
       updateOne: {
         filter: { _id: doc._id },
@@ -84,6 +96,6 @@ main()
   .finally(async () => {
     try {
       await mongoose.disconnect();
-    } catch {}
+    } catch { }
   });
 

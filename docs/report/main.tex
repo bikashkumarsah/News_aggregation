@@ -1,0 +1,348 @@
+\documentclass[12pt]{report}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{setspace}
+
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{fancyvrb}
+
+\usepackage[hidelinks]{hyperref}
+\usepackage[numbers,sort&compress]{natbib}
+
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{black!20},
+  backgroundcolor=\color{black!2},
+  xleftmargin=0.8em,
+  xrightmargin=0.8em
+}
+
+% ---------------------------------------------------------------
+% Report metadata (edit these fields as needed)
+% ---------------------------------------------------------------
+\newcommand{\universityName}{KATHMANDU UNIVERSITY}
+\newcommand{\departmentName}{Department of Artificial Intelligence}
+\newcommand{\campusLocation}{Dhulikhel, Kavre}
+
+\newcommand{\reportTitle}{Multi-Language News Aggregation and Summarization}
+\newcommand{\courseCode}{AISP 322}
+\newcommand{\submissionDateText}{20th January 2026}
+
+\newcommand{\studentOne}{Sangun Rai (Roll No. 13)}
+\newcommand{\studentTwo}{Bikash Kumar Sah (Roll No. 17)}
+\newcommand{\studentThree}{Aarav Subedi (Roll No. 25)}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  {\Large \universityName \par}
+  \vspace{0.3cm}
+  {\large \departmentName \par}
+  {\large \campusLocation \par}
+
+  \vspace{2.0cm}
+  {\Large A Project Report \par}
+  \vspace{0.4cm}
+  {\large on \par}
+  \vspace{0.5cm}
+  {\Large \textbf{\reportTitle} \par}
+  \vspace{0.3cm}
+  {\large [Code No: \courseCode] \par}
+  \vspace{0.6cm}
+  {\large (For partial fulfillment of III Year/II Semester in B.Tech in Artificial Intelligence) \par}
+
+  \vspace{1.0cm}
+  \begin{flushleft}
+    \textbf{Submitted by:}\\
+    \studentOne\\
+    \studentTwo\\
+    \studentThree\\
+    \vspace{0.8cm}
+    \textbf{Submitted to:}\\
+    Department of Artificial Intelligence
+  \end{flushleft}
+
+  \vfill
+  {\large \textbf{Submission Date:} \submissionDateText \par}
+\end{titlepage}
+
+\pagenumbering{roman}
+\setcounter{page}{1}
+\onehalfspacing
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+In the contemporary digital landscape, users are inundated with a large volume of news from many sources across domains such as finance, sports, politics, culture, and international affairs. This often leads to information overload, difficulty in finding relevant content, and challenges for multilingual audiences that consume both Nepali and English news. This project presents the design and development of \textbf{Khabar AI}, a multilingual news aggregation platform that automates RSS-based news collection, stores articles in a database, and enables \textbf{advanced semantic search and filtering} using a vector database. The system also provides \textbf{personalized daily newsletters} by learning from user reading history and using semantic retrieval for recommendation.
+
+In addition to the implemented web application, exploratory experiments were performed in notebooks to prototype Nepali-focused NLP capabilities such as summarization and translation, topic/news classification, and sentiment analysis. Finally, multilingual embedding models were evaluated for two core retrieval tasks (search bar retrieval and newsletter recommendations) using manual labels and Precision@5, and the best-performing model was selected as the default retrieval embedding for the system.
+
+\vspace{0.3cm}
+\noindent \textbf{Keywords:} News Aggregation, Semantic Search, Vector Database, Multilingual NLP, Personalized Newsletter, RSS, Qdrant, Embeddings
+
+\cleardoublepage
+
+\chapter*{Abbreviations}
+\addcontentsline{toc}{chapter}{Abbreviations}
+\begin{longtable}{@{}ll@{}}
+\toprule
+\textbf{Term} & \textbf{Meaning} \\
+\midrule
+AI & Artificial Intelligence \\
+API & Application Programming Interface \\
+CSS & Cascading Style Sheets \\
+HTTP & Hypertext Transfer Protocol \\
+IR & Information Retrieval \\
+JSON & JavaScript Object Notation \\
+LLM & Large Language Model \\
+ML & Machine Learning \\
+NLP & Natural Language Processing \\
+RSS & Really Simple Syndication \\
+SPA & Single Page Application \\
+TTS & Text-to-Speech \\
+\bottomrule
+\end{longtable}
+
+\cleardoublepage
+
+\tableofcontents
+\listoftables
+\listoffigures
+\cleardoublepage
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\chapter{Introduction}
+\section{Background}
+News is no longer limited to scheduled broadcasts or daily papers; it is a continuous stream from online publications, RSS feeds, and social platforms. While this improves access to information, it also creates a practical challenge: users must filter a large volume of content to find what is relevant, credible, and actionable. In multilingual contexts such as Nepal, this challenge is amplified because users often navigate between Nepali and English sources.
+
+\section{Problem Statement}
+Users face several recurring problems in everyday news consumption:
+\begin{itemize}
+  \item \textbf{Information overload}: too many articles across too many sources.
+  \item \textbf{Weak search and discovery}: keyword-only search fails for paraphrases and cross-lingual queries.
+  \item \textbf{Lack of personalization}: most feeds do not adapt to individual reading history.
+  \item \textbf{Language barriers}: users want a unified experience across Nepali and English content.
+\end{itemize}
+
+\section{Objectives}
+The objectives of this project are:
+\begin{itemize}
+  \item Develop a reliable news aggregator that collects articles from trusted RSS sources in Nepali and English.
+  \item Store articles and user state (authentication, bookmarks, history, preferences) in a database.
+  \item Enable advanced search and filtering by broad topics (finance, sports, politics, art, culture, international) and metadata (source, date).
+  \item Improve retrieval quality using semantic search with multilingual embeddings and a vector database.
+  \item Generate personalized daily newsletters by learning from user reading history.
+  \item Evaluate multilingual embedding models and select the best-performing model for production retrieval.
+\end{itemize}
+
+\section{Motivation and Significance}
+This project aims to reduce information overload and improve accessibility for multilingual users. From a technical perspective, it integrates ingestion, classification, semantic retrieval, personalization, and evaluation into one system, and demonstrates how modern embeddings and vector databases can improve search and recommendation quality in a practical web application.
+
+\chapter{Related Works}
+\section{Automated text summarization}
+Text summarization ranges from extractive methods (e.g., graph-based ranking) to modern abstractive methods built on transformer encoder--decoder architectures. Classical approaches like TextRank \cite{mihalcea2004textrank} provided extractive summaries, while transformer models such as BART \cite{lewis2020bart} and multilingual variants like mBART \cite{liu2020mbart} enabled stronger abstractive summarization and multilingual generation.
+
+\section{Multilingual and cross-lingual processing}
+Multilingual pretraining and cross-lingual representation learning improved performance on low-resource languages and mixed-language systems. Models such as mBART \cite{liu2020mbart} and XLM-R \cite{conneau2020xlmr} support multilingual text generation and classification, which is important for Nepali--English content pipelines.
+
+\section{Semantic search and vector databases}
+Semantic search relies on embedding text into a vector space and retrieving nearest neighbors for a query. Vector databases such as Qdrant \cite{qdrant} support efficient approximate nearest neighbor retrieval, commonly using graph-based methods such as HNSW \cite{malkov2018hnsw}. Practical systems often combine semantic retrieval with metadata filters, reranking, and evaluation using standard IR metrics \cite{manning2008ir}.
+
+\section{Sentiment analysis and text classification}
+Transformer encoders such as BERT \cite{devlin2019bert} and multilingual models such as XLM-R \cite{conneau2020xlmr} have become strong baselines for text classification, including sentiment analysis and topic/news classification.
+
+\chapter{Design and Implementation}
+\section{System Requirement Specification}
+\subsection{Software Specifications}
+\begin{table}[H]
+  \centering
+  \caption{Software Specification (Khabar AI implementation).}
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{Component} & \textbf{Technology / Tool} \\
+    \midrule
+    Programming Languages & JavaScript (Node.js), Python \\
+    Frontend & React (SPA), Tailwind CSS \\
+    Backend & Node.js with Express \\
+    Database & MongoDB \\
+    Vector Database & Qdrant (Docker) \\
+    RSS Parsing & rss-parser \\
+    Email & Nodemailer (SMTP) \\
+    Scheduling & node-cron \\
+    Embeddings & Transformers.js (Transformers in JS) \cite{xenovaTransformersJs} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Hardware Specifications}
+\begin{table}[H]
+  \centering
+  \caption{Hardware Specification (recommended for local development).}
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{Component} & \textbf{Specification} \\
+    \midrule
+    Operating System & Windows / Linux / macOS \\
+    Processor & Modern multi-core CPU (Intel i5/Ryzen 5 or higher) \\
+    RAM & 8GB recommended \\
+    Storage & SSD with $\geq$ 20GB free space \\
+    Network & Stable internet (RSS + model downloads on first run) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{System Architecture}
+Khabar AI follows a client--server architecture with a canonical store (MongoDB) and a semantic index (Qdrant):
+\begin{figure}[H]
+  \centering
+  \begin{minipage}{0.95\textwidth}
+  \begin{Verbatim}[fontsize=\small, frame=single]
++------------------------------+
+|         React Web App        |
+| - feed, read, search, filters|
+| - login, bookmarks, history  |
++--------------+---------------+
+               | HTTP (REST)
+               v
++----------------------------------------------+
+|              Node/Express Backend            |
+| - /api/news, /api/user, /api/auth            |
+| - /api/search (Qdrant + filters)             |
+| - newsletter scheduler (cron)                |
++----------------+-----------------------------+
+                 |                 | semantic retrieval
+                 v                 v
++------------------+   +------------------+
+|      MongoDB      |   |      Qdrant      |
+|  Articles, Users  |   |  vectors+payload |
++------------------+   +------------------+
+  \end{Verbatim}
+  \end{minipage}
+  \caption{Conceptual architecture of Khabar AI.}
+\end{figure}
+
+\section{Implementation Details}
+\subsection{News aggregation pipeline}
+The backend periodically fetches RSS feeds, cleans and stores article text, and assigns a coarse category. Articles are stored in MongoDB as the system of record.
+
+\subsection{Topic tagging for filtering}
+Each article is tagged with broad topics (finance, sports, politics, art, culture, international) for UI filtering. The implemented tagger is hybrid:
+\begin{itemize}
+  \item keyword-based rules with Unicode-aware normalization (supports Devanagari),
+  \item optional semantic topic assignment that compares the article embedding to topic prototypes.
+\end{itemize}
+
+\subsection{Semantic search and filtering}
+For query search, the system embeds the query and retrieves nearest articles from Qdrant, while also applying payload filters for topics/category/source/date. If Qdrant is unavailable, MongoDB is used as a fallback.
+
+\subsection{Personalized newsletters}
+User reading history is stored and transformed into preferences (categories/sources/keywords). For newsletters, a ``user-interest query'' is built from recent reads and used to retrieve semantically similar recent articles from Qdrant, with light reranking for diversity.
+
+\chapter{Discussion on the Achievement}
+\section{Achieved Objectives}
+The implemented system demonstrates:
+\begin{itemize}
+  \item automated RSS aggregation and storage,
+  \item advanced search and filtering with semantic retrieval,
+  \item topic tagging for filtering and query intent,
+  \item personalized daily newsletters based on reading history.
+\end{itemize}
+
+\section{Performance analysis and experimentation}
+\subsection{Embedding model comparison (search bar retrieval)}
+To select the best multilingual embedding model for semantic retrieval, we compared three models using Qdrant-based retrieval and manual relevance labeling. Qdrant retrieval and ANN indexing are supported by standard vector database techniques \cite{qdrant,malkov2018hnsw}, and overall methodology follows standard IR evaluation practice \cite{manning2008ir}.
+
+The compared models were:
+\texttt{distiluse-base-multilingual-cased-v2} (768d) \cite{reimers2019sentencebert,xenovaDistiluse},
+\texttt{multilingual-e5-small} (384d) \cite{wang2022e5,xenovaE5Small}, and
+\texttt{paraphrase-multilingual-MiniLM-L12-v2} (384d) \cite{wang2020minilm,xenovaMiniLM}.
+All models were run locally via Transformers.js \cite{xenovaTransformersJs}.
+
+\begin{table}[H]
+  \centering
+  \caption{Search retrieval Precision@5 (5 queries, top-5 results per model).}
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    Model & Precision@5 \\
+    \midrule
+    distiluse-base-multilingual-cased-v2 (768d) & 0.880 \\
+    multilingual-e5-small (384d) & 0.840 \\
+    paraphrase-multilingual-MiniLM-L12-v2 (384d) & 0.760 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Embedding model comparison (newsletter recommendations)}
+The same model comparison was performed for newsletter recommendation retrieval (top-5 recommendations per user) using 4 real users, manual labeling, and Precision@5.
+
+\begin{table}[H]
+  \centering
+  \caption{Newsletter Precision@5 (4 users, top-5 recommendations per user).}
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    Model & Precision@5 \\
+    \midrule
+    distiluse-base-multilingual-cased-v2 (768d) & 0.950 \\
+    multilingual-e5-small (384d) & 0.850 \\
+    paraphrase-multilingual-MiniLM-L12-v2 (384d) & 0.700 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Notebook-based experiments (not yet integrated)}
+Some NLP capabilities were prototyped in notebooks (not currently integrated into the webapp):
+\begin{itemize}
+  \item \textbf{Summarization + translation}: fine-tuned mBART-large-50 for Nepali summarization and English$\rightarrow$Nepali translation \cite{liu2020mbart,sagunraiMbartFinetuned,sanjeevNepaliSummDataset,ashokNepaliEnglishTranslation}.
+  \item \textbf{Nepali news classification}: NepBERT-based sequence classification on NP20NG \cite{oyaNepBERT,suyogyartNp20ng,wolf2020transformers}.
+  \item \textbf{Sentiment analysis}: XLM-RoBERTa-based sentiment classifier for Nepali headlines \cite{conneau2020xlmr,wolf2020transformers}.
+\end{itemize}
+
+\chapter{Conclusion and Recommendation}
+\section{Conclusion}
+Khabar AI demonstrates an end-to-end multilingual news system combining RSS ingestion, topic tagging, semantic search with filters, and personalized newsletters. Empirical evaluation with Precision@5 showed that \texttt{distiluse-base-multilingual-cased-v2} provided the best overall retrieval quality for both search and newsletter recommendations, motivating its selection as the default embedding model.
+
+\section{Future Enhancement}
+Potential enhancements include broader evaluation sets (more users and queries), stronger reranking, improved scraping for richer article text, and integration of the notebook prototypes (summarization, translation, sentiment analysis, supervised classification) into the web application.
+
+\chapter{APPENDIX}
+\section{Reproducibility (key commands)}
+\begin{lstlisting}
+# Backfill topics in MongoDB (keyword + semantic hybrid)
+cd minimal/news-backend
+npm run backfill-topics -- --force
+
+# Index articles into Qdrant (collection matches embedding model + dimension)
+npm run index-qdrant
+
+# Evaluate search Precision@5 (generate, label, score)
+node scripts/eval/runSearchBarModelComparison.js --k 5 --index --days 7
+node scripts/eval/labelSearchEval.js /absolute/path/to/eval/search_eval_....json
+node scripts/eval/scoreSearchEval.js /absolute/path/to/eval/search_eval_....json
+
+# Evaluate newsletter Precision@5 (real users only)
+node scripts/eval/runNewsletterModelComparison.js --users 4 --k 5 --real-users --index
+node scripts/eval/labelNewsletterEval.js /absolute/path/to/eval/newsletter_eval_....json
+node scripts/eval/scoreNewsletterEval.js /absolute/path/to/eval/newsletter_eval_....json
+\end{lstlisting}
+
+\cleardoublepage
+\addcontentsline{toc}{chapter}{References}
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}
+

@@ -1,5 +1,6 @@
 const fetch = require('node-fetch');
-const { getTopicsForArticle } = require('./topicService');
+const { DEFAULT_MODEL } = require('./embeddingService');
+const { getTopicsForArticle, getTopicsForArticleEnhanced } = require('./topicService');
 
 /**
  * Qdrant integration (REST).
@@ -9,11 +10,50 @@ const { getTopicsForArticle } = require('./topicService');
  */
 
 const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
-const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION || 'khabar_articles';
-const VECTOR_SIZE = parseInt(process.env.QDRANT_VECTOR_SIZE || '384', 10);
+
+const modelToTag = (modelName) => {
+  const raw = (modelName || '').toString();
+  const base = raw.includes('/') ? raw.split('/').pop() : raw;
+  const tag = base
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return tag || 'embeddings';
+};
+
+const guessVectorSizeFromModel = (modelName) => {
+  const m = (modelName || '').toString().toLowerCase();
+  if (m.includes('distiluse-base-multilingual-cased-v2')) return 768;
+  if (m.includes('multilingual-e5-small')) return 384;
+  if (m.includes('paraphrase-multilingual-minilm-l12-v2')) return 384;
+  return undefined;
+};
+
+const MODEL_VECTOR_SIZE = guessVectorSizeFromModel(DEFAULT_MODEL);
+const envVectorSizeRaw = process.env.QDRANT_VECTOR_SIZE;
+const envVectorSize = parseInt(envVectorSizeRaw || '', 10);
+
+// Prefer the embedding model's true output dimension; tolerate stale env configs.
+const VECTOR_SIZE = (() => {
+  if (!Number.isNaN(envVectorSize) && envVectorSize > 0) {
+    if (MODEL_VECTOR_SIZE && envVectorSize !== MODEL_VECTOR_SIZE) {
+      console.warn(
+        `⚠️ QDRANT_VECTOR_SIZE=${envVectorSize} does not match EMBEDDING_MODEL (${DEFAULT_MODEL}) which is ${MODEL_VECTOR_SIZE}d. ` +
+        `Using ${MODEL_VECTOR_SIZE} to match the model.`
+      );
+      return MODEL_VECTOR_SIZE;
+    }
+    return envVectorSize;
+  }
+  return MODEL_VECTOR_SIZE || 384;
+})();
+
+const DEFAULT_COLLECTION = `khabar_articles_${modelToTag(DEFAULT_MODEL)}_${VECTOR_SIZE}`;
+const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION || DEFAULT_COLLECTION;
 const DISTANCE = process.env.QDRANT_DISTANCE || 'Cosine';
 
 const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER || 'transformers').toLowerCase();
+const EMBEDDING_STRICT = ['1', 'true', 'yes'].includes(String(process.env.EMBEDDING_STRICT || '').toLowerCase());
 
 const requestJson = async (method, path, body) => {
   const url = `${QDRANT_URL}${path}`;
@@ -54,7 +94,23 @@ const isQdrantReachable = async () => {
 const ensureCollection = async () => {
   // Create collection if missing
   try {
-    await requestJson('GET', `/collections/${QDRANT_COLLECTION}`);
+    const info = await requestJson('GET', `/collections/${QDRANT_COLLECTION}`);
+
+    // Validate the existing vector size matches our configured size (prevents confusing runtime errors).
+    const vectors = info?.result?.config?.params?.vectors;
+    let existingSize;
+    if (typeof vectors?.size === 'number') existingSize = vectors.size;
+    else if (vectors && typeof vectors === 'object') {
+      const first = Object.values(vectors)[0];
+      if (typeof first?.size === 'number') existingSize = first.size;
+    }
+
+    if (existingSize && existingSize !== VECTOR_SIZE) {
+      throw new Error(
+        `Qdrant collection "${QDRANT_COLLECTION}" has vector size ${existingSize}, but this app is configured for ${VECTOR_SIZE}. ` +
+        `Use a fresh collection (recommended) or delete/recreate the collection, then reindex.`
+      );
+    }
     return;
   } catch (err) {
     if (err.status !== 404) throw err;
@@ -83,7 +139,8 @@ const tokenize = (text) =>
   (text || '')
     .toString()
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
+    // Keep letters/marks/numbers from any script + whitespace (supports Nepali/Devanagari)
+    .replace(/[^\p{L}\p{M}\p{N}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .split(' ')
@@ -119,22 +176,25 @@ const textToHashVector = (text, dim = VECTOR_SIZE) => {
   return l2Normalize(vec);
 };
 
-const textToVector = async (text) => {
+const textToVector = async (text, opts = {}) => {
   if (EMBEDDING_PROVIDER === 'transformers') {
     try {
       const { embedText } = require('./embeddingService');
-      const vec = await embedText(text);
+      const vec = await embedText(text, opts);
 
       if (vec.length !== VECTOR_SIZE) {
         throw new Error(
           `Embedding dimension mismatch: got ${vec.length}, expected ${VECTOR_SIZE}. ` +
-          `Set QDRANT_VECTOR_SIZE to ${vec.length} (and recreate the Qdrant collection) or use a 384-dim model.`
+          `Set QDRANT_VECTOR_SIZE to ${vec.length} (and recreate the Qdrant collection) or switch EMBEDDING_MODEL to a matching-dimension model.`
         );
       }
 
       return vec;
     } catch (err) {
       // If transformers isn't installed / model can't load, fall back to hashing
+      if (EMBEDDING_STRICT) {
+        throw err;
+      }
       console.warn(`⚠️ Embedding provider "transformers" unavailable (${err.message}). Falling back to hashing vectors.`);
       return textToHashVector(text, VECTOR_SIZE);
     }
@@ -173,10 +233,10 @@ const buildArticleText = (article) => {
 const buildPoint = async (article) => {
   const mongoId = article._id.toString();
   const id = objectIdToUuid(mongoId);
-  const vector = await textToVector(buildArticleText(article));
+  const vector = await textToVector(buildArticleText(article), { role: 'passage' });
   const topics = Array.isArray(article.topics) && article.topics.length > 0
     ? article.topics
-    : getTopicsForArticle(article);
+    : await getTopicsForArticleEnhanced(article, { vector });
   const publishedAtSec = Math.floor(new Date(article.publishedAt || Date.now()).getTime() / 1000);
 
   const payload = {
@@ -214,7 +274,7 @@ const search = async ({
 }) => {
   await ensureCollection();
 
-  const vector = await textToVector(query);
+  const vector = await textToVector(query, { role: 'query' });
 
   const must = [];
   if (category) {

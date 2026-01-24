@@ -334,26 +334,55 @@ const getSemanticRecommendations = async (userId, limit = 10) => {
         .map((i) => i.article?._id?.toString())
         .filter(Boolean);
 
-    // Freshness: last 24 hours
-    const oneDayAgo = new Date();
-    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+    const runQdrant = async ({ fromDate, topics, category }) => {
+        const candidateLimit = Math.min(Math.max(limit * 8, 30), 50);
+        const res = await qdrantSearch({
+            query: queryText,
+            topics,
+            category,
+            from: fromDate ? fromDate.toISOString() : undefined,
+            excludeMongoIds,
+            limit: candidateLimit,
+            offset: 0
+        });
+        return (res || [])
+            .map((r) => ({ mongoId: r?.payload?.mongoId, score: typeof r?.score === 'number' ? r.score : 0 }))
+            .filter((r) => Boolean(r.mongoId));
+    };
 
-    // Get more candidates than we need, then rerank
-    const candidateLimit = Math.min(Math.max(limit * 6, 20), 50);
-
-    const qdrantResults = await qdrantSearch({
-        query: queryText,
-        topics: topTopics,
-        category: topCategories.length ? topCategories : undefined,
-        from: oneDayAgo.toISOString(),
-        excludeMongoIds,
-        limit: candidateLimit,
-        offset: 0
+    // Multi-stage retrieval:
+    // 1) Prefer last 24h + strong filters
+    // 2) If not enough, widen to 48h
+    // 3) If still not enough, widen to 7d
+    const sinceDates = [1, 2, 7].map((days) => {
+        const d = new Date();
+        d.setDate(d.getDate() - days);
+        return d;
     });
 
-    const ranked = qdrantResults
-        .map((r) => ({ mongoId: r?.payload?.mongoId, score: typeof r?.score === 'number' ? r.score : 0 }))
-        .filter((r) => Boolean(r.mongoId));
+    const seen = new Set();
+    const ranked = [];
+
+    for (const since of sinceDates) {
+        const variants = [
+            { topics: topTopics.length ? topTopics : undefined, category: topCategories.length ? topCategories : undefined },
+            { topics: undefined, category: topCategories.length ? topCategories : undefined },
+            { topics: topTopics.length ? topTopics : undefined, category: undefined },
+            { topics: undefined, category: undefined }
+        ];
+
+        for (const v of variants) {
+            const batch = await runQdrant({ fromDate: since, topics: v.topics, category: v.category });
+            for (const r of batch) {
+                if (seen.has(r.mongoId)) continue;
+                seen.add(r.mongoId);
+                ranked.push(r);
+            }
+            if (ranked.length >= Math.min(200, limit * 20)) break;
+        }
+
+        if (ranked.length >= Math.min(80, limit * 10)) break;
+    }
 
     if (!ranked.length) return null;
 
@@ -405,7 +434,9 @@ const getSemanticRecommendations = async (userId, limit = 10) => {
         if (picked.length >= limit) break;
     }
 
-    return picked.length ? picked : null;
+    // If semantic retrieval couldn't fill enough items, return null so caller can fall back.
+    if (picked.length < limit) return null;
+    return picked;
 };
 
 /**
