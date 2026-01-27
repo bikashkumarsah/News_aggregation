@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Clock,
   Sparkles,
+  Languages,
   ArrowLeft,
   X,
   ExternalLink,
@@ -38,6 +39,28 @@ import AuthModal from './components/AuthModal';
 import { API_URL, API_BASE_URL } from './config';
 
 
+const RatingButtons = ({ value, onChange, disabled }) => (
+  <div className="flex items-center gap-1">
+    {[1, 2, 3, 4, 5].map((n) => (
+      <button
+        key={n}
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange(n)}
+        className="w-9 h-9 rounded-lg border font-bold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        style={{
+          backgroundColor: value === n ? '#2563eb' : 'transparent',
+          borderColor: value === n ? '#2563eb' : 'var(--border)',
+          color: value === n ? '#ffffff' : 'var(--text-main)'
+        }}
+        aria-label={`Rate ${n}`}
+      >
+        {n}
+      </button>
+    ))}
+  </div>
+);
+
 const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -59,7 +82,7 @@ const Toast = ({ message, type, onClose }) => {
 };
 
 const NewsApp = () => {
-  const { user, darkMode, toggleDarkMode, logout, addBookmark, removeBookmark, isBookmarked, addToHistory } = useAuth();
+  const { user, token, darkMode, toggleDarkMode, logout, addBookmark, removeBookmark, isBookmarked, addToHistory } = useAuth();
 
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [articles, setArticles] = useState([]);
@@ -69,6 +92,26 @@ const NewsApp = () => {
   const [summary, setSummary] = useState('');
   const [summarizing, setSummarizing] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [summaryRatings, setSummaryRatings] = useState({ fluency: null, adequacy: null, coverage: null });
+  const [submittingSummaryFeedback, setSubmittingSummaryFeedback] = useState(false);
+  const [summaryFeedbackSaved, setSummaryFeedbackSaved] = useState(false);
+  const [showSummaryRatingPanel, setShowSummaryRatingPanel] = useState(false);
+
+  // Translation UI + feedback
+  const [showTranslationModal, setShowTranslationModal] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const [translatedText, setTranslatedText] = useState('');
+  const [translationRating, setTranslationRating] = useState(null);
+  const [submittingTranslationFeedback, setSubmittingTranslationFeedback] = useState(false);
+  const [translationFeedbackSaved, setTranslationFeedbackSaved] = useState(false);
+  const [lastTranslationInput, setLastTranslationInput] = useState('');
+  const [showTranslationRatingPanel, setShowTranslationRatingPanel] = useState(false);
+
+  // TTS for translated text (separate from summary TTS)
+  const [translationIsSynthesizing, setTranslationIsSynthesizing] = useState(false);
+  const [translationIsPlaying, setTranslationIsPlaying] = useState(false);
+  const [translationAudioUrl, setTranslationAudioUrl] = useState(null);
+  const [translationAudioError, setTranslationAudioError] = useState(null);
   const [toast, setToast] = useState(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -372,6 +415,9 @@ const NewsApp = () => {
     e.stopPropagation();
     setSummarizing(true);
     setSummary('');
+    setSummaryRatings({ fluency: null, adequacy: null, coverage: null });
+    setSummaryFeedbackSaved(false);
+    setShowSummaryRatingPanel(false);
     setShowSummaryModal(true);
 
     try {
@@ -390,6 +436,191 @@ const NewsApp = () => {
       showToast('Connection error', 'error');
     } finally {
       setSummarizing(false);
+    }
+  };
+
+  const submitSummaryFeedback = async () => {
+    if (!selectedArticle?._id) return;
+    if (!user || !token) {
+      showToast('Please login to rate summaries', 'error');
+      setShowAuthModal(true);
+      return;
+    }
+
+    const { fluency, adequacy, coverage } = summaryRatings || {};
+    if (!fluency || !adequacy || !coverage) {
+      showToast('Please rate Fluency, Adequacy, and Coverage (1-5)', 'error');
+      return;
+    }
+
+    setSubmittingSummaryFeedback(true);
+    try {
+      const inputText = `${selectedArticle.title || ''}\n${selectedArticle.description || ''}`.trim();
+      const resp = await fetch(`${API_URL}/feedback/summary`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          articleId: selectedArticle._id,
+          fluency,
+          adequacy,
+          coverage,
+          inputText,
+          outputText: summary
+        })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        setSummaryFeedbackSaved(true);
+        showToast('✅ Summary feedback saved', 'success');
+      } else {
+        showToast(data.error || 'Failed to save summary feedback', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to reach backend server', 'error');
+    } finally {
+      setSubmittingSummaryFeedback(false);
+    }
+  };
+
+  const isLikelyNepaliText = (text) => /[\u0900-\u097F]/.test((text || '').toString());
+
+  const handleTranslate = async (e, article) => {
+    e.stopPropagation();
+
+    // This model is trained for English -> Nepali. If the article already looks Nepali, skip.
+    const looksNepali = isLikelyNepaliText(`${article?.title || ''} ${article?.description || ''}`);
+    setShowTranslationModal(true);
+    setTranslationRating(null);
+    setTranslationFeedbackSaved(false);
+    setShowTranslationRatingPanel(false);
+    setTranslationAudioUrl(null);
+    setTranslationIsPlaying(false);
+    setTranslationAudioError(null);
+
+    if (looksNepali) {
+      setTranslatedText('This article already appears to be Nepali.');
+      setTranslating(false);
+      return;
+    }
+
+    setTranslating(true);
+    setTranslatedText('');
+
+    try {
+      const inputText = `${article?.title || ''}\n${article?.description || ''}\n${article?.content || ''}`.trim().slice(0, 5000);
+      setLastTranslationInput(inputText);
+
+      const resp = await fetch(`${API_URL}/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: inputText })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        setTranslatedText(data.data || '');
+      } else {
+        setTranslatedText('Error translating article. Please try again.');
+        showToast('Translation failed', 'error');
+      }
+    } catch (err) {
+      setTranslatedText('Failed to reach backend server.');
+      showToast('Connection error', 'error');
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  const handleTranslationTTS = async () => {
+    if (!translatedText || translating) return;
+
+    if (translationAudioUrl) {
+      const audio = document.getElementById('translation-tts-audio');
+      if (audio) {
+        if (translationIsPlaying) {
+          audio.pause();
+          setTranslationIsPlaying(false);
+        } else {
+          audio.play();
+          setTranslationIsPlaying(true);
+        }
+      }
+      return;
+    }
+
+    try {
+      setTranslationIsSynthesizing(true);
+      setTranslationAudioError(null);
+
+      const resp = await fetch(`${API_URL}/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: translatedText })
+      });
+
+      const data = await resp.json();
+      if (data.success) {
+        setTranslationAudioUrl(`${API_BASE_URL}${data.audioUrl}`);
+        setTimeout(() => {
+          const audio = document.getElementById('translation-tts-audio');
+          if (audio) {
+            audio.play();
+            setTranslationIsPlaying(true);
+          }
+        }, 100);
+      } else {
+        setTranslationAudioError(data.error || 'TTS generation failed');
+        showToast('TTS generation failed', 'error');
+      }
+    } catch (err) {
+      setTranslationAudioError('Error connecting to TTS service');
+      showToast('TTS connection error', 'error');
+    } finally {
+      setTranslationIsSynthesizing(false);
+    }
+  };
+
+  const submitTranslationFeedback = async () => {
+    if (!selectedArticle?._id) return;
+    if (!user || !token) {
+      showToast('Please login to rate translations', 'error');
+      setShowAuthModal(true);
+      return;
+    }
+    if (!translationRating) {
+      showToast('Please rate the translation (1-5)', 'error');
+      return;
+    }
+    if (!translatedText || translating) return;
+
+    setSubmittingTranslationFeedback(true);
+    try {
+      const resp = await fetch(`${API_URL}/feedback/translation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          articleId: selectedArticle._id,
+          rating: translationRating,
+          inputText: lastTranslationInput,
+          outputText: translatedText
+        })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        setTranslationFeedbackSaved(true);
+        showToast('✅ Translation feedback saved', 'success');
+      } else {
+        showToast(data.error || 'Failed to save translation feedback', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to reach backend server', 'error');
+    } finally {
+      setSubmittingTranslationFeedback(false);
     }
   };
 
@@ -731,6 +962,14 @@ const NewsApp = () => {
                     <Sparkles className="w-5 h-5" />
                     Summarize
                   </button>
+                  <button
+                    onClick={(e) => handleTranslate(e, selectedArticle)}
+                    className="flex items-center justify-center w-14 h-12 rounded-xl transition-all font-bold"
+                    style={{ backgroundColor: 'var(--card)', color: 'var(--text-main)', border: '1px solid var(--border)' }}
+                    title="Translate (English → Nepali)"
+                  >
+                    <Languages className="w-5 h-5" />
+                  </button>
                   <a
                     href={selectedArticle.url}
                     target="_blank"
@@ -1052,7 +1291,7 @@ const NewsApp = () => {
               </button>
             </div>
 
-            <div className="p-8 pb-10 overflow-y-auto custom-scrollbar">
+            <div className="p-8 pb-10 overflow-y-auto custom-scrollbar flex-1 min-h-0">
               {summarizing ? (
                 <div className="space-y-4 py-4">
                   <div className="h-4 rounded w-full animate-pulse" style={{ backgroundColor: 'var(--border)' }} />
@@ -1093,61 +1332,272 @@ const NewsApp = () => {
               )}
             </div>
 
-            <div className="p-6 flex flex-col sm:flex-row gap-3" style={{ backgroundColor: 'var(--background)' }}>
-              {!summarizing && summary && (
-                <div className="flex-1 flex flex-col gap-2">
-                  <button
-                    onClick={handleTTS}
-                    disabled={isSynthesizing}
-                    className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${isSynthesizing
-                      ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
-                      : isPlaying
-                        ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-100 dark:border-red-800'
-                        : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-100 dark:border-blue-800'
-                      }`}
-                  >
-                    {isSynthesizing ? (
-                      <Loader className="w-5 h-5 animate-spin" />
-                    ) : isPlaying ? (
-                      <Pause className="w-5 h-5" />
-                    ) : (
-                      <Volume2 className="w-5 h-5" />
-                    )}
-                    {isSynthesizing ? 'Creating Voice...' : isPlaying ? 'Pause Summary' : 'Listen to Summary'}
-                  </button>
-
-                  {audioError && (
-                    <p className="text-xs font-semibold text-red-600 dark:text-red-400">
-                      {audioError}
+            <div className="p-6 space-y-3" style={{ backgroundColor: 'var(--background)' }}>
+              {!summarizing && summary && showSummaryRatingPanel && (
+                <div className="rounded-2xl border p-4 space-y-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card)' }}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                      Rate summary (1–5)
                     </p>
-                  )}
+                    {summaryFeedbackSaved && (
+                      <span className="text-xs font-bold text-green-600 dark:text-green-400">Saved</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text-main)' }}>Fluency</span>
+                    <RatingButtons
+                      value={summaryRatings.fluency}
+                      onChange={(v) => setSummaryRatings((prev) => ({ ...prev, fluency: v }))}
+                      disabled={submittingSummaryFeedback}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text-main)' }}>Adequacy</span>
+                    <RatingButtons
+                      value={summaryRatings.adequacy}
+                      onChange={(v) => setSummaryRatings((prev) => ({ ...prev, adequacy: v }))}
+                      disabled={submittingSummaryFeedback}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text-main)' }}>Coverage</span>
+                    <RatingButtons
+                      value={summaryRatings.coverage}
+                      onChange={(v) => setSummaryRatings((prev) => ({ ...prev, coverage: v }))}
+                      disabled={submittingSummaryFeedback}
+                    />
+                  </div>
+
+                  <button
+                    onClick={submitSummaryFeedback}
+                    disabled={submittingSummaryFeedback || summaryFeedbackSaved}
+                    className="w-full px-4 py-3 rounded-xl font-bold border transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--text-main)' }}
+                  >
+                    {submittingSummaryFeedback ? 'Saving...' : summaryFeedbackSaved ? 'Thanks!' : 'Submit summary rating'}
+                  </button>
                 </div>
               )}
 
-              {audioUrl && (
-                <audio
-                  id="tts-audio"
-                  src={audioUrl}
-                  onEnded={() => setIsPlaying(false)}
-                  onPause={() => setIsPlaying(false)}
-                  onPlay={() => setIsPlaying(true)}
-                  className="hidden"
-                />
-              )}
+              <div className="flex flex-col sm:flex-row gap-3">
+                {!summarizing && summary && (
+                  <div className="flex-1 flex flex-col gap-2">
+                    <button
+                      onClick={handleTTS}
+                      disabled={isSynthesizing}
+                      className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${isSynthesizing
+                        ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
+                        : isPlaying
+                          ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-100 dark:border-red-800'
+                          : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-100 dark:border-blue-800'
+                        }`}
+                    >
+                      {isSynthesizing ? (
+                        <Loader className="w-5 h-5 animate-spin" />
+                      ) : isPlaying ? (
+                        <Pause className="w-5 h-5" />
+                      ) : (
+                        <Volume2 className="w-5 h-5" />
+                      )}
+                      {isSynthesizing ? 'Creating Voice...' : isPlaying ? 'Pause Summary' : 'Listen to Summary'}
+                    </button>
 
+                    {audioError && (
+                      <p className="text-xs font-semibold text-red-600 dark:text-red-400">
+                        {audioError}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {!summarizing && summary && (
+                  <button
+                    onClick={() => setShowSummaryRatingPanel((v) => !v)}
+                    className="px-6 py-3 rounded-xl font-bold border transition-all"
+                    style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text-main)' }}
+                  >
+                    {showSummaryRatingPanel ? 'Hide Rating' : 'Rate'}
+                  </button>
+                )}
+
+                {audioUrl && (
+                  <audio
+                    id="tts-audio"
+                    src={audioUrl}
+                    onEnded={() => setIsPlaying(false)}
+                    onPause={() => setIsPlaying(false)}
+                    onPlay={() => setIsPlaying(true)}
+                    className="hidden"
+                  />
+                )}
+
+                <button
+                  onClick={() => {
+                    setShowSummaryModal(false);
+                    setAudioUrl(null);
+                    setIsPlaying(false);
+                    setAudioError(null);
+                  }}
+                  className="btn-primary flex-1"
+                >
+                  Got it, thanks!
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Translation Modal */}
+      {showTranslationModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-8">
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowTranslationModal(false)}
+          />
+          <div
+            className="rounded-[2rem] w-full max-w-2xl shadow-2xl relative animate-fade-in flex flex-col max-h-[85vh]"
+            style={{ backgroundColor: 'var(--card)' }}
+          >
+            <div className="p-6 flex items-center justify-between border-b" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+                  <Languages className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold" style={{ color: 'var(--text-main)' }}>Translate (EN → NE)</h3>
+                  <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">mBART</p>
+                </div>
+              </div>
               <button
-                onClick={() => {
-                  setShowSummaryModal(false);
-                  setAudioUrl(null);
-                  setIsPlaying(false);
-                  setAudioError(null);
-                }}
-                className="btn-primary flex-1"
+                onClick={() => setShowTranslationModal(false)}
+                className="p-2 rounded-lg transition-colors hover:bg-slate-200 dark:hover:bg-slate-700"
+                aria-label="Close modal"
               >
-                Got it, thanks!
+                <X className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
               </button>
             </div>
 
+            <div className="p-8 pb-10 overflow-y-auto custom-scrollbar flex-1 min-h-0">
+              {translating ? (
+                <div className="space-y-4 py-4">
+                  <div className="h-4 rounded w-full animate-pulse" style={{ backgroundColor: 'var(--border)' }} />
+                  <div className="h-4 rounded w-5/6 animate-pulse" style={{ backgroundColor: 'var(--border)' }} />
+                  <div className="h-4 rounded w-full animate-pulse" style={{ backgroundColor: 'var(--border)' }} />
+                  <div className="h-4 rounded w-4/6 animate-pulse" style={{ backgroundColor: 'var(--border)' }} />
+                  <p className="text-center text-sm font-medium pt-8" style={{ color: 'var(--text-muted)' }}>
+                    Translating...
+                  </p>
+                </div>
+              ) : (
+                <div className="prose prose-slate dark:prose-invert max-w-none">
+                  <div className="text-lg leading-relaxed p-6 rounded-2xl border" style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--text-main)' }}>
+                    <MessageSquare className="w-8 h-8 mb-4" style={{ color: 'var(--text-muted)' }} />
+                    <p className="m-0 whitespace-pre-wrap">{translatedText || 'No translation available.'}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 space-y-3" style={{ backgroundColor: 'var(--background)' }}>
+              {!translating && translatedText && showTranslationRatingPanel && (
+                <div className="rounded-2xl border p-4 space-y-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card)' }}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                      Rate translation (1–5)
+                    </p>
+                    {translationFeedbackSaved && (
+                      <span className="text-xs font-bold text-green-600 dark:text-green-400">Saved</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text-main)' }}>Overall</span>
+                    <RatingButtons
+                      value={translationRating}
+                      onChange={(v) => setTranslationRating(v)}
+                      disabled={submittingTranslationFeedback}
+                    />
+                  </div>
+
+                  <button
+                    onClick={submitTranslationFeedback}
+                    disabled={submittingTranslationFeedback || translationFeedbackSaved}
+                    className="w-full px-4 py-3 rounded-xl font-bold border transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--text-main)' }}
+                  >
+                    {submittingTranslationFeedback ? 'Saving...' : translationFeedbackSaved ? 'Thanks!' : 'Submit translation rating'}
+                  </button>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                {!translating && translatedText && (
+                  <div className="flex-1 flex flex-col gap-2">
+                    <button
+                      onClick={handleTranslationTTS}
+                      disabled={translationIsSynthesizing}
+                      className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${translationIsSynthesizing
+                        ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
+                        : translationIsPlaying
+                          ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-100 dark:border-red-800'
+                          : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-100 dark:border-blue-800'
+                        }`}
+                    >
+                      {translationIsSynthesizing ? (
+                        <Loader className="w-5 h-5 animate-spin" />
+                      ) : translationIsPlaying ? (
+                        <Pause className="w-5 h-5" />
+                      ) : (
+                        <Volume2 className="w-5 h-5" />
+                      )}
+                      {translationIsSynthesizing ? 'Creating Voice...' : translationIsPlaying ? 'Pause Translation' : 'Listen to Translation'}
+                    </button>
+
+                    {translationAudioError && (
+                      <p className="text-xs font-semibold text-red-600 dark:text-red-400">
+                        {translationAudioError}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {!translating && translatedText && (
+                  <button
+                    onClick={() => setShowTranslationRatingPanel((v) => !v)}
+                    className="px-6 py-3 rounded-xl font-bold border transition-all"
+                    style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text-main)' }}
+                  >
+                    {showTranslationRatingPanel ? 'Hide Rating' : 'Rate'}
+                  </button>
+                )}
+
+                {translationAudioUrl && (
+                  <audio
+                    id="translation-tts-audio"
+                    src={translationAudioUrl}
+                    onEnded={() => setTranslationIsPlaying(false)}
+                    onPause={() => setTranslationIsPlaying(false)}
+                    onPlay={() => setTranslationIsPlaying(true)}
+                    className="hidden"
+                  />
+                )}
+
+                <button
+                  onClick={() => {
+                    setShowTranslationModal(false);
+                    setTranslationAudioUrl(null);
+                    setTranslationIsPlaying(false);
+                    setTranslationAudioError(null);
+                  }}
+                  className="btn-primary flex-1"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

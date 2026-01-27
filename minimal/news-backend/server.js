@@ -14,6 +14,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const searchRoutes = require('./routes/searchRoutes');
+const feedbackRoutes = require('./routes/feedbackRoutes');
 
 // Import services
 const { startNewsletterScheduler } = require('./services/newsletterScheduler');
@@ -35,6 +36,7 @@ app.use('/audio', express.static(path.join(__dirname, 'public/audio')));
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 
 // MongoDB Connection (Local MongoDB)
@@ -205,7 +207,73 @@ async function fetchFullContent(url) {
   }
 }
 
-// 5. Summarize article using Gemini
+// Helper: call local mBART (summarize / translate) via python
+const runMbart = ({ task, text, maxNewTokens, maxInputTokens } = {}) => new Promise((resolve, reject) => {
+  const py = spawn('python3', [path.join(__dirname, 'mbart_service.py')], {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    env: {
+      ...process.env,
+      // default used by the notebook; can be overridden via env
+      MBART_MODEL: process.env.MBART_MODEL || 'sagunrai/mbart-large-50-nepali-finetuned-1'
+    }
+  });
+
+  let stdout = '';
+  let stderr = '';
+
+  py.stdout.on('data', (d) => { stdout += d.toString('utf8'); });
+  py.stderr.on('data', (d) => { stderr += d.toString('utf8'); });
+
+  py.on('error', (err) => reject(err));
+
+  py.on('close', (code) => {
+    try {
+      const resp = JSON.parse(stdout || '{}');
+      if (!resp.ok) {
+        return reject(new Error(resp.error || stderr || `mBART failed (exit ${code})`));
+      }
+      return resolve(resp.text || '');
+    } catch (err) {
+      return reject(new Error(`Failed to parse mBART output. stderr=${stderr || '(none)'} stdout=${stdout || '(empty)'}`));
+    }
+  });
+
+  const payload = {
+    task,
+    text,
+    ...(maxNewTokens ? { max_new_tokens: maxNewTokens } : {}),
+    ...(maxInputTokens ? { max_input_tokens: maxInputTokens } : {})
+  };
+
+  py.stdin.write(JSON.stringify(payload));
+  py.stdin.end();
+});
+
+const toBulletSummary = (text, maxBullets = 3) => {
+  const raw = (text || '').toString().trim();
+  if (!raw) return '';
+
+  // Split on Nepali danda, sentence endings, and newlines.
+  const parts = raw
+    .replace(/\r/g, '')
+    .split(/[\n]+|(?<=[.!?।])\s+/u)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const bullets = [];
+  for (const p of parts) {
+    const cleaned = p.replace(/^[-*•]\s+/, '').trim();
+    if (!cleaned) continue;
+    bullets.push(cleaned);
+    if (bullets.length >= maxBullets) break;
+  }
+
+  // If splitting failed, just return a single bullet.
+  if (!bullets.length) return `- ${raw}`;
+  return bullets.map((b) => `- ${b}`).join('\n');
+};
+
+// 5. Summarize article using local mBART (Gemma implementation kept commented for later use)
 app.post('/api/news/:id/summarize', async (req, res) => {
   try {
     const article = await Article.findById(req.params.id);
@@ -224,9 +292,6 @@ app.post('/api/news/:id/summarize', async (req, res) => {
       });
     }
 
-    const GEMINI_API_KEY = 'AIzaSyAgxwt7tZYXnaMEIi2tt23Y0hwK9TU7Yt0';
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${GEMINI_API_KEY}`;
-
     // check if we need to fetch full content
     let fullContent = article.content;
     if (!fullContent || fullContent.length < 600) {
@@ -240,48 +305,85 @@ app.post('/api/news/:id/summarize', async (req, res) => {
       }
     }
 
-    const isNepali = article.url.match(/(onlinekhabar\.com|ratopati\.com|setopati\.com|nagariknews\.com|\.np)/i);
-    const summaryLanguage = isNepali ? 'Nepali (in Devanagari script)' : 'English';
+    const isNepaliSource = article.url.match(/(onlinekhabar\.com|ratopati\.com|setopati\.com|nagariknews\.com|\.np)/i);
 
-    const prompt = `Summarize the following news article in 2-3 concise bullet points. The summary must be in ${summaryLanguage}. Format the output as a Markdown list (using -). **Bold** key entities, names, numbers, and important statistics for easier scanning. Do not include any introductory text like "Here is a summary".\n\nTitle: ${article.title}\nDescription: ${article.description}\nContent: ${fullContent || article.description}`;
+    // mBART model we are using is fine-tuned for:
+    // - Nepali summarization ("summarize:" prefix)
+    // - English -> Nepali translation ("translate English to Nepali:" prefix)
+    //
+    // For English articles we translate first, then summarize (output is Nepali).
+    const baseText = `${article.title || ''}\n${article.description || ''}\n${(fullContent || '')}`.trim();
+    const clipped = baseText.slice(0, 5000); // keep latency bounded
 
-    const response = await fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }]
-      })
-    });
-
-    const data = await response.json();
-
-    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
-      const summary = data.candidates[0].content.parts[0].text;
-
-      // Save summary to database
-      article.summary = summary;
-      await article.save();
-
-      res.json({
-        success: true,
-        data: summary
+    let summaryText = '';
+    if (isNepaliSource) {
+      summaryText = await runMbart({
+        task: 'summarize',
+        text: clipped,
+        maxNewTokens: 160,
+        maxInputTokens: 1024
       });
     } else {
-      console.error('Gemini API Error:', JSON.stringify(data));
-      throw new Error('Failed to generate summary from Gemini');
+      const translated = await runMbart({
+        task: 'translate_en_to_ne',
+        text: clipped,
+        maxNewTokens: 256,
+        maxInputTokens: 1024
+      });
+      summaryText = await runMbart({
+        task: 'summarize',
+        text: translated,
+        maxNewTokens: 160,
+        maxInputTokens: 1024
+      });
     }
+
+    const summary = toBulletSummary(summaryText, 3);
+
+    // Save summary to database
+    article.summary = summary;
+    await article.save();
+
+    res.json({
+      success: true,
+      data: summary
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // Legacy: Gemini/Gemma summarizer (disabled for now as requested)
+    // ─────────────────────────────────────────────────────────────
+    /*
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${GEMINI_API_KEY}`;
+    const prompt = `Summarize the following news article in 2-3 concise bullet points...`;
+    const response = await fetch(GEMINI_URL, {...});
+    */
 
   } catch (error) {
     res.status(500).json({
       success: false,
       error: error.message
     });
+  }
+});
+
+// Optional: translate arbitrary English text to Nepali using the same fine-tuned mBART model.
+// POST /api/translate  { "text": "..." }
+app.post('/api/translate', async (req, res) => {
+  try {
+    const text = (req.body && req.body.text) ? String(req.body.text) : '';
+    if (!text.trim()) {
+      return res.status(400).json({ success: false, error: 'Missing "text" in request body' });
+    }
+    const translated = await runMbart({
+      task: 'translate_en_to_ne',
+      text: text.trim().slice(0, 5000),
+      maxNewTokens: 256,
+      maxInputTokens: 1024
+    });
+    return res.json({ success: true, data: translated });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -313,7 +415,9 @@ app.post('/api/news/:id/tts', async (req, res) => {
     }
 
     // Determine which model to use based on source/URL
-    const isNepali = article.url.match(/(onlinekhabar\.com|ratopati\.com|setopati\.com|nagariknews\.com|\.np)/i);
+    // Prefer summary text language (fixes English-source articles whose summaries are translated to Nepali).
+    const hasDevanagari = /[\u0900-\u097F]/.test(article.summary || '');
+    const isNepali = hasDevanagari || article.url.match(/(onlinekhabar\.com|ratopati\.com|setopati\.com|nagariknews\.com|\.np)/i);
     const modelPath = isNepali
       ? path.join(__dirname, 'models', 'ne_NP-google-medium.onnx')
       : path.join(__dirname, 'models', 'en_US-lessac-medium.onnx');
@@ -344,6 +448,61 @@ app.post('/api/news/:id/tts', async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 6b. Generate TTS for arbitrary text (used for translation playback)
+// POST /api/tts  { "text": "..." }
+app.post('/api/tts', async (req, res) => {
+  try {
+    const rawText = (req.body && req.body.text) ? String(req.body.text) : '';
+    const text = rawText.trim();
+
+    if (!text) {
+      return res.status(400).json({ success: false, error: 'Missing "text" in request body' });
+    }
+
+    // Keep bounded to avoid very long synthesis + CLI arg limits.
+    const clipped = text.slice(0, 2000);
+
+    const audioDir = path.join(__dirname, 'public/audio');
+    if (!fs.existsSync(audioDir)) {
+      fs.mkdirSync(audioDir, { recursive: true });
+    }
+
+    const safeId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const fileName = `tts_${safeId}.wav`;
+    const outputPath = path.join(audioDir, fileName);
+    const audioUrl = `/audio/${fileName}`;
+
+    // Determine voice by text (Nepali if any Devanagari characters).
+    const hasDevanagari = /[\u0900-\u097F]/.test(clipped);
+    const modelPath = hasDevanagari
+      ? path.join(__dirname, 'models', 'ne_NP-google-medium.onnx')
+      : path.join(__dirname, 'models', 'en_US-lessac-medium.onnx');
+
+    // Clean up markdown-ish characters for better TTS
+    const cleanText = clipped.replace(/[*#\-_`]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const pythonProcess = spawn('python3', [
+      path.join(__dirname, 'tts_service.py'),
+      cleanText,
+      outputPath,
+      modelPath
+    ]);
+
+    pythonProcess.stderr.on('data', (data) => {
+      console.error(`TTS Error: ${data}`);
+    });
+
+    pythonProcess.on('close', (code) => {
+      if (code === 0) {
+        return res.json({ success: true, audioUrl });
+      }
+      return res.status(500).json({ success: false, error: 'TTS generation failed' });
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 
