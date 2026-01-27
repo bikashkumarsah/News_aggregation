@@ -6,7 +6,7 @@ Models compared:
 1. `Xenova/paraphrase-multilingual-MiniLM-L12-v2` (384d)
 2. `Xenova/multilingual-e5-small` (384d)
 3. `Xenova/distiluse-base-multilingual-cased-v2` (768d)
-
+v
 ---
 
 ## 1) Generate an eval file (5 queries × top‑5 results × 3 models)
