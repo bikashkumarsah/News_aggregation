@@ -10,29 +10,37 @@ A modern, AI-powered news aggregation platform with personalized recommendations
 ## ✨ Features
 
 ### 🤖 AI-Powered
-- **AI Summaries** - Get instant bullet-point summaries of any article (powered by Gemma 3)
+
+- **AI Summaries** - Local mBART-powered bullet summaries (Nepali-first, English → Nepali)
+- **AI Translation** - One-click English → Nepali translation for any article
 - **Personalized Recommendations** - ML-based article suggestions based on your reading history
 - **Smart Classification** - Automatic categorization using NLP (English & Nepali)
+- **Semantic Search** - Qdrant-backed search with multilingual embeddings + topic filters
 
 ### 📱 User Experience
+
 - **Dark Mode** - Beautiful dark theme that syncs across devices
-- **Text-to-Speech** - Listen to article summaries (English & Nepali voices)
+- **Text-to-Speech** - Listen to summaries and translations (English & Nepali voices)
 - **Responsive Design** - Works perfectly on desktop, tablet, and mobile
 - **Network Access** - Access from any device on your local network
 
 ### 👤 User Features
+
 - **Authentication** - Secure JWT-based login and registration
 - **Bookmarks** - Save articles for later reading
 - **Reading History** - Track what you've read
 - **Custom RSS Feeds** - Add your own news sources
+- **Quality Ratings** - Rate summaries + translations (MOS) to improve models
 
 ### 📧 Email Newsletters
+
 - **Daily Digest** - Automated personalized newsletters at 7 AM (Nepal time)
 - **Beautiful Templates** - Modern, dark-mode compatible email designs
 - **Interest Tags** - Shows your top categories and reading preferences
 - **One-Click Access** - Open articles directly from email
 
 ### 📰 News Aggregation
+
 - **36+ RSS Sources** - Trusted feeds from USA & Nepal
 - **Real-time Updates** - Fresh news every 30 minutes
 - **Full Content** - Up to 5000 characters per article
@@ -41,50 +49,55 @@ A modern, AI-powered news aggregation platform with personalized recommendations
 ## 🗞️ News Sources
 
 ### USA Sources
-| Category | Sources |
-|----------|---------|
-| **Technology** | TechCrunch, The Verge, Wired |
-| **Business** | CNBC, Fortune, MarketWatch |
-| **Sports** | ESPN, Yahoo Sports, CBS Sports |
+
+| Category          | Sources                                           |
+| ----------------- | ------------------------------------------------- |
+| **Technology**    | TechCrunch, The Verge, Wired                      |
+| **Business**      | CNBC, Fortune, MarketWatch                        |
+| **Sports**        | ESPN, Yahoo Sports, CBS Sports                    |
 | **Entertainment** | Variety, Hollywood Reporter, Entertainment Weekly |
-| **Health** | Medical News Today, Healthline, US News Health |
-| **Science** | Science Daily, NASA, Science News |
+| **Health**        | Medical News Today, Healthline, US News Health    |
+| **Science**       | Science Daily, NASA, Science News                 |
 
 ### Nepal Sources
-| Source | Languages |
-|--------|-----------|
-| Online Khabar | English & Nepali |
-| The Himalayan Times | English |
-| My Republica | English |
-| Kathmandu Post | English |
+
+| Source              | Languages        |
+| ------------------- | ---------------- |
+| Online Khabar       | English & Nepali |
+| The Himalayan Times | English          |
+| My Republica        | English          |
+| Kathmandu Post      | English          |
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| React | 19.x | UI Framework |
-| Tailwind CSS | 3.x | Styling |
-| Lucide React | Latest | Icons |
-| Context API | - | State Management |
+
+| Technology   | Version | Purpose          |
+| ------------ | ------- | ---------------- |
+| React        | 19.x    | UI Framework     |
+| Tailwind CSS | 3.x     | Styling          |
+| Lucide React | Latest  | Icons            |
+| Context API  | -       | State Management |
 
 ### Backend
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| Node.js | 18+ | Runtime |
-| Express.js | 4.x | API Server |
-| MongoDB | Local | Database |
-| Nodemailer | Latest | Email Service |
-| Node-Cron | Latest | Scheduled Jobs |
-| ONNX Runtime | Latest | TTS Models |
-| Natural | 6.x | NLP Classification |
+
+| Technology | Version | Purpose              |
+| ---------- | ------- | -------------------- |
+| Node.js    | 18+     | Runtime              |
+| Express.js | 4.x     | API Server           |
+| MongoDB    | Local   | Database             |
+| Nodemailer | Latest  | Email Service        |
+| Node-Cron  | Latest  | Scheduled Jobs       |
+| Python 3   | 3.x     | mBART + TTS services |
+| Natural    | 6.x     | NLP Classification   |
 
 ### AI Services
-| Service | Purpose |
-|---------|---------|
-| Gemma 3 (Google) | Article Summarization |
-| Piper TTS | Text-to-Speech (English) |
-| Google TTS | Text-to-Speech (Nepali) |
+
+| Service                                            | Purpose                                      |
+| -------------------------------------------------- | -------------------------------------------- |
+| mBART (sagunrai/mbart-large-50-nepali-finetuned-1) | Summarization + English → Nepali Translation |
+| Transformers.js                                    | Multilingual embeddings for Qdrant search    |
+| Piper TTS                                          | Text-to-Speech (English + Nepali models)     |
 
 ## 📁 Project Structure
 
@@ -118,11 +131,16 @@ khabar/
 │       │   └── ne_NP-*.onnx      # Nepali TTS model
 │       ├── routes/
 │       │   ├── authRoutes.js     # Authentication endpoints
-│       │   └── userRoutes.js     # User data endpoints
+│       │   ├── userRoutes.js     # User data endpoints
+│       │   ├── searchRoutes.js   # Semantic search + filters
+│       │   └── feedbackRoutes.js # Summary/translation feedback
 │       ├── services/
 │       │   ├── emailService.js   # Email templates & sending
 │       │   ├── newsletterScheduler.js # 7 AM daily emails
-│       │   └── preferenceService.js   # AI recommendations
+│       │   ├── preferenceService.js   # AI recommendations
+│       │   ├── embeddingService.js # Multilingual embeddings
+│       │   ├── qdrantService.js    # Qdrant client helpers
+│       │   └── topicService.js     # Topic tagging
 │       ├── middleware/
 │       │   └── authMiddleware.js # JWT verification
 │       ├── server.js             # Main API server
@@ -131,7 +149,8 @@ khabar/
 │       ├── scheduleNews.js       # Automated updates
 │       ├── testEmail.js          # Email testing utility
 │       ├── updateIP.js           # Network IP helper
-│       ├── tts_service.py        # Python TTS service
+│       ├── tts_service.py        # Python TTS service (Piper)
+│       ├── mbart_service.py      # mBART summarize/translate
 │       ├── .env                  # Environment config
 │       └── package.json
 │
@@ -144,7 +163,7 @@ khabar/
 
 - [Node.js](https://nodejs.org/) (v18 or higher)
 - [MongoDB](https://www.mongodb.com/try/download/community) (Local)
-- [Python 3](https://www.python.org/) (for TTS)
+- [Python 3](https://www.python.org/) (for mBART + TTS)
 - Git
 
 ### 1. Clone the Repository
@@ -157,6 +176,7 @@ cd khabar
 ### 2. Install MongoDB
 
 **Mac:**
+
 ```bash
 brew tap mongodb/brew
 brew install mongodb-community
@@ -164,10 +184,12 @@ brew services start mongodb-community
 ```
 
 **Windows:**
+
 - Download from https://www.mongodb.com/try/download/community
 - Install and run as a service
 
 **Linux:**
+
 ```bash
 sudo apt-get install mongodb
 sudo systemctl start mongodb
@@ -189,6 +211,13 @@ touch .env
 npm run dev
 ```
 
+### 3.1 Install Python Dependencies (mBART + TTS)
+
+```bash
+python3 -m pip install --upgrade pip
+python3 -m pip install torch transformers piper-tts
+```
+
 ### 4. Frontend Setup
 
 ```bash
@@ -203,10 +232,10 @@ npm start
 
 ### 5. Fetch Initial News
 
-   ```bash
+```bash
 cd minimal/news-backend
-   npm run update-news
-   ```
+npm run update-news
+```
 
 ## ⚙️ Configuration
 
@@ -229,6 +258,9 @@ SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-app-password  # Gmail App Password
 
+# mBART (summarization + translation)
+MBART_MODEL=sagunrai/mbart-large-50-nepali-finetuned-1
+
 # Qdrant (Vector Database) - for semantic search + filtered retrieval
 QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION=khabar_articles
@@ -246,33 +278,35 @@ QDRANT_VECTOR_SIZE=384
 
 To access the app from phones/tablets on the same network:
 
-   ```bash
+```bash
 # Auto-detect and update your IP
 cd minimal/news-backend
 node updateIP.js
 ```
 
 Then access:
+
 - **Frontend:** `http://YOUR_IP:3000`
 - **Backend:** `http://YOUR_IP:5001`
 
 ### Vector Search (Qdrant) - Advanced Search & Topic Filtering
 
 Qdrant is used to power:
+
 - **Semantic search** (search by meaning, not just keywords)
 - **Fast filtering** using payload fields like `topics`, `category`, `source`, `publishedAt`
 
 #### Start Qdrant (Docker)
 
-   ```bash
+```bash
 docker run -p 6333:6333 -p 6334:6334 --name qdrant -d qdrant/qdrant
-   ```
+```
 
 #### Index existing articles into Qdrant
 
 After you already have articles in MongoDB:
-   
-   ```bash
+
+```bash
 cd minimal/news-backend
 npm install
 npm run index-qdrant
@@ -283,6 +317,7 @@ npm run index-qdrant
 By default, the code will try to use a real multilingual embedding model (Transformers.js) and fall back to hashing vectors if the model cannot load.
 
 Environment variables:
+
 - `EMBEDDING_PROVIDER=transformers` (default)
 - `EMBEDDING_MODEL=Xenova/paraphrase-multilingual-MiniLM-L12-v2` (default)
 
@@ -312,6 +347,7 @@ node scripts/backfillTopics.js --force
 #### Search API
 
 The backend exposes:
+
 - `GET /api/search?q=...` (semantic search via Qdrant if available)
 - `GET /api/search?topics=finance,politics` (filter-only via MongoDB)
 
@@ -339,12 +375,12 @@ Newsletters are sent automatically at **7:00 AM Nepal Time** to users with daily
 
 ### Email Templates
 
-| Template | Trigger | Description |
-|----------|---------|-------------|
-| Welcome | User signup | Feature introduction |
-| Daily Digest | 7 AM daily | Standard news digest |
-| Personalized | 7 AM daily | AI-curated based on preferences |
-| Weekly | Weekly | Stats + top stories |
+| Template     | Trigger     | Description                     |
+| ------------ | ----------- | ------------------------------- |
+| Welcome      | User signup | Feature introduction            |
+| Daily Digest | 7 AM daily  | Standard news digest            |
+| Personalized | 7 AM daily  | AI-curated based on preferences |
+| Weekly       | Weekly      | Stats + top stories             |
 
 ### Testing Emails
 
@@ -374,37 +410,48 @@ node testEmail.js --enable user@example.com
 
 ### Public Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/news` | Get all articles |
-| GET | `/api/news?category=technology` | Filter by category |
-| GET | `/api/news?page=1&limit=12` | Pagination |
-| GET | `/api/news/:id` | Get single article |
-| POST | `/api/news/:id/summarize` | AI summarize article |
-| POST | `/api/news/:id/tts` | Generate TTS audio |
-| GET | `/api/categories` | Get category counts |
+| Method | Endpoint                        | Description                     |
+| ------ | ------------------------------- | ------------------------------- |
+| GET    | `/api/news`                     | Get all articles                |
+| GET    | `/api/news?category=technology` | Filter by category              |
+| GET    | `/api/news?page=1&limit=12`     | Pagination                      |
+| GET    | `/api/news/:id`                 | Get single article              |
+| POST   | `/api/news/:id/summarize`       | AI summarize article            |
+| POST   | `/api/news/:id/tts`             | Generate TTS audio              |
+| POST   | `/api/tts`                      | Generate TTS for arbitrary text |
+| POST   | `/api/translate`                | English → Nepali translation    |
+| GET    | `/api/search`                   | Semantic search + filters       |
+| GET    | `/api/categories`               | Get category counts             |
 
 ### Authentication Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/register` | Create account |
-| POST | `/api/auth/login` | Login |
-| GET | `/api/auth/me` | Get current user |
-| PUT | `/api/auth/profile` | Update profile |
+| Method | Endpoint             | Description      |
+| ------ | -------------------- | ---------------- |
+| POST   | `/api/auth/register` | Create account   |
+| POST   | `/api/auth/login`    | Login            |
+| GET    | `/api/auth/me`       | Get current user |
+| PUT    | `/api/auth/profile`  | Update profile   |
 
 ### User Endpoints (Protected)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/user/bookmarks` | Get bookmarks |
-| POST | `/api/user/bookmarks/:id` | Add bookmark |
-| DELETE | `/api/user/bookmarks/:id` | Remove bookmark |
-| GET | `/api/user/history` | Get reading history |
-| POST | `/api/user/history/:id` | Add to history |
-| GET | `/api/user/recommendations` | Get AI recommendations |
-| PUT | `/api/user/email-preferences` | Update email settings |
-| POST | `/api/user/test/send-newsletter` | Trigger newsletter |
+| Method | Endpoint                         | Description            |
+| ------ | -------------------------------- | ---------------------- |
+| GET    | `/api/user/bookmarks`            | Get bookmarks          |
+| POST   | `/api/user/bookmarks/:id`        | Add bookmark           |
+| DELETE | `/api/user/bookmarks/:id`        | Remove bookmark        |
+| GET    | `/api/user/history`              | Get reading history    |
+| POST   | `/api/user/history/:id`          | Add to history         |
+| GET    | `/api/user/recommendations`      | Get AI recommendations |
+| PUT    | `/api/user/email-preferences`    | Update email settings  |
+| POST   | `/api/user/test/send-newsletter` | Trigger newsletter     |
+
+### Feedback Endpoints (Protected)
+
+| Method | Endpoint                                       | Description                              |
+| ------ | ---------------------------------------------- | ---------------------------------------- |
+| POST   | `/api/feedback/summary`                        | Rate summary (fluency/adequacy/coverage) |
+| POST   | `/api/feedback/translation`                    | Rate translation (1–5 MOS)               |
+| GET    | `/api/feedback/mos?articleId=...&kind=summary` | Aggregate MOS stats                      |
 
 ## 📜 Available Scripts
 
@@ -439,24 +486,41 @@ node updateIP.js
 ## 🎨 Features Showcase
 
 ### AI Summary
+
 Click "AI Summary" on any article to get:
+
 - Bullet-point summary
 - Key facts highlighted in **bold**
-- Language-aware (English/Nepali)
+- Nepali-first output (English articles are translated then summarized)
 
 ### Text-to-Speech
+
 After generating a summary:
-- Click "Listen to Summary" 
-- English articles use high-quality Piper TTS
-- Nepali articles use Google TTS
+
+- Click "Listen to Summary"
+- English & Nepali voices powered by Piper TTS
+
+### Translation (English → Nepali)
+
+- Translate full articles into Nepali with one click
+- Optional TTS playback for translated text
+
+### Quality Ratings
+
+- Rate summaries (fluency/adequacy/coverage)
+- Rate translations (1–5 MOS)
+- Feedback is stored for evaluation and model tuning
 
 ### Dark Mode
+
 - Toggle in sidebar or header
 - Syncs to your account
 - Email templates auto-adapt to system preference
 
 ### Personalized Recommendations
+
 Based on your reading history:
+
 - Category preferences (%)
 - Preferred sources
 - Top keywords/topics
@@ -465,34 +529,44 @@ Based on your reading history:
 
 ### Backend Issues
 
-| Problem | Solution |
-|---------|----------|
-| MongoDB won't connect | Run `mongod` or check if service is running |
-| Port 5001 in use | Change `PORT` in `.env` |
-| SMTP errors | Verify Gmail App Password |
+| Problem               | Solution                                                  |
+| --------------------- | --------------------------------------------------------- |
+| MongoDB won't connect | Run `mongod` or check if service is running               |
+| Port 5001 in use      | Change `PORT` in `.env`                                   |
+| SMTP errors           | Verify Gmail App Password                                 |
+| mBART/TTS errors      | Install Python deps: `torch`, `transformers`, `piper-tts` |
 
 ### Frontend Issues
 
-| Problem | Solution |
-|---------|----------|
-| API connection failed | Check backend is running on correct port |
-| Network access not working | Run `node updateIP.js` and restart |
-| Styles not loading | Run `npm install` and restart |
+| Problem                    | Solution                                 |
+| -------------------------- | ---------------------------------------- |
+| API connection failed      | Check backend is running on correct port |
+| Network access not working | Run `node updateIP.js` and restart       |
+| Styles not loading         | Run `npm install` and restart            |
 
 ### Email Issues
 
-| Problem | Solution |
-|---------|----------|
-| Emails not sending | Check SMTP settings in `.env` |
-| "Less secure app" error | Use Gmail App Password, not regular password |
+| Problem                 | Solution                                       |
+| ----------------------- | ---------------------------------------------- |
+| Emails not sending      | Check SMTP settings in `.env`                  |
+| "Less secure app" error | Use Gmail App Password, not regular password   |
 | Newsletter not arriving | Check `emailPreferences.dailyDigest` is `true` |
 
 ## 🗓️ Version History
 
-### v3.0 (January 2026) - Current
+### v3.1 (January 2026)
+
+- ✅ **mBART Summaries** - Local Nepali-first summaries with English → Nepali pipeline
+- ✅ **Article Translation** - One-click English → Nepali translation
+- ✅ **Translation + Summary TTS** - Piper voices for both summaries and translations
+- ✅ **Semantic Search** - Qdrant + multilingual embeddings + topic filters
+- ✅ **Quality Feedback** - MOS ratings for summaries and translations
+
+### v3.0 (January 2026)
+
 - ✅ **User Authentication** - JWT-based login/registration
 - ✅ **Bookmarks & History** - Save and track articles
-- ✅ **AI Summaries** - Gemma 3 powered article summarization
+- ✅ **AI Summaries** - Local mBART-powered article summarization
 - ✅ **Text-to-Speech** - English & Nepali voice synthesis
 - ✅ **Dark Mode** - Beautiful dark theme with sync
 - ✅ **Email Newsletters** - Automated daily digest at 7 AM
@@ -501,12 +575,14 @@ Based on your reading history:
 - ✅ **Modern Email Templates** - Dark mode compatible, mobile responsive
 
 ### v2.0 (November 2025)
+
 - Enhanced RSS sources (36+ feeds)
 - Full content extraction (5000 chars)
 - Nepali language support
 - Auto-cleanup of old articles
 
 ### v1.0 (Initial)
+
 - Basic RSS fetching
 - Category-based aggregation
 
@@ -517,7 +593,7 @@ This project is licensed under the ISC License.
 ## 🙏 Acknowledgments
 
 - **News Sources** - RSS feeds from USA & Nepal publishers
-- **Google** - Gemma 3 AI for summarization
+- **Hugging Face** - mBART model fine-tuned for Nepali
 - **Piper TTS** - High-quality voice synthesis
 - **MongoDB** - Database engine
 - **React & Node.js** - Framework communities
