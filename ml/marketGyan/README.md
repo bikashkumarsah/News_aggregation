@@ -30,7 +30,9 @@ the English-only FinBERT baseline. Run
 `data/processed/splits/manifest.json`. The Qwen notebook evaluates zero-shot,
 three-shot, and Unsloth QLoRA. It targets a T4 16 GB minimum, uses
 `unsloth/Qwen3-8B` in non-thinking mode with response-only training, and saves
-resumable checkpoints.
+only the final adapter, tokenizer, predictions, metrics, and plots. Intermediate
+`checkpoint-*` directories are intentionally removed to keep the downloadable
+artifact small.
 Model artifacts and datasets are intentionally ignored by Git.
 
 System benchmark specifications are in `evaluation/`. After recording actual

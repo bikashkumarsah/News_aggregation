@@ -159,6 +159,7 @@ print(len(train_rows), len(validation_rows), len(test_rows))
 """, ["data"]),
     markdown("## 3. Small reusable trainer for the three classifier runs"),
     code("""
+import shutil
 import numpy as np
 import torch
 from collections import Counter
@@ -254,6 +255,7 @@ def train_classifier(name, model_name, task, labels, english_only=False):
         weight_decay=0.01,
         eval_strategy="epoch",
         save_strategy="epoch",
+        save_total_limit=1,
         load_best_model_at_end=True,
         metric_for_best_model="macro_f1",
         report_to=[],
@@ -291,6 +293,8 @@ def train_classifier(name, model_name, task, labels, english_only=False):
     (output_dir / "predictions.json").write_text(json.dumps(predictions, indent=2))
     trainer.save_model(output_dir)
     tokenizer.save_pretrained(output_dir)
+    for checkpoint in output_dir.glob("checkpoint-*"):
+        shutil.rmtree(checkpoint, ignore_errors=True)
     return trainer, report, truth, predicted, labels, output_dir
 """, ["gpu"]),
     markdown("## 4. Train XLM-R relevance"),
@@ -558,9 +562,7 @@ arguments = SFTConfig(
     logging_steps=5,
     eval_strategy="steps",
     eval_steps=25,
-    save_strategy="steps",
-    save_steps=25,
-    save_total_limit=3,
+    save_strategy="no",
     bf16=use_bf16,
     fp16=not use_bf16,
     optim="paged_adamw_8bit",
@@ -582,10 +584,15 @@ trainer = train_on_responses_only(
     instruction_part="<|im_start|>user\\n",
     response_part="<|im_start|>assistant\\n",
 )
-checkpoints = sorted(output_dir.glob("checkpoint-*")) if output_dir.exists() else []
-trainer.train(resume_from_checkpoint=str(checkpoints[-1]) if checkpoints else None)
+import shutil
+if output_dir.exists():
+    for checkpoint in output_dir.glob("checkpoint-*"):
+        shutil.rmtree(checkpoint, ignore_errors=True)
+trainer.train()
 trainer.save_model(output_dir)
 tokenizer.save_pretrained(output_dir)
+for checkpoint in output_dir.glob("checkpoint-*"):
+    shutil.rmtree(checkpoint, ignore_errors=True)
 """, ["gpu"]),
     markdown("## 6. Deterministic held-out generation with the adapter"),
     code("""
@@ -674,7 +681,7 @@ plt.savefig(output_dir / "loss.png", dpi=160, bbox_inches="tight")
 plt.show()
 plt.close(fig)
 """, ["gpu", "plot"]),
-    markdown("## 9. Archive adapter, checkpoints, predictions, metrics, and plots"),
+    markdown("## 9. Archive final adapter, predictions, metrics, and plots"),
     code("""
 import shutil
 archive = shutil.make_archive(str(output_dir), "zip", output_dir)

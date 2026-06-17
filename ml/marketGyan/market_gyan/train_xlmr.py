@@ -1,5 +1,6 @@
 import argparse
 import json
+import shutil
 from collections import Counter
 from pathlib import Path
 
@@ -107,6 +108,7 @@ def main():
         weight_decay=0.01,
         eval_strategy="epoch",
         save_strategy="epoch",
+        save_total_limit=1,
         load_best_model_at_end=True,
         metric_for_best_model="macroF1",
         greater_is_better=True,
@@ -137,6 +139,8 @@ def main():
     trainer.train(resume_from_checkpoint=True if list(output.glob("checkpoint-*")) else None)
     metrics = trainer.evaluate()
     trainer.save_model()
+    for checkpoint in output.glob("checkpoint-*"):
+        shutil.rmtree(checkpoint, ignore_errors=True)
     (output / "metrics.json").write_text(
         json.dumps(metrics, indent=2),
         encoding="utf-8",
