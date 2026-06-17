@@ -2,10 +2,10 @@
 % Update the macros below after each milestone, then append one dated entry to
 % \MarketGyanMilestoneHistory. Keep implementation details in main.tex stable.
 
-\newcommand{\SnapshotDate}{June 16, 2026}
-\newcommand{\SnapshotTimestamp}{the database status after final rebalance, JSONL export, and split freeze at 20:40 NPT on June 16, 2026}
-\newcommand{\CurrentMilestone}{NEPSE-Impact-500 gold export and frozen split}
-\newcommand{\CurrentMilestoneState}{The gold corpus passes all relevance, language, event, symbol, and source gates; JSONL export and chronological duplicate-grouped splits are ready for baseline training}
+\newcommand{\SnapshotDate}{June 17, 2026}
+\newcommand{\SnapshotTimestamp}{the dataset status after balanced split regeneration and compact-Qwen target update on June 17, 2026}
+\newcommand{\CurrentMilestone}{NEPSE-Impact-500 gold export, balanced split, and compact-Qwen target}
+\newcommand{\CurrentMilestoneState}{The gold corpus passes all relevance, language, event, symbol, and source gates; JSONL export and balanced duplicate-grouped splits are ready for baseline and compact-Qwen reruns}
 
 \newcommand{\SnapshotCount}{224}
 \newcommand{\SnapshotStartDate}{June 11, 2025}
@@ -78,7 +78,7 @@
 \newcommand{\VTwoGemmaTokenCount}{3,642}
 \newcommand{\GemmaAverageTokenCount}{2,895}
 
-\newcommand{\FineTuningState}{Not started; NEPSE-Impact-500 JSONL and frozen split are ready}
+\newcommand{\FineTuningState}{First baseline and Qwen run analyzed; compact-label Qwen rerun is pending}
 \newcommand{\RuntimeInferenceState}{Implemented but disabled pending evaluation}
 
 \newcommand{\MarketGyanMilestoneHistory}{%
@@ -175,5 +175,11 @@
     \texttt{nepse-impact-500.jsonl}; validation, the Python dataset gate, and
     chronological duplicate-grouped train/validation/test splits of 350/75/75
     all passed.
+    \item[June 17, 2026] The first baseline and Qwen training outputs were
+    audited. XLM-R remained the strongest reliable classifier, while Qwen
+    QLoRA suffered from low JSON validity, all-direct relevance bias, and
+    verbose target truncation. The primary benchmark split was changed from
+    chronological to balanced duplicate-grouped 70/15/15, and Qwen training was
+    reframed around compact labels rather than full gold JSON prose.
   \end{description}
 }

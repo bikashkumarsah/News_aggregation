@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from market_gyan.cli import command_audit_predictions
-from market_gyan.dataset import write_jsonl
+from market_gyan.dataset import compact_qwen_label, write_jsonl
 from market_gyan.metrics import (
     agreement_metrics,
     benchmark_predictions,
@@ -77,6 +77,46 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual(metrics["structuredOutputValidity"], 1.0)
         self.assertEqual(metrics["evidenceGrounding"], 1.0)
         self.assertEqual(metrics["relevance"]["macroF1"], 1 / 3)
+
+    def test_prediction_benchmark_accepts_compact_qwen_schema(self):
+        truth = [row(1, "direct", "earnings", "bullish")]
+        prediction = compact_qwen_label(truth[0]["gold"])
+
+        metrics = benchmark_predictions(truth, [{
+            "id": truth[0]["id"],
+            "prediction": prediction,
+        }])
+
+        self.assertEqual(metrics["structuredOutputValidity"], 1.0)
+        self.assertEqual(metrics["evidenceGrounding"], 1.0)
+        self.assertEqual(metrics["invalidOutputCount"], 0)
+
+    def test_prediction_benchmark_reports_compact_schema_errors(self):
+        truth = [row(1, "direct", "earnings", "bullish")]
+        prediction = compact_qwen_label(truth[0]["gold"])
+        del prediction["eventType"]
+
+        metrics = benchmark_predictions(truth, [{
+            "id": truth[0]["id"],
+            "prediction": prediction,
+        }])
+
+        self.assertEqual(metrics["structuredOutputValidity"], 0.0)
+        self.assertEqual(metrics["invalidOutputCount"], 1)
+        self.assertIn("missing fields", metrics["invalidOutputExamples"][0]["errors"][0])
+
+    def test_prediction_benchmark_rejects_unknown_evidence_ids(self):
+        truth = [row(1, "direct", "earnings", "bullish")]
+        prediction = compact_qwen_label(truth[0]["gold"])
+        prediction["evidenceSentenceIds"] = ["S99"]
+
+        metrics = benchmark_predictions(truth, [{
+            "id": truth[0]["id"],
+            "prediction": prediction,
+        }])
+
+        self.assertEqual(metrics["structuredOutputValidity"], 0.0)
+        self.assertEqual(metrics["evidenceGrounding"], 0.0)
 
     def test_agreement_reports_kappa_and_multilabel_f1(self):
         first = label()

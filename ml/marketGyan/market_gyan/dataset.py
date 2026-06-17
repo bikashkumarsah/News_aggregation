@@ -26,6 +26,20 @@ IMPACT_MECHANISMS = {
     "valuation_sentiment", "market_flow", "uncertain", "none",
 }
 CONFIDENCE_BANDS = {"low", "medium", "high"}
+COMPACT_QWEN_FIELDS = (
+    "relevance", "eventType", "impactScope", "impactDirection",
+    "impactHorizon", "impactMechanism", "sectors", "symbols",
+    "confidenceBand", "evidenceSentenceIds",
+)
+NOT_RELEVANT_COMPACT_VALUES = {
+    "eventType": "not_applicable",
+    "impactScope": "none",
+    "impactDirection": "not_applicable",
+    "impactHorizon": "not_applicable",
+    "impactMechanism": "none",
+    "sectors": [],
+    "symbols": [],
+}
 PLACEHOLDER_GOLD_PHRASES = (
     "The source provides evidence",
     "This targeted gold label",
@@ -209,12 +223,39 @@ def validate_dataset(rows):
     return issues
 
 
-def chronological_group_split(rows, train_ratio=0.70, validation_ratio=0.15):
+def compact_qwen_label(label):
+    output = {
+        field: list(label.get(field, []))
+        if field in {"sectors", "symbols", "evidenceSentenceIds"}
+        else label.get(field)
+        for field in COMPACT_QWEN_FIELDS
+    }
+    if output.get("relevance") == "not_relevant":
+        output.update({
+            field: list(value) if isinstance(value, list) else value
+            for field, value in NOT_RELEVANT_COMPACT_VALUES.items()
+        })
+    return output
+
+
+def _group_rows(rows):
     groups = defaultdict(list)
     for row in rows:
         groups[row.get("duplicateGroupId") or row["contentHash"]].append(row)
+    return [
+        sorted(group, key=lambda row: (_parse_date(row.get("publishedAt")), row["id"]))
+        for group in groups.values()
+    ]
+
+
+def _row_sort_key(row):
+    return (_parse_date(row.get("publishedAt")), row["id"])
+
+
+def chronological_group_split(rows, train_ratio=0.70, validation_ratio=0.15):
+    groups = _group_rows(rows)
     ordered_groups = sorted(
-        groups.values(),
+        groups,
         key=lambda group: min(
             _parse_date(row.get("publishedAt")) for row in group
         ),
@@ -233,6 +274,123 @@ def chronological_group_split(rows, train_ratio=0.70, validation_ratio=0.15):
             split = "test"
         splits[split].extend(group)
         assigned += len(group)
+    for split_rows in splits.values():
+        split_rows.sort(key=_row_sort_key)
+    return splits
+
+
+def _split_targets(total, train_ratio=0.70, validation_ratio=0.15):
+    train = int(round(total * train_ratio))
+    validation = int(round(total * validation_ratio))
+    return {
+        "train": train,
+        "validation": validation,
+        "test": total - train - validation,
+    }
+
+
+def _balance_features(row):
+    gold = row.get("gold", {})
+    return (
+        ("relevance", gold.get("relevance", "missing")),
+        ("language", gold.get("language", "missing")),
+        ("eventType", gold.get("eventType", "missing")),
+        ("impactDirection", gold.get("impactDirection", "missing")),
+    )
+
+
+def _feature_counts(rows):
+    counts = Counter()
+    for row in rows:
+        counts.update(_balance_features(row))
+    return counts
+
+
+def _feature_weight(feature_key):
+    return {
+        "relevance": 4.0,
+        "language": 3.0,
+        "eventType": 2.0,
+        "impactDirection": 2.0,
+    }.get(feature_key[0], 1.0)
+
+
+def _group_rarity_score(group, total_feature_counts):
+    return sum(
+        total_feature_counts.get(feature, 0)
+        for row in group
+        for feature in _balance_features(row)
+    ) / float(max(len(group), 1))
+
+
+def _row_bucket(row):
+    gold = row.get("gold", {})
+    return (
+        gold.get("relevance", "missing"),
+        gold.get("language", "missing"),
+        gold.get("eventType", "missing"),
+        gold.get("impactDirection", "missing"),
+    )
+
+
+def _group_bucket(group):
+    counts = Counter(_row_bucket(row) for row in group)
+    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[0][0]
+
+
+def balanced_group_split(rows, train_ratio=0.70, validation_ratio=0.15):
+    groups = _group_rows(rows)
+    total = len(rows)
+    targets = _split_targets(total, train_ratio, validation_ratio)
+    splits = {"train": [], "validation": [], "test": []}
+    split_sizes = {name: 0 for name in splits}
+    buckets = defaultdict(list)
+    for group in groups:
+        buckets[_group_bucket(group)].append(group)
+
+    for bucket, bucket_groups in sorted(
+        buckets.items(),
+        key=lambda item: (-sum(len(group) for group in item[1]), item[0]),
+    ):
+        bucket_groups = sorted(
+            bucket_groups,
+            key=lambda group: (
+                min(_parse_date(row.get("publishedAt")) for row in group),
+                group[0]["id"],
+            ),
+        )
+        bucket_total = sum(len(group) for group in bucket_groups)
+        desired = {
+            split: bucket_total * (targets[split] / float(total))
+            for split in ("train", "validation", "test")
+        }
+        bucket_sizes = {name: 0 for name in splits}
+        for group in bucket_groups:
+            size = len(group)
+            candidates = [
+                name for name in ("train", "validation", "test")
+                if split_sizes[name] + size <= targets[name]
+            ]
+            if not candidates:
+                candidates = ["train", "validation", "test"]
+
+            def score(name):
+                denominator = desired[name] if desired[name] > 0 else 0.1
+                overflow = max(0, split_sizes[name] + size - targets[name])
+                return (
+                    overflow * 1000000,
+                    (bucket_sizes[name] + size) / denominator,
+                    split_sizes[name] / float(max(targets[name], 1)),
+                    name,
+                )
+
+            chosen = min(candidates, key=score)
+            splits[chosen].extend(group)
+            split_sizes[chosen] += size
+            bucket_sizes[chosen] += size
+
+    for split_rows in splits.values():
+        split_rows.sort(key=_row_sort_key)
     return splits
 
 
@@ -312,7 +470,7 @@ def dataset_readiness(rows, min_records=500, **_legacy):
     }
 
 
-def split_manifest(splits):
+def split_manifest(splits, strategy="chronological"):
     assignments = []
     for split_name in ("train", "validation", "test"):
         for row in splits.get(split_name, []):
@@ -331,7 +489,11 @@ def split_manifest(splits):
     )
     return {
         "schemaVersion": 2,
-        "splitStrategy": "chronological-near-duplicate-grouped-70-15-15",
+        "splitStrategy": (
+            "balanced-near-duplicate-grouped-70-15-15"
+            if strategy == "balanced"
+            else "chronological-near-duplicate-grouped-70-15-15"
+        ),
         "counts": {
             name: len(splits.get(name, []))
             for name in ("train", "validation", "test")

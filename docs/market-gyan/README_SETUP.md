@@ -369,12 +369,13 @@ PYTHONPATH=. python3 -m market_gyan.cli agreement \
   --minimum=110
 ```
 
-Freeze the shared chronological split:
+Freeze the shared balanced split:
 
 ```bash
 PYTHONPATH=. python3 -m market_gyan.cli split \
   data/processed/nepse-impact-500.jsonl \
-  data/processed/splits
+  data/processed/splits \
+  --strategy balanced
 ```
 
 Do not regenerate the manifest between model runs.
@@ -405,6 +406,12 @@ The QLoRA notebook uses `unsloth/Qwen3-8B`, `FastLanguageModel`,
 TRL `SFTTrainer`, and response-only masking. The configuration is 4-bit
 loading, sequence length 1024, LoRA rank 16, alpha 32, dropout 0.05, batch
 size 1, gradient accumulation 16, learning rate `2e-4`, and three epochs.
+Qwen is trained as a compact classifier/extractor: it generates only canonical
+labels, sectors, symbols, confidence, and evidence sentence IDs. Evidence text,
+summaries, rationales, and report prose are reconstructed later from RAG
+evidence and deterministic market data. The notebook oversamples indirect and
+hard-negative records, including Nepali hard negatives, to reduce the
+all-direct failure mode seen in the first QLoRA run.
 
 For Colab or Kaggle:
 
@@ -422,6 +429,14 @@ runtime expires.
 Run the hard-negative ablation by changing only
 `include_hard_negatives=False` in the Qwen notebook and writing to a separate
 output directory.
+
+Recommended rerun order after dataset or notebook changes:
+
+1. Validate the adjudicated JSONL.
+2. Regenerate the balanced split.
+3. Rerun XLM-R and FinBERT baselines.
+4. Rerun Qwen zero-shot, three-shot, and Unsloth QLoRA.
+5. Compare all models on the identical balanced test IDs.
 
 ## 10. Benchmark and Adaptation Claim
 

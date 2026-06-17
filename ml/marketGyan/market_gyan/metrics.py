@@ -2,6 +2,18 @@ import math
 import random
 from collections import Counter, defaultdict
 
+from .dataset import (
+    COMPACT_QWEN_FIELDS,
+    CONFIDENCE_BANDS,
+    EVENT_TYPES,
+    IMPACT_DIRECTIONS,
+    IMPACT_HORIZONS,
+    IMPACT_MECHANISMS,
+    IMPACT_SCOPES,
+    NOT_RELEVANT_COMPACT_VALUES,
+    RELEVANCE,
+)
+
 RELEVANCE_LABELS = ("direct", "indirect", "not_relevant")
 DIRECTION_LABELS = ("bullish", "bearish", "neutral", "uncertain")
 
@@ -158,20 +170,60 @@ def candidate_review_metrics(rows):
     }
 
 
+def _prediction_dict(prediction):
+    return prediction if isinstance(prediction, dict) else {}
+
+
+def _prediction_validation_errors(prediction, sentence_ids):
+    if not isinstance(prediction, dict):
+        return ["prediction must be an object"]
+    if "raw" in prediction:
+        return ["prediction contains unparsed raw output"]
+    errors = []
+    missing = [
+        field for field in COMPACT_QWEN_FIELDS
+        if field not in prediction
+    ]
+    if missing:
+        errors.append("missing fields: %s" % ", ".join(missing))
+    enum_fields = {
+        "relevance": RELEVANCE,
+        "eventType": EVENT_TYPES,
+        "impactScope": IMPACT_SCOPES,
+        "impactDirection": IMPACT_DIRECTIONS,
+        "impactHorizon": IMPACT_HORIZONS,
+        "impactMechanism": IMPACT_MECHANISMS,
+        "confidenceBand": CONFIDENCE_BANDS,
+    }
+    for field, allowed in enum_fields.items():
+        if field in prediction and prediction.get(field) not in allowed:
+            errors.append("%s is invalid" % field)
+    for field in ("sectors", "symbols", "evidenceSentenceIds"):
+        if field in prediction and not isinstance(prediction.get(field), list):
+            errors.append("%s must be an array" % field)
+    evidence_ids = prediction.get("evidenceSentenceIds", [])
+    if isinstance(evidence_ids, list):
+        unknown = sorted(set(evidence_ids) - sentence_ids)
+        if unknown:
+            errors.append(
+                "unknown evidence sentence IDs: %s" % ", ".join(unknown)
+            )
+        if not evidence_ids:
+            errors.append("evidenceSentenceIds requires at least one ID")
+    if prediction.get("relevance") == "not_relevant":
+        for field, expected in NOT_RELEVANT_COMPACT_VALUES.items():
+            if prediction.get(field) != expected:
+                errors.append("%s must be %s for not_relevant" % (field, expected))
+    elif prediction.get("relevance") in {"direct", "indirect"}:
+        if prediction.get("eventType") == "not_applicable":
+            errors.append("relevant predictions require an eventType")
+        if prediction.get("impactDirection") == "not_applicable":
+            errors.append("relevant predictions require an impactDirection")
+    return errors
+
+
 def _valid_prediction(prediction, sentence_ids):
-    required = (
-        "language", "summary", "relevance", "eventType", "impactScope",
-        "impactDirection", "impactHorizon", "impactMechanism", "sectors",
-        "symbols", "confidenceBand", "rationale", "evidenceSentenceIds",
-    )
-    return (
-        isinstance(prediction, dict)
-        and all(field in prediction for field in required)
-        and isinstance(prediction.get("sectors"), list)
-        and isinstance(prediction.get("symbols"), list)
-        and isinstance(prediction.get("evidenceSentenceIds"), list)
-        and set(prediction.get("evidenceSentenceIds", [])) <= sentence_ids
-    )
+    return not _prediction_validation_errors(prediction, sentence_ids)
 
 
 def benchmark_predictions(truth_rows, prediction_rows):
@@ -183,15 +235,28 @@ def benchmark_predictions(truth_rows, prediction_rows):
         (row, predictions[row.get("id")])
         for row in truth_rows if row.get("id") in predictions
     ]
+    normalized = [
+        (row, _prediction_dict(prediction), prediction)
+        for row, prediction in matched
+    ]
     relevant = [
-        (row, prediction) for row, prediction in matched
+        (row, prediction) for row, prediction, _ in normalized
         if row["gold"]["relevance"] != "not_relevant"
     ]
     valid = []
     grounded = []
-    for row, prediction in matched:
+    invalid_examples = []
+    for row, prediction, original in normalized:
         sentence_ids = {item["id"] for item in row.get("sentences", [])}
-        valid.append(_valid_prediction(prediction, sentence_ids))
+        errors = _prediction_validation_errors(prediction, sentence_ids)
+        valid.append(not errors)
+        if errors and len(invalid_examples) < 5:
+            invalid_examples.append({
+                "id": row.get("id"),
+                "title": row.get("title"),
+                "errors": errors,
+                "raw": str(_prediction_dict(original).get("raw", ""))[:500],
+            })
         grounded.append(
             bool(prediction.get("evidenceSentenceIds"))
             and set(prediction.get("evidenceSentenceIds", [])) <= sentence_ids
@@ -203,9 +268,14 @@ def benchmark_predictions(truth_rows, prediction_rows):
         "evidenceGrounding": (
             sum(grounded) / float(len(grounded)) if grounded else 0.0
         ),
+        "invalidOutputCount": len(valid) - sum(valid),
+        "invalidOutputExamples": invalid_examples,
         "relevance": classification_metrics(
-            [row["gold"]["relevance"] for row, _ in matched],
-            [prediction.get("relevance", "invalid") for _, prediction in matched],
+            [row["gold"]["relevance"] for row, prediction, _ in normalized],
+            [
+                prediction.get("relevance", "invalid")
+                for _, prediction, _ in normalized
+            ],
             RELEVANCE_LABELS,
         ),
         "eventType": classification_metrics(

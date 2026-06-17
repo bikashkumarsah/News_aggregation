@@ -121,9 +121,9 @@ adjudicated gold records. The current NEPSE-Impact-500 gold corpus contains
 \VTwoIndirectSelectionCount{} indirect records, and
 \VTwoNegativeSelectionCount{} hard negatives after targeted rebalance. It
 passes the composition, language, source, symbol, and event-coverage gates.
-The approved JSONL export and chronological duplicate-grouped split manifest
-are ready for training. Fine-tuning has not started, so the report still
-distinguishes implemented data preparation from completed model experiments.
+The approved JSONL export and balanced duplicate-grouped split manifest are
+ready for training reruns. The first model run has been audited, but compact
+Qwen reruns have not yet produced replacement results.
 
 The modeling plan now compares Gemma before edits, base Qwen3-8B zero-shot,
 base Qwen3-8B three-shot, XLM-R, English-only FinBERT, and MarketGyan
@@ -299,7 +299,7 @@ The implemented pipeline follows a controlled sequence:
         separate from the generated proposal.
   \item Export only explicitly adjudicated schema-v2 gold records to JSONL.
   \item Validate the adjudication and composition gate, then freeze a
-        chronological duplicate-grouped split manifest.
+        balanced duplicate-grouped split manifest.
   \item Train and evaluate XLM-R, FinBERT, base Qwen, and Qwen3-8B QLoRA from
         the same frozen split.
   \item Index eligible documents and published reports in the dedicated
@@ -588,10 +588,10 @@ adjudication audit. Dataset validation checks required fields, ontology enums,
 relevance consistency, sentence-ID grounding, source metadata, dates,
 duplicate IDs, and near-duplicate group identity.
 
-\section{Chronological and duplicate-safe split}
+\section{Balanced and duplicate-safe split}
 
-Records are grouped by \texttt{duplicateGroupId}, ordered by the earliest
-publication date in each group, and assigned chronologically:
+Records are grouped by \texttt{duplicateGroupId} and assigned to a primary
+balanced benchmark split:
 
 \begin{itemize}
   \item 70\% train;
@@ -601,9 +601,13 @@ publication date in each group, and assigned chronologically:
 
 Keeping exact and near-duplicate groups together prevents the same or
 equivalent source
-content from leaking across splits. Chronological ordering makes evaluation
-closer to the intended use case: learning from older reviewed documents and
-testing on newer market language.
+content from leaking across splits. The first chronological split was useful
+as a robustness check, but it created a large language and hard-negative shift:
+training was mostly English/direct while testing contained many Nepali
+hard-negative stories. The primary benchmark therefore uses deterministic
+balanced allocation across relevance, language, event type, and impact
+direction. A chronological duplicate-grouped split remains a secondary
+robustness check.
 
 \section{NEPSE-Impact-500 readiness}
 
@@ -621,13 +625,12 @@ and \VTwoNegativeSelectionCount{} not-relevant records; 299 English,
 200 Nepali, and 1 mixed-language record; \VTwoSymbolSelectionCount{}
 symbol-level records; and no source above 60 percent. The targeted event gaps
 are closed with 36 earnings, 20 credit/financing, 20 regulation,
-20 monetary/liquidity, and 20 sector/industry records. The frozen chronological
+20 monetary/liquidity, and 20 sector/industry records. The frozen balanced
 split contains 350 training records, 75 validation records, and 75 test
 records.
 
-The split is intentionally chronological and duplicate-grouped, so the
-language and source mix differs across train, validation, and test. This must
-be reported with model metrics rather than hidden by random reshuffling.
+The split is intentionally duplicate-grouped and label-balanced, so model
+comparisons use the same test IDs without allowing near-duplicate leakage.
 
 A stratified \SecondReviewTarget{}-record subset still needs independent
 second annotation. Agreement reporting includes Cohen's kappa for relevance,
@@ -689,9 +692,9 @@ The structured-output experiment uses the Qwen3-8B model family
 \cite{qwen3ModelCard} loaded through \texttt{unsloth/Qwen3-8B} for the
 Unsloth QLoRA training workflow \cite{unslothQwen3}. Each adjudicated row
 becomes a two-message chat example: the user supplies the document title and
-excerpt, and the assistant supplies the reviewed structure as JSON. Thinking
-mode is disabled in the chat template so training targets only the required
-answer.
+numbered source sentences, and the assistant supplies a compact reviewed
+structure as JSON. Thinking mode is disabled in the chat template so training
+targets only the required answer.
 
 QLoRA reduces memory requirements by loading the base model in four-bit NF4
 and training LoRA adapters instead of all model weights
@@ -720,23 +723,33 @@ reviewed JSON response. The implemented configuration is:
     Optimizer & Paged AdamW 8-bit through the Unsloth/TRL stack \\
     Memory controls & Unsloth gradient checkpointing and 4-bit loading \\
     Evaluation / save interval & Every 25 steps \\
-    Checkpoint retention & Latest 3 checkpoints \\
-    Resume behavior & Automatically resumes from an existing checkpoint \\
+    Checkpoint retention & No intermediate checkpoints retained \\
+    Resume behavior & Rerun from the training cell if interrupted \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
+The Qwen target is intentionally compact. It contains only relevance, event
+type, impact scope, impact direction, horizon, mechanism, sectors, symbols,
+confidence, and evidence sentence IDs. It does not ask the adapter to generate
+full evidence text, summaries, rationales, tags, or report prose. Those fields
+are reconstructed later from RAG evidence and deterministic market data. This
+change follows the first training-output audit, where full-gold JSON targets
+caused truncation, low structured validity, and an all-direct relevance bias.
+The rerun also oversamples indirect and hard-negative examples, including
+Nepali hard negatives.
+
 The minimum planned environment is an NVIDIA T4 with 16 GB VRAM in Kaggle or
 Google Colab. Actual fit, throughput, and maximum sequence length must be
-confirmed during the first run. The configuration is code-complete but no
-fine-tuning experiment has started on the exported v2 gold dataset.
+confirmed during reruns. The compact-Qwen configuration is code-complete, but
+its results have not yet replaced the first low-validity Qwen output.
 The \texttt{notebooks/qwen3\_8b\_qlora.ipynb} workflow evaluates base
 Qwen3-8B zero-shot and three-shot before training the Unsloth QLoRA adapter on
 the same frozen split as XLM-R. It generates deterministic JSON and exports
 relevance, event, direction, sector, symbol, sentence-evidence, validity,
 grounding, and confusion-matrix results.
-Adapters, tokenizer files, predictions, plots, metrics, and resumable
-checkpoints are archived for download.
+Adapters, tokenizer files, predictions, plots, and metrics are archived for
+download.
 
 \section{Evaluation plan}
 
@@ -752,7 +765,7 @@ measures:
   \item sector and symbol micro-F1;
   \item evidence sentence-selection F1 and grounding error rate;
   \item reviewer agreement by kappa and multilabel F1;
-  \item chronological test coverage; and
+  \item balanced test coverage and chronological robustness coverage; and
   \item qualitative analysis of unsupported rationales and taxonomy errors;
   \item retrieval Precision@5 and citation correctness over at least 30
         manually judged finance queries; and
@@ -831,7 +844,7 @@ Current facts remain in RAG rather than model weights.}
   FinLLM survey \cite{finllmSurvey} &
   Highlights benchmark design, evaluation breadth, and hallucination risk. &
   Adds sentence-ID evidence, JSON validity, grounding, bilingual/event
-  breakdowns, reviewer agreement, and identical chronological test IDs. \\
+  breakdowns, reviewer agreement, and identical balanced test IDs. \\
   FinTral \cite{fintral} &
   Uses multi-task financial instruction tuning and grounded financial
   reasoning. &
@@ -934,9 +947,9 @@ by default and fail closed when dependencies or credentials are unavailable.
   \item The v2 gold corpus passes the current composition gates, but targeted
         human-adjudicated replacements and exclusions must be reported as part
         of the dataset construction audit trail.
-  \item The chronological split is source- and language-shifted because the
-        collection timeline differs by outlet; this is an evaluation caveat,
-        not a reason to reshuffle the benchmark.
+  \item The first chronological split was source- and language-shifted because
+        the collection timeline differs by outlet; it is retained only as a
+        secondary robustness check.
   \item Gemma candidates may be fluent while assigning relevance, event, or
         mechanism incorrectly; schema validity alone is insufficient.
   \item Provider quotas, latency, and server errors remain operational risks

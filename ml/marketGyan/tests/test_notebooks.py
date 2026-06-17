@@ -24,6 +24,9 @@ class NotebookTest(unittest.TestCase):
                 "load_in_4bit=True",
                 "enable_thinking=False",
                 "three_shot",
+                "compact_qwen_label",
+                "oversample_training_rows",
+                "qwen_base_zero_shot.jsonl",
             ],
         }
         for name, markers in expected.items():
@@ -97,6 +100,10 @@ class NotebookTest(unittest.TestCase):
                 )
             )
             self.assertEqual(sum(manifest["counts"].values()), 500)
+            self.assertEqual(
+                manifest["splitStrategy"],
+                "balanced-near-duplicate-grouped-70-15-15",
+            )
 
 
 if __name__ == "__main__":

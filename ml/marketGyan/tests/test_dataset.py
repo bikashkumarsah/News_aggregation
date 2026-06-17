@@ -4,8 +4,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from market_gyan.dataset import (
+    COMPACT_QWEN_FIELDS,
     CORE_EVENT_TYPES,
+    balanced_group_split,
     chronological_group_split,
+    compact_qwen_label,
     coverage_report,
     dataset_readiness,
     read_jsonl,
@@ -116,6 +119,49 @@ class DatasetTest(unittest.TestCase):
         }
         self.assertEqual(locations["row-000"], locations["row-001"])
 
+    def test_balanced_split_keeps_groups_and_balances_core_labels(self):
+        rows = ready_rows()
+        rows[1]["duplicateGroupId"] = rows[0]["duplicateGroupId"]
+        rows[0]["duplicateGroupId"] = "shared-group"
+        rows[1]["duplicateGroupId"] = "shared-group"
+
+        splits = balanced_group_split(rows)
+
+        self.assertEqual(
+            {name: len(values) for name, values in splits.items()},
+            {"train": 350, "validation": 75, "test": 75},
+        )
+        locations = {
+            item["id"]: name
+            for name, values in splits.items()
+            for item in values
+        }
+        self.assertEqual(locations["row-000"], locations["row-001"])
+        for values in splits.values():
+            coverage = coverage_report(values)
+            self.assertTrue({"direct", "indirect", "not_relevant"} <= set(
+                coverage["relevance"]
+            ))
+            self.assertTrue({"en", "ne"} <= set(coverage["languages"]))
+
+    def test_compact_qwen_label_removes_long_fields_and_normalizes_negatives(self):
+        compact = compact_qwen_label(row(1, "direct", "earnings", "bullish")["gold"])
+        self.assertEqual(set(compact), set(COMPACT_QWEN_FIELDS))
+        self.assertNotIn("summary", compact)
+        self.assertNotIn("rationale", compact)
+        self.assertEqual(compact["relevance"], "direct")
+
+        negative = compact_qwen_label(
+            row(2, "not_relevant", "not_applicable", "not_applicable")["gold"]
+        )
+        self.assertEqual(negative["eventType"], "not_applicable")
+        self.assertEqual(negative["impactScope"], "none")
+        self.assertEqual(negative["impactDirection"], "not_applicable")
+        self.assertEqual(negative["impactHorizon"], "not_applicable")
+        self.assertEqual(negative["impactMechanism"], "none")
+        self.assertEqual(negative["sectors"], [])
+        self.assertEqual(negative["symbols"], [])
+
     def test_jsonl_round_trip_and_coverage(self):
         rows = [row(1), row(2, "indirect", "regulation", "neutral")]
         with tempfile.TemporaryDirectory() as directory:
@@ -137,6 +183,14 @@ class DatasetTest(unittest.TestCase):
         second = split_manifest(splits)
         self.assertEqual(first["sha256"], second["sha256"])
         self.assertEqual(first["schemaVersion"], 2)
+
+    def test_balanced_manifest_records_strategy(self):
+        splits = balanced_group_split(ready_rows())
+        manifest = split_manifest(splits, strategy="balanced")
+        self.assertEqual(
+            manifest["splitStrategy"],
+            "balanced-near-duplicate-grouped-70-15-15",
+        )
 
 
 if __name__ == "__main__":
