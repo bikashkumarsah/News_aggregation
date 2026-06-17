@@ -411,6 +411,8 @@ from unsloth import FastLanguageModel
 
 MODEL_NAME = "unsloth/Qwen3-8B"
 MAX_SEQ_LENGTH = 1024
+MAX_GENERATION_TOKENS = 384
+MAX_PROMPT_TOKENS = MAX_SEQ_LENGTH - MAX_GENERATION_TOKENS
 use_bf16 = torch.cuda.is_bf16_supported()
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name=MODEL_NAME,
@@ -419,6 +421,7 @@ model, tokenizer = FastLanguageModel.from_pretrained(
     load_in_4bit=True,
 )
 tokenizer.pad_token = tokenizer.eos_token
+tokenizer.model_max_length = MAX_SEQ_LENGTH
 
 def prompt_for(row):
     numbered = "\\n".join(
@@ -435,6 +438,20 @@ def prompt_for(row):
     markdown("## 3. Base-model zero-shot and three-shot evaluation"),
     code("""
 from tqdm.auto import tqdm
+
+def tokenize_generation_prompt(text):
+    previous_side = tokenizer.truncation_side
+    tokenizer.truncation_side = "left"
+    try:
+        encoded = tokenizer(
+            text,
+            return_tensors="pt",
+            truncation=True,
+            max_length=MAX_PROMPT_TOKENS,
+        )
+    finally:
+        tokenizer.truncation_side = previous_side
+    return encoded.to(model.device)
 
 def generate_json(row, demonstrations=None):
     messages = []
@@ -455,11 +472,19 @@ def generate_json(row, demonstrations=None):
         add_generation_prompt=True,
         enable_thinking=False,
     )
-    inputs = tokenizer(text, return_tensors="pt").to(model.device)
+    inputs = tokenize_generation_prompt(text)
+    total_max_length = min(
+        MAX_SEQ_LENGTH,
+        inputs["input_ids"].shape[1] + MAX_GENERATION_TOKENS,
+    )
     with torch.no_grad():
         output = model.generate(
-            **inputs, max_new_tokens=512, do_sample=False,
-            temperature=None, top_p=None
+            **inputs,
+            max_length=total_max_length,
+            do_sample=False,
+            temperature=None,
+            top_p=None,
+            pad_token_id=tokenizer.eos_token_id,
         )
     raw = tokenizer.decode(
         output[0][inputs["input_ids"].shape[1]:],
