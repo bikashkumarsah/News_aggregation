@@ -1,0 +1,1013 @@
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{microtype}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[hidelinks]{hyperref}
+\usepackage[numbers,sort&compress]{natbib}
+
+\input{status_snapshot.tex}
+
+\definecolor{codebackground}{RGB}{246,248,250}
+\definecolor{rulegray}{RGB}{210,215,220}
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebackground},
+  frame=single,
+  rulecolor=\color{rulegray},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  xleftmargin=0.5em,
+  xrightmargin=0.5em
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{MarketGyan Progress Report}
+\fancyhead[R]{\SnapshotDate}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{14pt}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\setlength{\emergencystretch}{2em}
+\onehalfspacing
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\implemented}{\textbf{Implemented}}
+\newcommand{\planned}{\textbf{Planned experiment}}
+\newcommand{\notstarted}{\textbf{Not started}}
+
+\hypersetup{
+  pdftitle={MarketGyan: Data Pipeline and Model Development Progress Report},
+  pdfauthor={Bikash Kumar Sah},
+  pdfsubject={MarketGyan engineering progress report}
+}
+
+\begin{document}
+
+\hypersetup{pageanchor=false}
+\begin{titlepage}
+  \centering
+  \vspace*{2.0cm}
+  {\Huge\bfseries MarketGyan\par}
+  \vspace{0.4cm}
+  {\LARGE Data Pipeline and Model Development Progress Report\par}
+  \vspace{1.2cm}
+  {\large Engineering Progress Report\par}
+  \vspace{2.0cm}
+
+  \begin{tabularx}{0.92\textwidth}{@{}rX@{}}
+    \textbf{Author:} & Bikash Kumar Sah \\
+    \textbf{Report date:} & \SnapshotDate \\
+    \textbf{Current milestone:} & \CurrentMilestone \\
+    \textbf{Milestone state:} & \CurrentMilestoneState \\
+    \textbf{Development branch:} & \texttt{codex/market-gyan}
+  \end{tabularx}
+
+  \vfill
+  \begin{minipage}{0.88\textwidth}
+    \small
+    \textbf{Document boundary.} This report covers the MarketGyan data
+    pipeline, API-assisted structuring, dataset preparation, model design,
+    fine-tuning configuration, and evaluation plan. It intentionally excludes
+    web application and frontend development.
+  \end{minipage}
+\end{titlepage}
+\hypersetup{pageanchor=true}
+
+\pagenumbering{roman}
+\chapter*{Executive Summary}
+\addcontentsline{toc}{chapter}{Executive Summary}
+
+MarketGyan is a Nepal-focused financial NLP research project extending the
+existing Khabar AI data platform. Its revised contribution is
+\textbf{NEPSE-Impact-500}: a human-adjudicated bilingual benchmark and
+Qwen3-8B adapter for deciding whether Nepal-focused news is relevant to
+NEPSE, classifying the event, mapping it to listed companies and sectors, and
+producing an evidence-grounded potential-impact explanation. The novelty is
+the Nepal-specific dataset, ontology, task definition, and evaluation design;
+LoRA is an efficient adaptation method, not the research novelty.
+
+Human review of the first schema exposed a material corpus-quality problem.
+Several general-business stories passed schema validation and some were
+approved with forced bullish, bearish, or neutral labels even though no
+defensible NEPSE mechanism existed. The schema-v1 corpus is therefore frozen
+as a pilot audit. As of \SnapshotTimestamp, it contains
+\PilotApprovedCount{} approved, \PilotRejectedCount{} rejected,
+\PendingCandidateCount{} pending, \QueuedCandidateCount{} queued, and
+\FailedCandidateCount{} failed records.
+
+Schema v2 and prompt \texttt{market-impact-v2} are implemented without
+overwriting v1. The new contract separates relevance from potential impact,
+uses a versioned Nepal-market ontology, grounds evidence by numbered source
+sentence, stores independent reviewer annotations, and exports only
+adjudicated gold records. The current NEPSE-Impact-500 gold corpus contains
+\VTwoDirectSelectionCount{} direct records,
+\VTwoIndirectSelectionCount{} indirect records, and
+\VTwoNegativeSelectionCount{} hard negatives after targeted rebalance. It
+passes the composition, language, source, symbol, and event-coverage gates.
+The approved JSONL export and chronological duplicate-grouped split manifest
+are ready for training. Fine-tuning has not started, so the report still
+distinguishes implemented data preparation from completed model experiments.
+
+The modeling plan now compares Gemma before edits, base Qwen3-8B zero-shot,
+base Qwen3-8B three-shot, XLM-R, English-only FinBERT, and MarketGyan
+Qwen3-8B QLoRA \cite{finbert,fingpt,finllmSurvey,fintral,conneau2020xlmr,qwen3ModelCard,dettmers2023qlora}.
+Static adaptation teaches the task, Nepal-market terminology, mappings, and
+reasoning pattern. Current prices, policies, and announcements remain in
+retrieval-augmented generation rather than model weights.
+
+\textbf{Safety statement:} MarketGyan provides informational analysis based on
+public data. It is not investment advice and does not place trades.
+
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+\chapter{Project Status}
+
+\section{Current snapshot}
+
+\begin{table}[htbp]
+  \centering
+  \caption{MarketGyan implementation snapshot as of \SnapshotDate.}
+  \begin{tabularx}{\textwidth}{@{}Y r@{}}
+    \toprule
+    \textbf{Measure} & \textbf{Current value} \\
+    \midrule
+    Historical NEPSE snapshots & \SnapshotCount \\
+    Snapshot date range & \SnapshotStartDate{} to \SnapshotEndDate \\
+    Complete / partial snapshots & \CompleteSnapshotCount{} / \PartialSnapshotCount \\
+    Complete financial-news documents & \FinancialNewsCount \\
+    Total eligible structuring documents & \EligibleDocumentCount \\
+    Document date coverage & \DocumentStartDate{} to \DocumentEndDate \\
+    ShareSansar / OnlineKhabar / Kathmandu Post &
+      \ShareSansarDocumentCount{} / \OnlineKhabarDocumentCount{} /
+      \KathmanduPostDocumentCount \\
+    Usable / failed policy documents & \UsablePolicyDocumentCount{} / \FailedPolicyDocumentCount \\
+    Active NEPSE symbols & \ActiveSecurityCount \\
+    Schema-v1 queued / pending / failed jobs &
+      \QueuedCandidateCount{} / \PendingCandidateCount{} / \FailedCandidateCount \\
+    Schema-v1 approved / rejected pilot records &
+      \PilotApprovedCount{} / \PilotRejectedCount \\
+    Schema-v2 queued / pending / adjudicated &
+      \VTwoQueuedCount{} / \VTwoPendingCount{} / \VTwoAdjudicatedCount \\
+    NEPSE-Impact target & \CandidateCollectionTarget{} adjudicated records \\
+    Gemma tokens recorded across v1 and v2 & \GemmaTokenCount \\
+    Schema-v2 smoke-test tokens & \VTwoGemmaTokenCount \\
+    Average tokens per valid candidate & \GemmaAverageTokenCount \\
+    Fine-tuning status & \FineTuningState \\
+    Runtime model inference & \RuntimeInferenceState \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+All \SnapshotCount{} historical snapshots are currently marked
+\texttt{partial}. The historical backfill uses ShareSansar index-history data
+and therefore lacks full official corroboration, sector indices, leaders,
+volume, or transaction fields for some dates. The system records those
+limitations instead of representing incomplete data as complete.
+
+\section{Pilot corpus and v2 selection audit}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Distribution of the \PendingCandidateCount{} schema-v1 candidates still awaiting review.}
+  \begin{tabular}{@{}lrr@{}}
+    \toprule
+    \textbf{Dimension} & \textbf{Class} & \textbf{Count} \\
+    \midrule
+    Sentiment & Neutral & \NeutralCandidateCount \\
+              & Bearish & \BearishCandidateCount \\
+              & Bullish & \BullishCandidateCount \\
+    \addlinespace
+    Language  & Nepali & \NepaliCandidateCount \\
+              & English & \EnglishCandidateCount \\
+              & Mixed & \MixedCandidateCount \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+These counts describe the frozen schema-v1 pilot, not the redesigned
+benchmark. The pilot remains sentiment-imbalanced, with neutral records
+representing most examples. Its pending-source distribution is
+\ShareSansarCandidateCount{} ShareSansar,
+\OnlineKhabarCandidateCount{} OnlineKhabar,
+\KathmanduPostCandidateCount{} Kathmandu Post, and
+\RegulatoryCandidateCount{} regulatory candidates. The pilot is retained for
+error analysis and will not be mixed into v2 training exports.
+
+The schema-v2 selector currently identifies
+\VTwoDirectSelectionCount{} direct,
+\VTwoIndirectSelectionCount{} indirect,
+\VTwoNegativeSelectionCount{} hard-negative, and
+\VTwoReserveSelectionCount{} reserve records. It includes
+\VTwoEnglishSelectionCount{} English, \VTwoNepaliSelectionCount{} Nepali, and
+\VTwoMixedSelectionCount{} mixed-language records, with
+\VTwoSymbolSelectionCount{} symbol-level examples. The largest source
+contributes \VTwoLargestSourceCount{} records, below the 330-record cap, and
+every core event category has at least 20 preselection examples. The planner
+excluded \VTwoExactDuplicateCount{} exact-content duplicates from
+\VTwoUniqueAvailableCount{} unique eligible candidates and marked a
+stratified \SecondReviewTarget{}-record subset for independent second
+annotation. These are selection heuristics rather than gold labels; all
+composition gates must be checked again after adjudication.
+
+\section{Implemented versus experimental work}
+
+\small
+\begin{longtable}{@{}L{0.23\textwidth}L{0.19\textwidth}L{0.51\textwidth}@{}}
+  \toprule
+  \textbf{Subsystem} & \textbf{State} & \textbf{Evidence in current implementation} \\
+  \midrule
+  \endhead
+  Market collection & \implemented &
+  Current-source parsers, historical ShareSansar backfill, reconciliation,
+  provenance, and data-quality flags. \\
+  Document collection & \implemented &
+  OnlineKhabar Business, Kathmandu Post Money, and NRB/SEBON document
+  collectors with deduplication and extraction status. \\
+  Gemma structuring & \implemented &
+  Versioned v1/v2 function schemas, request pacing, retries, idempotent jobs,
+  sentence-ID grounding, taxonomy validation, and persistent queue states. \\
+  Annotation and gold export & \implemented &
+  Reviewer-specific annotations, explicit adjudication, pilot-only v1 export,
+  and adjudicated-only v2 JSONL export. NEPSE-Impact-500 is exported and split. \\
+  XLM-R and FinBERT baselines & \planned &
+  Notebook code trains relevance and direction with XLM-R and English
+  direction with FinBERT. The dataset is ready; no completed run exists. \\
+  Qwen3-8B QLoRA & \planned &
+  A direct Colab/Kaggle notebook implements zero-shot, three-shot, four-bit
+  QLoRA, checkpoint resumption, deterministic JSON generation, ablation
+  controls, plots, and metric export; no fine-tuning run has been completed. \\
+  Qdrant retrieval & \implemented &
+  Dedicated collection, deterministic chunking, content-hash idempotency,
+  metadata filters, and citation reconstruction are implemented. No live
+  retrieval benchmark has been run. \\
+  CrewAI orchestration & \implemented &
+  A protected FastAPI service defines Researcher, Analyst, and Publisher roles
+  with strict response validation and fail-closed dependencies. It has not
+  been connected to a trained adapter. \\
+  Reporting and automation & \implemented &
+  Grounded query/report APIs and an idempotent ingestion, indexing, reporting,
+  archival, and digest sequence exist behind disabled configuration flags. \\
+  Runtime inference & \implemented &
+  Local OpenAI-compatible vLLM or llama.cpp boundaries are configured, but no
+  model is enabled in the application runtime. \\
+  \bottomrule
+\end{longtable}
+\normalsize
+
+\section{Milestone history}
+\MarketGyanMilestoneHistory
+
+\chapter{Data Pipeline}
+
+\section{End-to-end flow}
+
+The implemented pipeline follows a controlled sequence:
+
+\begin{enumerate}[leftmargin=1.8em]
+  \item Collect public market data, financial news, and regulatory documents.
+  \item Parse and normalize deterministic numeric fields without LLM inference.
+  \item Store source links, publication and retrieval dates, field-level
+        provenance, extraction status, and content hashes in MongoDB.
+  \item Rank documents into direct-event, indirect, hard-negative, and reserve
+        selection buckets without assigning gold labels.
+  \item Queue selected documents with an idempotency key derived from content,
+        model, prompt version, and schema version.
+  \item Split the title and first 1,500 cleaned characters into numbered
+        sentences and send only those sentences to Gemma.
+  \item Validate the generated v2 candidate against the ontology, NEPSE
+        registry, relevance-consistency rules, and sentence-ID evidence.
+  \item Store valid candidates for review; keep each reviewer annotation
+        separate from the generated proposal.
+  \item Export only explicitly adjudicated schema-v2 gold records to JSONL.
+  \item Validate the adjudication and composition gate, then freeze a
+        chronological duplicate-grouped split manifest.
+  \item Train and evaluate XLM-R, FinBERT, base Qwen, and Qwen3-8B QLoRA from
+        the same frozen split.
+  \item Index eligible documents and published reports in the dedicated
+        MarketGyan Qdrant collection.
+  \item Retrieve evidence, combine it with deterministic market data, and
+        validate cited report or answer JSON before publication.
+\end{enumerate}
+
+Numeric market values, source metadata, dates, and retrieval metadata never
+come from Gemma. This boundary prevents the structuring model from inventing
+market prices or changing provenance.
+
+\section{NEPSE market collection}
+
+The current collector reads three public sources:
+
+\begin{itemize}
+  \item official NEPSE market pages for primary current-market fields
+        \cite{nepseOfficial};
+  \item ShareSansar for current values, listed securities, and historical index
+        backfill \cite{shareSansar};
+  \item MeroLagani as an additional current-market source and corroborator
+        \cite{meroLagani}.
+\end{itemize}
+
+HTML and JSON responses are parsed using deterministic selectors and numeric
+normalization. The system extracts index open, high, low, close, point and
+percentage change, turnover, volume, transactions, and available
+security-level values. A security registry normalizes listed symbols to
+uppercase and records which sources observed each symbol.
+
+Reconciliation is field-specific. Official NEPSE data has first priority.
+ShareSansar supplies the first fallback, while MeroLagani corroborates current
+values. If fallback values disagree beyond configured tolerances, the field is
+withheld rather than averaged. Every stored snapshot contains provenance,
+selected-source information, missing-field lists, warnings, and conflicts.
+
+For a current daily snapshot to be marked complete, report-critical fields
+must include index movement, turnover, sector rows, market breadth, and
+available leader lists for gainers, losers, turnover, and volume. Historical
+rows may remain partial when the source does not publish those fields; the
+missing values remain explicit rather than inferred.
+
+Historical backfill splits date ranges into provider-safe windows of at most
+31 days. The current \SnapshotStartDate--\SnapshotEndDate{} backfill produced
+\SnapshotCount{} partial snapshots. These are suitable for chronological
+market context but are not represented as complete daily exchange records.
+
+\section{Financial-news collection}
+
+Financial news is collected from ShareSansar, OnlineKhabar Business, and
+Kathmandu Post Money. ShareSansar collection follows category-specific cursor
+pagination across NEPSE news, public issues, allotments, dividends, financial
+analysis, listed shares, and stock-market coverage. URLs are deduplicated
+across categories before full article paragraphs are retrieved.
+
+OnlineKhabar collection traverses paginated Business RSS pages until the
+requested start date is crossed, then retrieves full article paragraphs. If a
+detail page is temporarily unavailable, the public RSS excerpt remains the
+fallback. Kathmandu Post collection combines the Money landing page with
+Money links from the general RSS feed and retrieves the full story paragraph
+container. The site does not expose a working historical page parameter, so
+Kathmandu Post remains supplementary rather than quota-critical.
+
+All archive collectors enforce page and document limits, stop by publication
+date, and reject article bodies shorter than 120 cleaned characters. This
+keeps the six-month backfill bounded and prevents media-only stubs from
+entering the structuring queue.
+
+Each article is upserted by URL into the existing Khabar \texttt{Article}
+collection with the \texttt{finance} topic and \texttt{business} category.
+A separate \texttt{MarketDocument} references that article and records the
+finance-specific title, language, source, publication date, retrieval date,
+cleaned content, extraction method, content hash, and ingestion run. This
+avoids duplicating complete article content while preserving a MarketGyan
+contract.
+
+\section{Regulatory-document collection}
+
+The regulatory collector discovers public PDF links and metadata from NRB and
+SEBON pages \cite{nrbOfficial,sebonOfficial}. SEBON notices expose direct PDF
+links. NRB list entries frequently point to a landing URL that redirects to a
+PDF; the collector records the landing page, follows the redirect, and can
+also discover PDF attachments from an intermediate HTML page. It downloads
+each resolved document, extracts machine-readable text, normalizes whitespace,
+computes a content hash, and stores extraction status and errors.
+
+The project intentionally excludes OCR and legacy-font conversion. Empty PDFs
+and Nepali documents encoded with unsupported legacy fonts are marked failed.
+The current snapshot contains \UsablePolicyDocumentCount{} usable and
+\FailedPolicyDocumentCount{} failed policy documents. Failed extraction is
+retained for audit and excluded from Gemma queueing, indexing, model training,
+and report generation.
+
+\section{Operational storage contracts}
+
+\begin{description}[style=nextline]
+  \item[\texttt{MarketSnapshot}] Daily index and turnover metrics, sectors,
+  leaders, provenance, quality warnings, conflicts, and completion status.
+  \item[\texttt{MarketDocument}] Article reference or original regulatory
+  text, language, source metadata, cleaned text, content hash, extraction
+  method, ingestion run, tags, companies, sectors, and reviewed sentiment.
+  \item[\texttt{MarketSecurity}] Canonical active NEPSE symbol registry used
+  to constrain symbol extraction.
+  \item[\texttt{MarketLabel}] Idempotent structuring job, immutable input,
+  generated candidate, versioned ontology metadata, numbered source sentences,
+  selection bucket, model metadata, raw response, token usage, attempts,
+  errors, revisions, and adjudication state.
+  \item[\texttt{MarketAnnotation}] Independent annotation keyed by label and
+  reviewer, with reviewer role, draft/submitted/rejected state, structured
+  fields, rejection reason, and submission timestamp.
+  \item[\texttt{MarketReaction}] Evaluation-only publication alignment,
+  first- and third-session index/sector/symbol returns, abnormal returns,
+  provenance, missing fields, and overlapping-event warnings.
+  \item[\texttt{MarketIngestionRun}] Resumable run identity, requested date
+  range, per-source counts, durations, warnings, and terminal status.
+\end{description}
+
+Ingestion uses upserts and stable source URLs, making repeated collection
+idempotent. Source sections and regulatory landing-page provenance are
+retained with the canonical document URL. Run states are \texttt{running}, \texttt{complete},
+\texttt{partial}, or \texttt{failed}. Source-level failures do not erase
+successful results from other collectors.
+
+\chapter{API-Assisted Structuring}
+
+\section{Gemma worker}
+
+The structuring worker uses Google's hosted
+\texttt{gemma-4-26b-a4b-it} endpoint \cite{googleGemma4}. Structuring is
+disabled by default and requires an explicit environment flag and a
+server-side API key. The client sends the key in the
+\texttt{x-goog-api-key} header; the key is never exposed to client code or
+stored in MongoDB.
+
+The request pacer enforces at least four seconds between requests and defaults
+to one concurrent worker. The current configured ceiling is 15 requests per
+minute, but active project quotas must be confirmed in Google AI Studio
+\cite{googleRateLimits}. HTTP 429 and server failures use \texttt{Retry-After}
+when available, otherwise exponential backoff with jitter. Network requests
+have a configurable timeout. The worker pauses after three consecutive
+transient failures so a provider outage cannot drain the remaining queue.
+Transient-only retry is capped at one additional job-level attempt; validation
+failures are never automatically retried.
+
+Schema-v1 queue states are:
+
+\begin{center}
+\texttt{queued -> processing -> pending\_review -> approved/rejected}
+\end{center}
+
+Schema v2 keeps the generated queue state separate from reviewer annotations
+and uses explicit \texttt{adjudicated} or \texttt{excluded} gold status.
+
+Failures transition to \texttt{failed} and can be retried. Jobs stuck in
+\texttt{processing} for more than 15 minutes return to the queue. The
+idempotency key combines the document content hash, Gemma model name, prompt
+version, and schema version, preventing duplicate work under the same
+configuration.
+
+Queueing can be filtered by source and can use a deterministic source-balance
+planner. The collection target prefers 220 ShareSansar, 150 OnlineKhabar, 30
+Kathmandu Post, and 50 regulatory candidates. When one source lacks eligible
+documents, the planner fills the deficit from ShareSansar and then
+OnlineKhabar while capping any source at 60 percent of the 450-candidate
+target. Failed and rejected jobs do not count toward the active target.
+
+\section{Schema-v2 input boundary and function schema}
+
+For prompt \texttt{market-impact-v2}, Gemma receives only:
+
+\begin{itemize}
+  \item the cleaned document title; and
+  \item the first 1,500 relevant characters, truncated at a word boundary and
+        represented as numbered source sentences.
+\end{itemize}
+
+The requested function output contains:
+
+\begin{itemize}
+  \item language and a short source-language factual summary;
+  \item relevance: \texttt{direct}, \texttt{indirect}, or
+        \texttt{not\_relevant};
+  \item controlled event type, impact scope, direction, horizon, and
+        mechanism;
+  \item canonical sectors and registered NEPSE symbols;
+  \item tags and low, medium, or high confidence;
+  \item a cautious source-language rationale; and
+  \item one or more exact numbered sentence IDs as evidence.
+\end{itemize}
+
+Allowed symbols are narrowed before the request using the symbol, company
+name, and English or Nepali aliases stored in the security registry. Only
+securities matched in the supplied title or excerpt enter the function
+declaration. This supports bilingual company mentions without allowing Gemma
+to choose an unrelated issuer from the full registry.
+
+\section{Codex-assisted pre-review}
+
+After first-pass Gemma generation, Codex can inspect each source and proposed
+candidate in bounded batches. Corrections are validated with the same schema,
+taxonomy, registered-symbol, and sentence-grounding checks as initial
+generation. The system preserves the immutable Gemma candidate, stores the
+Codex suggestion separately, records every changed field, and uses the valid
+suggestion as the starting value in the human editor.
+
+This pre-review is intended to remove obvious relevance, taxonomy,
+overconfidence, and evidence-selection errors before the project reviewer
+works through the queue. It never creates an independent annotation or gold
+label and is not included in inter-annotator agreement measurement.
+
+\section{Validation, independent annotation, and adjudication}
+
+Generated output is normalized and rejected if:
+
+\begin{itemize}
+  \item a required string or array is missing;
+  \item language, relevance, event, impact, or confidence is outside its enum;
+  \item a submitted sector cannot be mapped to the canonical taxonomy;
+  \item a symbol is not in the allowed-symbol set;
+  \item a \texttt{not\_relevant} record contains an impact field, sector, or
+        symbol that must be inapplicable;
+  \item a relevant record lacks a defensible scope, event, mechanism, or
+        sector/symbol mapping;
+  \item summary or rationale is too short; or
+  \item an evidence sentence ID is absent from the numbered source input.
+\end{itemize}
+
+The generated candidate remains immutable for acceptance and edit-rate
+analysis. Each reviewer receives a separate \texttt{MarketAnnotation} record
+and first decides relevance. Relevant records then expose event, scope,
+direction, horizon, mechanism, sector, symbol, rationale, and evidence fields.
+An adjudicator examines the independent annotations and explicitly creates
+the gold value or excludes the record. Regeneration is blocked after an
+annotation is submitted or a label is adjudicated.
+
+Pending, excluded, v1, and non-adjudicated records cannot enter the v2
+training export. At present, \VTwoAdjudicatedCount{} schema-v2 records are
+adjudicated, exported, validated, and split. Non-gold records remain blocked
+from export.
+
+\chapter{Dataset Preparation}
+
+\section{Adjudicated schema-v2 JSONL contract}
+
+Each exported JSONL record contains:
+
+\begin{lstlisting}
+{
+  "id": "...",
+  "documentId": "...",
+  "schemaVersion": 2,
+  "ontologyVersion": "nepse-impact-ontology-v1",
+  "title": "...",
+  "excerpt": "...",
+  "sentences": [{"id": "S1", "text": "..."}],
+  "contentHash": "...",
+  "duplicateGroupId": "...",
+  "source": {"name": "...", "url": "..."},
+  "publishedAt": "...",
+  "generated": {...},
+  "gold": {
+    "relevance": "direct",
+    "eventType": "earnings",
+    "impactScope": "company",
+    "impactDirection": "bullish",
+    "impactHorizon": "short_term",
+    "impactMechanism": "earnings_cash_flow",
+    "evidenceSentenceIds": ["S1"]
+  },
+  "annotations": [...],
+  "model": {
+    "provider": "google",
+    "name": "gemma-4-26b-a4b-it",
+    "promptVersion": "market-impact-v2",
+    "schemaVersion": 2
+  },
+  "adjudicatedAt": "...",
+  "adjudicatedBy": "..."
+}
+\end{lstlisting}
+
+Retaining generated, independent annotation, and gold values supports Gemma
+acceptance measurement, field-level edit analysis, reviewer agreement, and
+adjudication audit. Dataset validation checks required fields, ontology enums,
+relevance consistency, sentence-ID grounding, source metadata, dates,
+duplicate IDs, and near-duplicate group identity.
+
+\section{Chronological and duplicate-safe split}
+
+Records are grouped by \texttt{duplicateGroupId}, ordered by the earliest
+publication date in each group, and assigned chronologically:
+
+\begin{itemize}
+  \item 70\% train;
+  \item 15\% validation; and
+  \item 15\% test.
+\end{itemize}
+
+Keeping exact and near-duplicate groups together prevents the same or
+equivalent source
+content from leaking across splits. Chronological ordering makes evaluation
+closer to the intended use case: learning from older reviewed documents and
+testing on newer market language.
+
+\section{NEPSE-Impact-500 readiness}
+
+The final gold corpus must contain exactly 500 adjudicated records:
+300 direct events, 100 indirect sector or macroeconomic events, and 100 hard
+negative general-business records. It must include at least 200 Nepali and
+200 English records, 150 symbol-level records, 20 records in each core event
+category, and 60 bullish and 60 bearish relevant examples. No source may
+contribute more than 60 percent. All gold records are used; the pipeline does
+not create synthetic labels or downsample the majority class.
+
+The current gold export passes this gate: it contains
+\VTwoDirectSelectionCount{} direct, \VTwoIndirectSelectionCount{} indirect,
+and \VTwoNegativeSelectionCount{} not-relevant records; 299 English,
+200 Nepali, and 1 mixed-language record; \VTwoSymbolSelectionCount{}
+symbol-level records; and no source above 60 percent. The targeted event gaps
+are closed with 36 earnings, 20 credit/financing, 20 regulation,
+20 monetary/liquidity, and 20 sector/industry records. The frozen chronological
+split contains 350 training records, 75 validation records, and 75 test
+records.
+
+The split is intentionally chronological and duplicate-grouped, so the
+language and source mix differs across train, validation, and test. This must
+be reported with model metrics rather than hidden by random reshuffling.
+
+A stratified \SecondReviewTarget{}-record subset still needs independent
+second annotation. Agreement reporting includes Cohen's kappa for relevance,
+event type, and direction; micro-F1 for sector and symbol selection; and
+sentence-selection F1 for evidence. Relevance and direction kappa must reach
+0.70. Lower agreement triggers guideline revision and reannotation of
+disagreement-heavy categories.
+
+\chapter{Model Plan and Fine-Tuning Configuration}
+
+\section{XLM-R multi-task baseline}
+
+The baseline uses \texttt{xlm-roberta-base}, a multilingual encoder suitable
+for English, Nepali, and mixed-language text \cite{conneau2020xlmr}. It
+concatenates title and excerpt and trains relevance on all records and impact
+direction on relevant records only.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Implemented XLM-R training configuration.}
+  \begin{tabularx}{\textwidth}{@{}lY@{}}
+    \toprule
+    Base model & \texttt{xlm-roberta-base} \\
+    Input length & 512 tokens maximum \\
+    Train / evaluation batch size & 8 / 16 \\
+    Learning rate & \(2 \times 10^{-5}\) \\
+    Epochs & 8 maximum \\
+    Weight decay & 0.01 \\
+    Tasks & Relevance; relevant-record impact direction \\
+    Imbalance handling & Inverse-frequency class-weighted cross-entropy per task \\
+    Selection metric & Validation macro-F1 \\
+    Early stopping & Patience of 2 epochs \\
+    Checkpoints & Saved each epoch; resumes when checkpoints exist \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Evaluation reports relevance and direction macro-F1, per-class precision,
+recall, F1, support, and confusion counts. The
+\texttt{notebooks/xlmr\_baseline.ipynb} workflow also plots relevance,
+language, event, and direction distributions, training and evaluation loss,
+confusion matrices, and per-class metrics. It loads the best checkpoint and
+exports each model, tokenizer, plot, prediction file, and
+\texttt{metrics.json}. It is implemented but has not been run on adjudicated
+MarketGyan labels.
+
+\section{English-only FinBERT baseline}
+
+The XLM-R notebook also runs \texttt{ProsusAI/finbert} on English relevant
+records \cite{finbert}. It evaluates bullish, bearish, and neutral direction;
+uncertain examples are excluded because the published FinBERT sentiment head
+uses three classes. This baseline directly tests the proposal's
+financial-domain adaptation motivation while making its English-only
+limitation explicit.
+
+\section{Qwen3-8B QLoRA experiment}
+
+The structured-output experiment uses the Qwen3-8B model family
+\cite{qwen3ModelCard} loaded through \texttt{unsloth/Qwen3-8B} for the
+Unsloth QLoRA training workflow \cite{unslothQwen3}. Each adjudicated row
+becomes a two-message chat example: the user supplies the document title and
+excerpt, and the assistant supplies the reviewed structure as JSON. Thinking
+mode is disabled in the chat template so training targets only the required
+answer.
+
+QLoRA reduces memory requirements by loading the base model in four-bit NF4
+and training LoRA adapters instead of all model weights
+\cite{dettmers2023qlora}. The notebook now uses Unsloth
+\texttt{FastLanguageModel}, Unsloth gradient checkpointing, TRL
+\texttt{SFTTrainer}, and response-only masking so the adapter learns only the
+reviewed JSON response. The implemented configuration is:
+
+\begin{table}[htbp]
+  \centering
+  \caption{Implemented Qwen3-8B QLoRA configuration.}
+  \begin{tabularx}{\textwidth}{@{}lY@{}}
+    \toprule
+    Base model & \texttt{unsloth/Qwen3-8B} (Qwen3-8B family) \\
+    Quantization & Unsloth 4-bit loading for QLoRA \\
+    Compute precision & BF16 when supported, otherwise FP16 \\
+    Maximum sequence length & 1,024 tokens \\
+    LoRA rank / alpha / dropout & 16 / 32 / 0.05 \\
+    Adapter targets & Attention projections and MLP projections \\
+    Device batch size & 1 train, 1 evaluation \\
+    Gradient accumulation & 16 steps \\
+    Effective train batch & 16 examples per optimizer step \\
+    Learning rate & \(2 \times 10^{-4}\) \\
+    Epochs & 3 \\
+    Warmup ratio & 0.05 \\
+    Optimizer & Paged AdamW 8-bit through the Unsloth/TRL stack \\
+    Memory controls & Unsloth gradient checkpointing and 4-bit loading \\
+    Evaluation / save interval & Every 25 steps \\
+    Checkpoint retention & Latest 3 checkpoints \\
+    Resume behavior & Automatically resumes from an existing checkpoint \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+The minimum planned environment is an NVIDIA T4 with 16 GB VRAM in Kaggle or
+Google Colab. Actual fit, throughput, and maximum sequence length must be
+confirmed during the first run. The configuration is code-complete but no
+fine-tuning experiment has started on the exported v2 gold dataset.
+The \texttt{notebooks/qwen3\_8b\_qlora.ipynb} workflow evaluates base
+Qwen3-8B zero-shot and three-shot before training the Unsloth QLoRA adapter on
+the same frozen split as XLM-R. It generates deterministic JSON and exports
+relevance, event, direction, sector, symbol, sentence-evidence, validity,
+grounding, and confusion-matrix results.
+Adapters, tokenizer files, predictions, plots, metrics, and resumable
+checkpoints are archived for download.
+
+\section{Evaluation plan}
+
+The research report will combine dataset, model, retrieval, and end-to-end
+measures:
+
+\begin{itemize}
+  \item Gemma acceptance without edits and field-level edit frequencies;
+  \item annotation, exclusion, regeneration, and failure rates;
+  \item structured-output validity;
+  \item relevance, event-type, and direction macro-F1 and per-class metrics;
+  \item per-language and per-event results;
+  \item sector and symbol micro-F1;
+  \item evidence sentence-selection F1 and grounding error rate;
+  \item reviewer agreement by kappa and multilabel F1;
+  \item chronological test coverage; and
+  \item qualitative analysis of unsupported rationales and taxonomy errors;
+  \item retrieval Precision@5 and citation correctness over at least 30
+        manually judged finance queries; and
+  \item report schema validity, freshness, generation latency, and
+        end-to-end latency over at least 20 report or query scenarios.
+\end{itemize}
+
+Runtime inference remains disabled unless all of the following gates pass:
+
+\begin{itemize}
+  \item Qwen structured-output validity is at least 95\%;
+  \item evidence grounding is at least 95\%;
+  \item every relevance and direction class has usable measured performance;
+        and
+  \item QLoRA improves macro-F1 over base Qwen by at least 0.05 or the paired
+        bootstrap 95\% confidence interval for improvement excludes zero.
+\end{itemize}
+
+\section{Ablations and market-reaction analysis}
+
+Three ablations isolate the source of improvement: QLoRA versus base Qwen,
+full training versus training without hard negatives, and RAG enabled versus
+disabled for factual QA and grounded reporting. Every model condition uses
+the same frozen test IDs.
+
+Market reaction is evaluation-only. The baseline is the last trading close
+before publication, followed by first- and third-trading-session returns.
+NEPSE return is recorded for every relevant record; symbol or sector abnormal
+return is computed only when deterministic history exists. Missing values and
+overlapping same-symbol events remain explicit. Results report mean abnormal
+return by predicted direction, material-movement sign agreement, and
+bootstrap confidence intervals as exploratory association, never causation
+or forecasting performance.
+
+The repository includes 30 retrieval-query specifications and 20 system
+scenario specifications. They define the benchmark but do not yet contain
+measured judgments or results.
+
+\chapter{Proposal Gap Analysis and AI Backend}
+
+\section{Proposal alignment}
+
+The original proposal is preserved as the submitted baseline. The current
+implementation updates its model choice from Qwen2.5 to
+\texttt{Qwen/Qwen3-8B}, keeps XLM-R as the supervised baseline, and separates
+the public Node API from the Python agent and model-serving processes. OCR is
+removed rather than deferred. The methodology refinement is motivated by the
+proposal's references 4--8 and the corpus-quality problem found during review.
+
+\section{Revised novelty claim}
+
+\begin{quote}
+\textbf{MarketGyan introduces NEPSE-Impact-500, a human-adjudicated bilingual
+benchmark and Qwen3-8B adapter for identifying whether Nepal-focused news is
+relevant to NEPSE, classifying its event type, mapping it to listed companies
+and sectors, and producing evidence-grounded potential-impact explanations.
+Current facts remain in RAG rather than model weights.}
+\end{quote}
+
+\small
+\begin{longtable}{@{}L{0.18\textwidth}L{0.28\textwidth}L{0.46\textwidth}@{}}
+  \toprule
+  \textbf{Reference} & \textbf{Motivating contribution} & \textbf{MarketGyan distinction} \\
+  \midrule
+  \endhead
+  FinBERT \cite{finbert} &
+  Demonstrates that financial-domain adaptation improves financial sentiment
+  tasks. &
+  Tests whether Nepal-market terminology and bilingual supervision improve
+  relevance and potential-impact classification beyond a general
+  multilingual encoder and English FinBERT. \\
+  FinGPT \cite{fingpt} &
+  Emphasizes data-centric, lightweight adaptation for financial LLMs. &
+  Uses QLoRA, but claims novelty in the curated Nepal-specific corpus,
+  ontology, adjudication protocol, and hard-negative relevance gate. \\
+  FinLLM survey \cite{finllmSurvey} &
+  Highlights benchmark design, evaluation breadth, and hallucination risk. &
+  Adds sentence-ID evidence, JSON validity, grounding, bilingual/event
+  breakdowns, reviewer agreement, and identical chronological test IDs. \\
+  FinTral \cite{fintral} &
+  Uses multi-task financial instruction tuning and grounded financial
+  reasoning. &
+  Defines a narrower NEPSE-specific multi-task structure linking relevance,
+  event, company/sector mapping, mechanism, direction, and evidence without
+  claiming trading prediction. \\
+  \bottomrule
+\end{longtable}
+\normalsize
+
+LoRA itself is not novel. The defensible contribution is the first
+project-specific combination of a bilingual Nepal equity-impact benchmark,
+listed-company alias ontology, independent adjudication, hard negatives,
+sentence-grounded structured generation, and evaluation against market
+reaction without causal claims.
+
+\section{Static adaptation versus dynamic knowledge}
+
+Fine-tuning teaches stable behavior: Nepal-market terminology, institution and
+company mappings, relevance judgment, event taxonomy, impact mechanisms,
+structured output, and evidence selection. It is not treated as a reliable
+store of changing prices, policies, announcements, or company facts. Those
+facts remain in the provenance-aware MarketGyan Qdrant collection and are
+retrieved at answer or report time. This separation permits a meaningful
+adaptation experiment while reducing stale-knowledge and hallucination risk.
+
+\small
+\begin{longtable}{@{}L{0.24\textwidth}L{0.18\textwidth}L{0.50\textwidth}@{}}
+  \toprule
+  \textbf{Proposal area} & \textbf{Current state} & \textbf{Remaining evidence or execution} \\
+  \midrule
+  \endhead
+  Financial corpus & \implemented &
+  Schema-v1 collection reached \PilotTotalCount{} records but exposed
+  relevance errors. V2 selection and contracts are implemented; archive
+  expansion, regeneration, and adjudication remain. \\
+  Model experiments & \planned &
+  XLM-R, FinBERT, base-Qwen, and QLoRA notebook paths are implemented.
+  Adjudicated data, GPU runs, ablations, and measured results remain. \\
+  Finance RAG & \implemented &
+  Qdrant chunking, payload provenance, filters, and citation reconstruction
+  exist. Live indexing and 30-query manual evaluation remain. \\
+  Agent workflow & \implemented &
+  Researcher, Analyst, and Publisher roles use a sequential CrewAI process
+  \cite{crewAIFlows}. A trained Qwen adapter and live scenario evaluation
+  remain. \\
+  Local model serving & \implemented &
+  The agent accepts a local OpenAI-compatible endpoint suitable for vLLM
+  \cite{vllmOpenAI} or llama.cpp. Serving remains disabled without a trained
+  adapter. \\
+  Reporting and automation & \implemented &
+  Grounded report storage, archival, protected generation, scheduler
+  rerun-safety, and digest suppression are implemented. Live end-to-end
+  validation remains. \\
+  OCR & \textbf{Excluded} &
+  Unreadable and legacy-font regulatory files remain failed audit records and
+  are not part of the project deliverables. \\
+  \bottomrule
+\end{longtable}
+\normalsize
+
+\section{Finance-specific retrieval}
+
+The MarketGyan indexer uses a separate Qdrant collection and deterministic
+overlapping chunks. Each payload stores chunk text, MongoDB document ID,
+title, canonical URL, source, publication date, language, document type,
+sectors, symbols, tags, and content hash. Reindexing is idempotent: unchanged
+content keeps stable point identifiers, while changed content replaces stale
+points. Search supports query, date, sector, source, language, and document
+type filters.
+
+\section{CrewAI, reports, and fail-closed operation}
+
+The Python FastAPI service defines three sequential roles. The Researcher
+calls the protected Node retrieval endpoint. The Analyst combines retrieved
+chunks with deterministic market context. The Publisher produces strict JSON
+with citations and the informational disclaimer. Citation URLs and excerpts
+must match retrieved material before the response is accepted.
+
+Node remains responsible for public APIs, report persistence, post-market
+scheduling, and newsletter delivery. The scheduler runs ingestion, indexing,
+generation, report archival, reindexing, and delivery in order. A failed or
+uncited report prevents publication and suppresses the digest. Qdrant,
+CrewAI, query inference, the scheduler, and digest delivery are all disabled
+by default and fail closed when dependencies or credentials are unavailable.
+
+\chapter{Risks and Limitations}
+
+\section{Current limitations}
+
+\begin{itemize}
+  \item Historical market snapshots are partial and rely on one historical
+        fallback source.
+  \item Sector history, market leaders, complete breadth, and official
+        corroboration are not available for every backfilled date.
+  \item Legacy-font Nepali PDFs are not machine-readable and are permanently
+        excluded by the project scope.
+  \item The schema-v1 pool over-represents general business coverage and is
+        not a valid NEPSE-impact benchmark.
+  \item The v2 gold corpus passes the current composition gates, but targeted
+        human-adjudicated replacements and exclusions must be reported as part
+        of the dataset construction audit trail.
+  \item The chronological split is source- and language-shifted because the
+        collection timeline differs by outlet; this is an evaluation caveat,
+        not a reason to reshuffle the benchmark.
+  \item Gemma candidates may be fluent while assigning relevance, event, or
+        mechanism incorrectly; schema validity alone is insufficient.
+  \item Provider quotas, latency, and server errors remain operational risks
+        for future regeneration and corpus expansion.
+  \item Of the \VTwoFailedCount{} schema-v2 failed jobs,
+        \TransientFailureCount{} are provider or network failures and
+        \ValidationFailureCount{} are schema or grounding failures;
+        \RetryableFailureCount{} transient jobs remain eligible under the
+        current retry policy.
+  \item Independent second-review agreement has not yet been measured.
+  \item No fine-tuning, live retrieval, agent, or inference benchmarks exist
+        yet.
+\end{itemize}
+
+\section{Report update procedure}
+
+For the next milestone, update the macros in
+\texttt{status\_snapshot.tex}, append a dated entry to
+\texttt{\textbackslash MarketGyanMilestoneHistory}, and add measured model
+results only after the corresponding experiment artifacts exist. The stable
+pipeline and model-design chapters should change only when implementation
+behavior changes.
+
+\chapter{Conclusion}
+
+MarketGyan has progressed from a broad financial-news labeling pipeline to a
+more defensible NEPSE-specific research design. The schema-v1 pilot exposed
+the need for a relevance gate and hard negatives. Schema v2 now implements a
+versioned ontology, bilingual aliases, sentence-grounded Gemma proposals,
+independent annotations, explicit adjudication, duplicate-safe export,
+reaction records, and model notebooks covering XLM-R, FinBERT, base Qwen, and
+Qwen3-8B QLoRA. The methodology and quota-compliant 500-record adjudicated
+dataset are implemented and exported, but agreement results, model
+experiments, retrieval benchmarks, agent benchmarks, and reaction analysis are
+not complete.
+
+\chapter{Remaining Work}
+
+The next work must complete the research evidence rather than expand the
+application interface:
+
+\begin{enumerate}[leftmargin=1.8em]
+  \item Complete independent second annotation for
+        \SecondReviewTarget{} stratified records and report agreement.
+  \item Report kappa and multilabel agreement; revise guidelines and reannotate
+        disagreement-heavy categories if relevance or direction kappa is
+        below 0.70.
+  \item Train and evaluate XLM-R relevance and direction baselines on the
+        frozen split.
+  \item Run English-only FinBERT on the English relevant subset.
+  \item Run Gemma-before-edit, base-Qwen zero-shot, base-Qwen three-shot,
+        XLM-R, English FinBERT, and Qwen3-8B QLoRA on identical test IDs.
+  \item Run QLoRA/base-Qwen, hard-negative, and RAG ablations; use paired
+        bootstrap analysis for the adaptation claim.
+  \item Compute first- and third-session market reactions with missing-data
+        and overlap warnings, and report association only.
+  \item Populate the live MarketGyan Qdrant collection and manually judge the
+        30 retrieval queries, including Precision@5 and citation correctness.
+  \item Serve the trained adapter through the configured local
+        OpenAI-compatible endpoint and execute the 20 CrewAI report/query
+        scenarios.
+  \item Enable report generation, scheduling, and digest delivery only after
+        the structured-validity, grounding, class-performance, and adaptation
+        gates pass.
+\end{enumerate}
+
+\begingroup
+\sloppy
+\hbadness=10000
+\bibliographystyle{plainnat}
+\bibliography{references}
+\endgroup
+
+\end{document}

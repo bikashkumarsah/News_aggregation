@@ -1,0 +1,16 @@
+data/raw/
+data/processed/*
+!data/processed/nepse-impact-500.jsonl
+!data/processed/splits/
+!data/processed/splits/*.jsonl
+!data/processed/splits/manifest.json
+artifacts/
+checkpoints/
+outputs/
+*.safetensors
+*.bin
+*.pt
+*.pth
+__pycache__/
+.pytest_cache/
+.venv/

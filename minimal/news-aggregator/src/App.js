@@ -32,10 +32,12 @@ import {
   LogOut,
   History,
   Settings,
-  Rss
+  Rss,
+  TrendingUp
 } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import AuthModal from './components/AuthModal';
+import MarketGyanDashboard from './components/MarketGyanDashboard';
 import { API_URL, API_BASE_URL } from './config';
 
 
@@ -169,11 +171,15 @@ const NewsApp = () => {
     { id: 'settings', name: 'Settings', icon: <Settings className="w-5 h-5" /> }
   ];
 
+  const platformItems = [
+    { id: 'market-gyan', name: 'Market Gyan', icon: <TrendingUp className="w-5 h-5" /> }
+  ];
+
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
   };
 
-  const isSearchableCategory = !['bookmarks', 'history', 'local'].includes(selectedCategory);
+  const isSearchableCategory = !['bookmarks', 'history', 'local', 'market-gyan'].includes(selectedCategory);
   const hasSearchFilters = useMemo(() => {
     return Boolean(
       searchQuery.trim() ||
@@ -224,6 +230,13 @@ const NewsApp = () => {
     // Close filter panel on section change
     setShowFilters(false);
     setSearchEngine(null);
+
+    if (selectedCategory === 'market-gyan') {
+      setSelectedArticle(null);
+      setArticles([]);
+      setHasMore(false);
+      return;
+    }
 
     if (selectedCategory === 'bookmarks' || selectedCategory === 'history') {
       loadUserContent();
@@ -723,8 +736,28 @@ const NewsApp = () => {
         </div>
 
         <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
+          <p className="text-xs font-bold uppercase tracking-widest px-4 pt-2 pb-1" style={{ color: 'var(--text-muted)' }}>Intelligence</p>
+          {platformItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                setSelectedCategory(item.id);
+                setSelectedArticle(null);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${selectedCategory === item.id
+                ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 shadow-sm'
+                : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
+              style={{ color: selectedCategory === item.id ? undefined : 'var(--text-muted)' }}
+            >
+              {item.icon}
+              {item.name}
+              {selectedCategory === item.id && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />}
+            </button>
+          ))}
+
           {/* Main Categories */}
-          <p className="text-xs font-bold uppercase tracking-widest px-4 pt-2 pb-1" style={{ color: 'var(--text-muted)' }}>Categories</p>
+          <p className="text-xs font-bold uppercase tracking-widest px-4 pt-4 pb-1" style={{ color: 'var(--text-muted)' }}>Categories</p>
           {categories.map((cat) => (
             <button
               key={cat.id}
@@ -836,7 +869,11 @@ const NewsApp = () => {
           </div>
           <div className="hidden lg:block">
             <h2 className="text-sm font-semibold uppercase tracking-widest leading-none" style={{ color: 'var(--text-muted)' }}>
-              {selectedArticle ? 'Reading Article' : `Feed / ${categories.find(c => c.id === selectedCategory)?.name || selectedCategory}`}
+              {selectedArticle
+                ? 'Reading Article'
+                : selectedCategory === 'market-gyan'
+                  ? 'Intelligence / Market Gyan'
+                  : `Feed / ${categories.find(c => c.id === selectedCategory)?.name || selectedCategory}`}
             </h2>
           </div>
           <div className="flex items-center gap-3">
@@ -982,6 +1019,8 @@ const NewsApp = () => {
                 </div>
               </div>
             </div>
+          ) : selectedCategory === 'market-gyan' ? (
+            <MarketGyanDashboard />
           ) : (
             /* Feed View */
             <div className="space-y-12 pb-12">

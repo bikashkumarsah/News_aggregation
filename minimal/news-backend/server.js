@@ -1,5 +1,4 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
@@ -15,9 +14,17 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const searchRoutes = require('./routes/searchRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
+const marketGyanRoutes = require('./features/marketGyan/routes/marketGyanRoutes');
 
 // Import services
 const { startNewsletterScheduler } = require('./services/newsletterScheduler');
+const {
+  startMarketGyanPostMarketScheduler
+} = require('./features/marketGyan/scheduler/postMarketScheduler');
+const {
+  connectMongo,
+  withMongoRetry
+} = require('./features/marketGyan/services/mongoConnectionService');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -37,13 +44,17 @@ app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/market-gyan', marketGyanRoutes);
 
 
-// MongoDB Connection (Local MongoDB)
-mongoose.connect('mongodb://localhost:27017/newsDB', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
+// MongoDB Connection
+withMongoRetry(
+  () => connectMongo(),
+  {
+    maxAttempts: Infinity,
+    operationName: 'Starting the API MongoDB connection'
+  }
+)
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch(err => console.error('❌ MongoDB connection error:', err));
 
@@ -580,4 +591,6 @@ app.listen(PORT, '0.0.0.0', () => {
   // Start the newsletter scheduler
   startNewsletterScheduler();
   console.log('📧 Newsletter scheduler initialized');
+
+  startMarketGyanPostMarketScheduler();
 });

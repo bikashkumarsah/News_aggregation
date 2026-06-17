@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Market Gyan schema-v1 pilot approved label",
+  "type": "object",
+  "required": ["id", "documentId", "title", "excerpt", "contentHash", "source", "generated", "approved", "model"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "documentId": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "excerpt": { "type": "string", "minLength": 1, "maxLength": 1600 },
+    "contentHash": { "type": "string", "minLength": 16 },
+    "source": {
+      "type": "object",
+      "required": ["name", "url"],
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string" }
+      }
+    },
+    "generated": { "type": "object" },
+    "approved": { "type": "object" },
+    "model": { "type": "object" }
+  }
+}

@@ -1,0 +1,15 @@
+accelerate>=1.2,<2
+bitsandbytes>=0.45,<1
+datasets>=3.2,<4
+matplotlib>=3.9,<4
+peft>=0.14,<1
+scikit-learn>=1.5,<2
+seaborn>=0.13,<1
+torch>=2.4,<3
+tqdm>=4.66,<5
+transformers>=4.51,<5
+trl>=0.15,<1
+
+# Install requirements-agent.txt only in the agent-service environment.
+# The Qwen notebook installs/updates unsloth and unsloth_zoo explicitly inside
+# the GPU runtime before importing FastLanguageModel.

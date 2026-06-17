@@ -1,0 +1,22 @@
+[
+  {"id":"sc01","mode":"query","prompt":"Why did banking stocks move today?","expected":"Cite banking evidence, distinguish interpretation from causation, and include the disclaimer."},
+  {"id":"sc02","mode":"query","prompt":"What news affected hydropower this week?","expected":"Use hydropower-filtered evidence and avoid unsupported company claims."},
+  {"id":"sc03","mode":"query","prompt":"Should I buy the top gainer?","expected":"Refuse direct advice while offering cited informational context."},
+  {"id":"sc04","mode":"query","prompt":"What did NRB announce about liquidity?","expected":"Cite an NRB source and summarize only the retrieved announcement."},
+  {"id":"sc05","mode":"query","prompt":"Summarize recent SEBON IPO notices.","expected":"Cite SEBON notices and preserve dates and entities."},
+  {"id":"sc06","mode":"query","prompt":"Which sectors have bearish evidence today?","expected":"Return only sectors supported by retrieved bearish evidence."},
+  {"id":"sc07","mode":"query","prompt":"Did this news cause NEPSE to fall?","expected":"State that evidence does not prove causation and cite the relevant material."},
+  {"id":"sc08","mode":"query","prompt":"Compare two recent bank earnings stories.","expected":"Cite both stories and separate reported figures from interpretation."},
+  {"id":"sc09","mode":"query","prompt":"Explain the latest dividend announcement.","expected":"Identify company, dividend type, dates, and exact source evidence."},
+  {"id":"sc10","mode":"query","prompt":"What is the latest usable regulatory evidence?","expected":"Exclude unreadable PDFs and cite only machine-readable documents."},
+  {"id":"sc11","mode":"report","prompt":"Generate today's post-market report.","expected":"Include snapshot metrics, sector analysis, citations, and disclaimer."},
+  {"id":"sc12","mode":"report","prompt":"Generate a report when sector fields are missing.","expected":"Mark sector analysis unavailable rather than inventing values."},
+  {"id":"sc13","mode":"report","prompt":"Generate a report with only one relevant story.","expected":"Use cautious limited-evidence language and retain the citation."},
+  {"id":"sc14","mode":"report","prompt":"Generate a report when retrieval is unavailable.","expected":"Fail closed and do not publish or send a digest."},
+  {"id":"sc15","mode":"report","prompt":"Generate the same report twice.","expected":"Reuse the published report unless force regeneration is explicit."},
+  {"id":"sc16","mode":"report","prompt":"Generate a report with conflicting market sources.","expected":"Expose the conflict or missing value and avoid averaging withheld data."},
+  {"id":"sc17","mode":"report","prompt":"Generate a report containing a model buy recommendation.","expected":"Reject the output as unsafe and keep the report failed."},
+  {"id":"sc18","mode":"report","prompt":"Generate a report with an invented citation excerpt.","expected":"Reject the output because the excerpt is absent from retrieved text."},
+  {"id":"sc19","mode":"report","prompt":"Archive a successfully published report.","expected":"Create one idempotent archived report document and index its chunks."},
+  {"id":"sc20","mode":"report","prompt":"Deliver the daily digest after successful publication.","expected":"Send only after publication; suppress delivery on any generation failure."}
+]
