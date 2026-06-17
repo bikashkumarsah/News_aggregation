@@ -11,7 +11,7 @@ cd ml/marketGyan
 PYTHONPATH=. python3 -m market_gyan.cli validate data/processed/nepse-impact-500.jsonl
 PYTHONPATH=. python3 -m market_gyan.cli gate data/processed/nepse-impact-500.jsonl --min-records=500
 PYTHONPATH=. python3 -m market_gyan.cli agreement data/processed/nepse-impact-500.jsonl outputs/annotation-agreement.json
-PYTHONPATH=. python3 -m market_gyan.cli split data/processed/nepse-impact-500.jsonl data/processed/splits
+PYTHONPATH=. python3 -m market_gyan.cli split data/processed/nepse-impact-500.jsonl data/processed/splits --strategy balanced
 PYTHONPATH=. python3 -m market_gyan.cli evaluate data/processed/nepse-impact-500.jsonl outputs/research-report.json
 PYTHONPATH=. python3 -m market_gyan.cli audit-predictions data/processed/splits/test.jsonl outputs/xlmr_rel_predictions.json outputs/audits/xlmr_relevance_audit.json --task=relevance
 ```
@@ -27,12 +27,16 @@ python3 notebooks/build_notebooks.py
 Run `notebooks/xlmr_baseline.ipynb` for XLM-R relevance, XLM-R direction, and
 the English-only FinBERT baseline. Run
 `notebooks/qwen3_8b_qlora.ipynb` in Colab or Kaggle. Both use the same frozen
-`data/processed/splits/manifest.json`. The Qwen notebook evaluates zero-shot,
-three-shot, and Unsloth QLoRA. It targets a T4 16 GB minimum, uses
-`unsloth/Qwen3-8B` in non-thinking mode with response-only training, and saves
-only the final adapter, tokenizer, predictions, metrics, and plots. Intermediate
-`checkpoint-*` directories are intentionally removed to keep the downloadable
-artifact small.
+balanced `data/processed/splits/manifest.json`. The Qwen notebook evaluates
+zero-shot, three-shot, and Unsloth QLoRA against a compact classifier/extractor
+target: canonical labels, sectors, symbols, confidence, and evidence sentence
+IDs only. Evidence text, summaries, rationales, and report prose are rebuilt
+later from RAG evidence and deterministic market data. The notebook targets a
+T4 16 GB minimum, uses `unsloth/Qwen3-8B` in non-thinking mode with
+response-only training, oversamples indirect and hard-negative examples, and
+saves only the final adapter, tokenizer, predictions, metrics, and plots.
+Intermediate `checkpoint-*` directories are intentionally removed to keep the
+downloadable artifact small.
 Model artifacts and datasets are intentionally ignored by Git.
 
 System benchmark specifications are in `evaluation/`. After recording actual

@@ -55,7 +55,8 @@ OUTPUTS = PROJECT / "outputs"
 sys.path.insert(0, str(PROJECT))
 
 from market_gyan.dataset import (
-    chronological_group_split,
+    balanced_group_split,
+    compact_qwen_label,
     dataset_readiness,
     read_jsonl,
     split_manifest,
@@ -74,11 +75,15 @@ assert gate["ready"], gate["errors"]
 SPLITS.mkdir(parents=True, exist_ok=True)
 manifest_path = SPLITS / "manifest.json"
 if not manifest_path.exists():
-    frozen = chronological_group_split(rows)
+    frozen = balanced_group_split(rows)
     for name, values in frozen.items():
         write_jsonl(SPLITS / f"{name}.jsonl", values)
     manifest_path.write_text(
-        json.dumps(split_manifest(frozen), indent=2, ensure_ascii=False),
+        json.dumps(
+            split_manifest(frozen, strategy="balanced"),
+            indent=2,
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
 
@@ -135,7 +140,7 @@ XLMR_CELLS = [
     markdown("""
 # NEPSE-Impact-500: XLM-R and FinBERT Baselines
 
-This notebook uses one frozen chronological 70/15/15 split. Exact and
+This notebook uses one frozen balanced 70/15/15 split. Exact and
 near-duplicate groups stay together. It trains:
 
 1. XLM-R relevance on all 500 records.
@@ -382,9 +387,9 @@ QWEN_CELLS = [
 # NEPSE-Impact-500: Qwen3-8B Unsloth QLoRA
 
 This notebook evaluates base Qwen3-8B zero-shot and three-shot, then trains a
-QLoRA adapter with Unsloth on the same frozen manifest used by XLM-R. It
-produces deterministic structured JSON and evaluates relevance, event type,
-direction, sector, symbol, and evidence selection.
+QLoRA adapter with Unsloth on the same frozen balanced manifest used by
+XLM-R. It produces compact deterministic JSON and evaluates relevance, event
+type, direction, sector, symbol, and evidence selection.
 """),
     code("""
 !pip install -q --upgrade --force-reinstall --no-cache-dir unsloth unsloth_zoo
@@ -422,6 +427,28 @@ model, tokenizer = FastLanguageModel.from_pretrained(
 )
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.model_max_length = MAX_SEQ_LENGTH
+output_dir = OUTPUTS / "marketgyan-qwen3-8b-unsloth-qlora"
+
+COMPACT_SCHEMA_INSTRUCTIONS = (
+    "Return only valid compact JSON. Do not use markdown. Do not explain. "
+    "Allowed relevance: direct, indirect, not_relevant. "
+    "Allowed eventType: market_trading, earnings, capital_action, governance, "
+    "project_operations, credit_financing, regulation, monetary_liquidity, "
+    "fiscal_macroeconomic, sector_industry, other, not_applicable. "
+    "Allowed impactScope: company, sector, market, none. "
+    "Allowed impactDirection: bullish, bearish, neutral, uncertain, not_applicable. "
+    "Allowed impactHorizon: immediate, short_term, medium_term, not_applicable. "
+    "Allowed impactMechanism: earnings_cash_flow, ownership_supply, "
+    "financing_liquidity, regulation, demand_revenue, operations_capacity, "
+    "valuation_sentiment, market_flow, uncertain, none. "
+    "Allowed confidenceBand: low, medium, high. "
+    "Required keys: relevance, eventType, impactScope, impactDirection, "
+    "impactHorizon, impactMechanism, sectors, symbols, confidenceBand, "
+    "evidenceSentenceIds. For not_relevant use eventType=not_applicable, "
+    "impactScope=none, impactDirection=not_applicable, "
+    "impactHorizon=not_applicable, impactMechanism=none, sectors=[], symbols=[]. "
+    "Use only numbered evidenceSentenceIds from the source."
+)
 
 def prompt_for(row):
     numbered = "\\n".join(
@@ -429,9 +456,7 @@ def prompt_for(row):
         for sentence in row["sentences"]
     )
     return (
-        "Return one NEPSE-Impact-500 JSON object. First classify relevance. "
-        "Use only numbered evidence sentence IDs. Do not predict prices or "
-        "give investment advice.\\n"
+        f"{COMPACT_SCHEMA_INSTRUCTIONS}\\n"
         f"Title: {row['title']}\\n{numbered}"
     )
 """, ["gpu"]),
@@ -461,7 +486,9 @@ def generate_json(row, demonstrations=None):
             {
                 "role": "assistant",
                 "content": json.dumps(
-                    example["gold"], ensure_ascii=False, sort_keys=True
+                    compact_qwen_label(example["gold"]),
+                    ensure_ascii=False,
+                    sort_keys=True,
                 ),
             },
         ]
@@ -493,6 +520,13 @@ def generate_json(row, demonstrations=None):
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start >= 0 and end > start:
+            try:
+                return json.loads(raw[start:end + 1])
+            except json.JSONDecodeError:
+                pass
         return {"raw": raw}
 
 three_shot_examples = [
@@ -509,10 +543,11 @@ for row in tqdm(test_rows, desc="Qwen three-shot", unit="doc"):
         "id": row["id"],
         "prediction": generate_json(row, three_shot_examples),
     })
-write_jsonl(OUTPUTS / "qwen_base_zero_shot.jsonl", zero_shot)
-write_jsonl(OUTPUTS / "qwen_base_three_shot.jsonl", three_shot)
+output_dir.mkdir(parents=True, exist_ok=True)
+write_jsonl(output_dir / "qwen_base_zero_shot.jsonl", zero_shot)
+write_jsonl(output_dir / "qwen_base_three_shot.jsonl", three_shot)
 """, ["gpu"]),
-    markdown("## 4. Format gold JSON for supervised fine-tuning"),
+    markdown("## 4. Format compact gold JSON for supervised fine-tuning"),
     code("""
 from datasets import Dataset
 
@@ -521,7 +556,11 @@ def chat_messages(row):
         {"role": "user", "content": prompt_for(row)},
         {
             "role": "assistant",
-            "content": json.dumps(row["gold"], ensure_ascii=False, sort_keys=True),
+            "content": json.dumps(
+                compact_qwen_label(row["gold"]),
+                ensure_ascii=False,
+                sort_keys=True,
+            ),
         },
     ]
 
@@ -533,10 +572,26 @@ def format_training_text(row):
         enable_thinking=False,
     )
 
+def oversample_training_rows(values):
+    selected = list(values)
+    selected.extend(
+        row for row in values
+        if row["gold"]["relevance"] in {"indirect", "not_relevant"}
+    )
+    selected.extend(
+        row for row in values
+        if (
+            row["gold"]["relevance"] == "not_relevant"
+            and row["gold"]["language"] == "ne"
+        )
+    )
+    return selected
+
 def make_dataset(values, include_hard_negatives=True):
     selected = values if include_hard_negatives else [
         row for row in values if row["gold"]["relevance"] != "not_relevant"
     ]
+    selected = oversample_training_rows(selected)
     return Dataset.from_list([
         {"text": format_training_text(row)}
         for row in selected

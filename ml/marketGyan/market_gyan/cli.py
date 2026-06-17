@@ -4,6 +4,7 @@ from collections import Counter
 from pathlib import Path
 
 from .dataset import (
+    balanced_group_split,
     chronological_group_split,
     coverage_report,
     dataset_readiness,
@@ -44,12 +45,19 @@ def command_split(args):
     issues = validate_dataset(rows)
     if issues:
         raise ValueError("Dataset is invalid; run the validate command for details")
-    splits = chronological_group_split(rows)
+    if args.strategy == "chronological":
+        splits = chronological_group_split(rows)
+    else:
+        splits = balanced_group_split(rows)
     output = Path(args.output)
     for name, split_rows in splits.items():
         write_jsonl(output / ("%s.jsonl" % name), split_rows)
     (output / "manifest.json").write_text(
-        json.dumps(split_manifest(splits), indent=2, ensure_ascii=False),
+        json.dumps(
+            split_manifest(splits, strategy=args.strategy),
+            indent=2,
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
     print(json.dumps({
@@ -245,7 +253,10 @@ def command_deployment_gate(args):
         qwen_macro_f1=direction.get("macroF1", 0.0),
         qwen_per_class_f1=per_class,
         structured_validity=qwen.get("structuredOutputValidity", 0.0),
-        evidence_grounding=qwen.get("rationaleGrounding", 0.0),
+        evidence_grounding=qwen.get(
+            "evidenceGrounding",
+            qwen.get("rationaleGrounding", 0.0),
+        ),
         min_per_class_f1=args.min_per_class_f1,
     )
     target = Path(args.output)
@@ -267,6 +278,11 @@ def build_parser():
     split = subparsers.add_parser("split")
     split.add_argument("input")
     split.add_argument("output")
+    split.add_argument(
+        "--strategy",
+        choices=("balanced", "chronological"),
+        default="balanced",
+    )
     split.set_defaults(func=command_split)
 
     gate = subparsers.add_parser("gate")

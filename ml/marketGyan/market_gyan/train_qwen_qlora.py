@@ -4,12 +4,16 @@ import shutil
 from pathlib import Path
 
 
-def format_example(row, tokenizer):
+def format_example(row, tokenizer, compact_label):
     prompt = (
-        "Structure this Nepal market document as JSON. Do not give investment advice.\n"
+        "Return only compact NEPSE-Impact JSON. Do not give investment advice.\n"
         "Title: %s\nText: %s" % (row["title"], row["excerpt"])
     )
-    response = json.dumps(row["gold"], ensure_ascii=False, sort_keys=True)
+    response = json.dumps(
+        compact_label(row["gold"]),
+        ensure_ascii=False,
+        sort_keys=True,
+    )
     messages = [
         {"role": "user", "content": prompt},
         {"role": "assistant", "content": response},
@@ -20,6 +24,22 @@ def format_example(row, tokenizer):
         add_generation_prompt=False,
         enable_thinking=False,
     )
+
+
+def oversample_training_rows(rows):
+    selected = list(rows)
+    selected.extend(
+        row for row in rows
+        if row["gold"]["relevance"] in {"indirect", "not_relevant"}
+    )
+    selected.extend(
+        row for row in rows
+        if (
+            row["gold"]["relevance"] == "not_relevant"
+            and row["gold"]["language"] == "ne"
+        )
+    )
+    return selected
 
 
 def main():
@@ -43,7 +63,7 @@ def main():
         TrainingArguments,
         set_seed,
     )
-    from .dataset import read_jsonl
+    from .dataset import compact_qwen_label, read_jsonl
 
     set_seed(args.seed)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
@@ -51,10 +71,12 @@ def main():
     use_bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
     compute_dtype = torch.bfloat16 if use_bf16 else torch.float16
 
-    def prepare(path):
+    def prepare(path, oversample=False):
         rows = read_jsonl(path)
+        if oversample:
+            rows = oversample_training_rows(rows)
         dataset = Dataset.from_list([{
-            "text": format_example(row, tokenizer)
+            "text": format_example(row, tokenizer, compact_qwen_label)
         } for row in rows])
 
         def tokenize(batch):
@@ -119,7 +141,7 @@ def main():
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=prepare(args.train),
+        train_dataset=prepare(args.train, oversample=True),
         eval_dataset=prepare(args.validation),
         data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False),
     )
