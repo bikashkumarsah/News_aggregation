@@ -1,5 +1,6 @@
 import argparse
 import json
+import shutil
 from pathlib import Path
 
 
@@ -108,9 +109,7 @@ def main():
         logging_steps=5,
         eval_strategy="steps",
         eval_steps=25,
-        save_strategy="steps",
-        save_steps=25,
-        save_total_limit=3,
+        save_strategy="no",
         bf16=use_bf16,
         fp16=torch.cuda.is_available() and not use_bf16,
         optim="paged_adamw_8bit",
@@ -124,9 +123,14 @@ def main():
         eval_dataset=prepare(args.validation),
         data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False),
     )
-    trainer.train(resume_from_checkpoint=True if list(output.glob("checkpoint-*")) else None)
+    if output.exists():
+        for checkpoint in output.glob("checkpoint-*"):
+            shutil.rmtree(checkpoint, ignore_errors=True)
+    trainer.train()
     trainer.save_model()
     tokenizer.save_pretrained(output)
+    for checkpoint in output.glob("checkpoint-*"):
+        shutil.rmtree(checkpoint, ignore_errors=True)
 
 
 if __name__ == "__main__":

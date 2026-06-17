@@ -414,9 +414,10 @@ pip install -r requirements.txt
 ```
 
 Use a T4 16 GB minimum. Upload the complete `ml/marketGyan` directory,
-including the frozen manifest. Existing `checkpoint-*` directories are
-detected automatically. Download the generated ZIP archive before the runtime
-expires.
+including the frozen manifest. The Qwen notebook does not keep intermediate
+`checkpoint-*` directories; it saves only the final adapter, tokenizer,
+predictions, metrics, and plots. Download the generated ZIP archive before the
+runtime expires.
 
 Run the hard-negative ablation by changing only
 `include_hard_negatives=False` in the Qwen notebook and writing to a separate
@@ -555,12 +556,16 @@ npm run market-gyan:status -- --schema-version=2 --target=500
 ### CUDA memory error
 
 Use a T4 16 GB or better, keep batch size 1, use gradient accumulation 16,
-close other GPU sessions, and resume from the latest checkpoint.
+close other GPU sessions, then restart the Qwen training cell from the
+beginning. The Qwen notebook intentionally avoids intermediate checkpoints to
+keep the final artifact small.
 
 ### Interrupted training
 
-Keep the output directory and rerun the training cell. Both notebooks locate
-the newest `checkpoint-*` directory.
+For Qwen, rerun the training cell from the beginning and download the generated
+ZIP when it finishes. For XLM-R, temporary checkpoints may exist during
+training for early stopping, but they are removed after the final model is
+saved.
 
 ### Legacy Nepali PDF
 
