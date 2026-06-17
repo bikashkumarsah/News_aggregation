@@ -1,0 +1,29 @@
+{
+  "version": "security-aliases-v1",
+  "aliases": {
+    "ADBL": ["Agricultural Development Bank", "कृषि विकास बैंक"],
+    "API": ["Api Power Company", "अपि पावर कम्पनी", "अपि पावर"],
+    "CHCL": ["Chilime Hydropower Company", "चिलिमे जलविद्युत कम्पनी", "चिलिमे जलविद्युत"],
+    "CIT": ["Citizen Investment Trust", "नागरिक लगानी कोष"],
+    "EBL": ["Everest Bank", "एभरेष्ट बैंक"],
+    "GBIME": ["Global IME Bank", "ग्लोबल आइएमई बैंक"],
+    "HBL": ["Himalayan Bank", "हिमालयन बैंक"],
+    "HDL": ["Himalayan Distillery", "हिमालयन डिष्टिलरी"],
+    "HIDCL": ["Hydroelectricity Investment and Development Company", "जलविद्युत लगानी तथा विकास कम्पनी"],
+    "KBL": ["Kumari Bank", "कुमारी बैंक"],
+    "LICN": ["Life Insurance Corporation Nepal", "लाइफ इन्स्योरेन्स कर्पोरेशन नेपाल"],
+    "NABIL": ["Nabil Bank", "नबिल बैंक"],
+    "NBL": ["Nepal Bank", "नेपाल बैंक"],
+    "NICA": ["NIC Asia Bank", "एनआईसी एशिया बैंक"],
+    "NIFRA": ["Nepal Infrastructure Bank", "नेपाल इन्फ्रास्ट्रक्चर बैंक"],
+    "NIMB": ["Nepal Investment Mega Bank", "नेपाल इन्भेस्टमेन्ट मेगा बैंक"],
+    "NLIC": ["Nepal Life Insurance", "नेपाल लाइफ इन्स्योरेन्स"],
+    "NRIC": ["Nepal Reinsurance Company", "नेपाल पुनर्बीमा कम्पनी"],
+    "NTC": ["Nepal Doorsanchar Company", "Nepal Telecom", "नेपाल दूरसञ्चार कम्पनी", "नेपाल टेलिकम"],
+    "PRVU": ["Prabhu Bank", "प्रभु बैंक"],
+    "SANIMA": ["Sanima Bank", "सानिमा बैंक"],
+    "SCB": ["Standard Chartered Bank Nepal", "स्ट्यान्डर्ड चार्टर्ड बैंक"],
+    "SHIVM": ["Shivam Cements", "शिवम् सिमेन्ट्स"],
+    "UPPER": ["Upper Tamakoshi Hydropower", "माथिल्लो तामाकोशी जलविद्युत", "माथिल्लो तामाकोशी"]
+  }
+}

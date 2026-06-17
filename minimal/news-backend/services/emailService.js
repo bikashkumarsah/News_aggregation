@@ -61,6 +61,12 @@ const colors = {
 };
 
 const getCategoryColor = (category) => colors.categories[category?.toLowerCase()] || colors.muted;
+const escapeHtml = (value) => String(value || '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;');
 
 // Get greeting based on time
 const getGreeting = () => {
@@ -556,6 +562,60 @@ const templates = {
     };
   },
 
+  marketGyanDigest: (name, report) => {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const evidence = (report.evidence || []).slice(0, 5);
+    const sectors = (report.sectorAnalysis || []).slice(0, 8);
+    const content = `
+      ${components.header()}
+      ${components.heroBanner(
+        `Market Gyan Daily Report`,
+        `${escapeHtml(name)}, ${new Date(report.reportDate).toLocaleDateString('en-US')}`
+      )}
+      <tr>
+        <td style="padding: 0 0 20px 0;">
+          <h2 style="font-family: 'Inter', sans-serif; color: ${colors.dark};">
+            ${escapeHtml(report.headline)}
+          </h2>
+          <p style="font-family: 'Inter', sans-serif; line-height: 1.7; color: ${colors.text};">
+            ${escapeHtml(report.summary)}
+          </p>
+        </td>
+      </tr>
+      ${sectors.length ? `
+      <tr>
+        <td style="padding-bottom: 20px;">
+          <h3 style="font-family: 'Inter', sans-serif;">Sector analysis</h3>
+          <ul style="font-family: 'Inter', sans-serif; line-height: 1.7; color: ${colors.text};">
+            ${sectors.map((item) => `
+              <li><strong>${escapeHtml(item.sector)} (${escapeHtml(item.sentiment)}):</strong>
+              ${escapeHtml(item.summary)}</li>
+            `).join('')}
+          </ul>
+        </td>
+      </tr>` : ''}
+      <tr>
+        <td style="padding-bottom: 20px;">
+          <h3 style="font-family: 'Inter', sans-serif;">Sources</h3>
+          <ul style="font-family: 'Inter', sans-serif; line-height: 1.7;">
+            ${evidence.map((item) => `
+              <li><a href="${escapeHtml(item.sourceUrl)}">${escapeHtml(item.title)}</a></li>
+            `).join('')}
+          </ul>
+          <p style="font-family: 'Inter', sans-serif; color: ${colors.muted}; font-size: 12px;">
+            Informational analysis based on public data, not investment advice.
+          </p>
+        </td>
+      </tr>
+      ${components.ctaButton('Open Market Gyan', frontendUrl)}
+      ${components.footer(frontendUrl)}
+    `;
+    return {
+      subject: `Market Gyan: ${report.headline}`,
+      html: emailWrapper(content, report.summary)
+    };
+  },
+
   // Personalized Newsletter (Main daily email)
   personalizedNewsletter: (name, articles, preferences) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -655,11 +715,14 @@ const sendDailyDigest = (email, name, articles) => sendEmail(email, 'dailyDigest
 const sendWeeklyDigest = (email, name, articles, stats) => sendEmail(email, 'weeklyDigest', [name, articles, stats]);
 const sendPersonalizedNewsletter = (email, name, articles, preferences) =>
   sendEmail(email, 'personalizedNewsletter', [name, articles, preferences]);
+const sendMarketGyanDigest = (email, name, report) =>
+  sendEmail(email, 'marketGyanDigest', [name, report]);
 
 module.exports = {
   sendEmail,
   sendWelcomeEmail,
   sendDailyDigest,
   sendWeeklyDigest,
-  sendPersonalizedNewsletter
+  sendPersonalizedNewsletter,
+  sendMarketGyanDigest
 };

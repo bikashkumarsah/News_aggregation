@@ -1,0 +1,1 @@
+"""MarketGyan CrewAI service."""
