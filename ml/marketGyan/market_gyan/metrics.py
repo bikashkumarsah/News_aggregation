@@ -174,6 +174,12 @@ def _prediction_dict(prediction):
     return prediction if isinstance(prediction, dict) else {}
 
 
+def _string_list(values):
+    if not isinstance(values, list):
+        return []
+    return [str(value) for value in values]
+
+
 def _prediction_validation_errors(prediction, sentence_ids):
     if not isinstance(prediction, dict):
         return ["prediction must be an object"]
@@ -203,12 +209,15 @@ def _prediction_validation_errors(prediction, sentence_ids):
             errors.append("%s must be an array" % field)
     evidence_ids = prediction.get("evidenceSentenceIds", [])
     if isinstance(evidence_ids, list):
-        unknown = sorted(set(evidence_ids) - sentence_ids)
+        if any(not isinstance(value, str) for value in evidence_ids):
+            errors.append("evidenceSentenceIds values must be strings")
+        normalized_evidence_ids = _string_list(evidence_ids)
+        unknown = sorted(set(normalized_evidence_ids) - sentence_ids)
         if unknown:
             errors.append(
                 "unknown evidence sentence IDs: %s" % ", ".join(unknown)
             )
-        if not evidence_ids:
+        if not normalized_evidence_ids:
             errors.append("evidenceSentenceIds requires at least one ID")
     if prediction.get("relevance") == "not_relevant":
         for field, expected in NOT_RELEVANT_COMPACT_VALUES.items():
@@ -258,8 +267,10 @@ def benchmark_predictions(truth_rows, prediction_rows):
                 "raw": str(_prediction_dict(original).get("raw", ""))[:500],
             })
         grounded.append(
-            bool(prediction.get("evidenceSentenceIds"))
-            and set(prediction.get("evidenceSentenceIds", [])) <= sentence_ids
+            bool(_string_list(prediction.get("evidenceSentenceIds", [])))
+            and set(_string_list(
+                prediction.get("evidenceSentenceIds", [])
+            )) <= sentence_ids
         )
     result = {
         "matched": len(matched),
@@ -307,7 +318,7 @@ def benchmark_predictions(truth_rows, prediction_rows):
                 for row, _ in matched
             ],
             [
-                prediction.get("evidenceSentenceIds", [])
+                _string_list(prediction.get("evidenceSentenceIds", []))
                 for _, prediction in matched
             ],
         ),

@@ -118,6 +118,22 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual(metrics["structuredOutputValidity"], 0.0)
         self.assertEqual(metrics["evidenceGrounding"], 0.0)
 
+    def test_prediction_benchmark_rejects_numeric_evidence_ids_without_crashing(self):
+        truth = [row(1, "direct", "earnings", "bullish")]
+        prediction = compact_qwen_label(truth[0]["gold"])
+        prediction["evidenceSentenceIds"] = [1]
+
+        metrics = benchmark_predictions(truth, [{
+            "id": truth[0]["id"],
+            "prediction": prediction,
+        }])
+
+        self.assertEqual(metrics["structuredOutputValidity"], 0.0)
+        self.assertEqual(metrics["evidenceGrounding"], 0.0)
+        errors = " ".join(metrics["invalidOutputExamples"][0]["errors"])
+        self.assertIn("evidenceSentenceIds values must be strings", errors)
+        self.assertIn("unknown evidence sentence IDs: 1", errors)
+
     def test_agreement_reports_kappa_and_multilabel_f1(self):
         first = label()
         second = label()
