@@ -1,0 +1,302 @@
+\documentclass[aspectratio=169,11pt,hyperref={bookmarks=false}]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+
+\definecolor{MarketBlue}{RGB}{28,73,128}
+\definecolor{MarketGreen}{RGB}{20,120,90}
+\definecolor{MarketRed}{RGB}{170,55,55}
+\setbeamercolor{structure}{fg=MarketBlue}
+\setbeamercolor{title}{fg=white,bg=MarketBlue}
+\setbeamercolor{frametitle}{fg=white,bg=MarketBlue}
+\setbeamercolor{block title}{fg=white,bg=MarketBlue}
+\setbeamercolor{block body}{bg=blue!4}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{}
+
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+
+\newcommand{\smallsep}{\vspace{0.35em}}
+\newcommand{\good}[1]{\textcolor{MarketGreen}{#1}}
+\newcommand{\risk}[1]{\textcolor{MarketRed}{#1}}
+
+\title[MarketGyan]{MarketGyan: NEPSE-Impact Dataset, Model Training, and RAG Automation Progress}
+\author{Bikash Kumar Sah}
+\institute{Project Supervisor Discussion}
+\date{June 18, 2026}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Project Goal}
+  \begin{block}{Research contribution}
+    MarketGyan introduces a Nepal-specific market-impact benchmark and model workflow for identifying whether news is relevant to NEPSE, mapping it to event types, sectors, symbols, and evidence, and supporting grounded post-market reporting.
+  \end{block}
+  \smallsep
+  \begin{itemize}
+    \item Focus: Nepal share-market language, entities, and event mechanisms.
+    \item Dataset: human-adjudicated bilingual NEPSE-Impact-500.
+    \item Model: XLM-R and FinBERT baselines; Qwen3-8B QLoRA structured adapter.
+    \item Automation: RAG and deterministic market data remain the source of current facts.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Problem Reframing}
+  \begin{columns}[T]
+    \begin{column}{0.49\textwidth}
+      \begin{block}{Initial issue}
+        General business news often looks financial but does not have a defensible NEPSE impact mechanism.
+      \end{block}
+      \begin{itemize}
+        \item Product launches
+        \item Commodity retail prices
+        \item Foreign employment stories
+        \item Non-listed company news
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \begin{block}{Revised task}
+        Learn market relevance, event taxonomy, symbol/sector mapping, and evidence-grounded potential impact.
+      \end{block}
+      \begin{itemize}
+        \item Direct NEPSE impact
+        \item Indirect sector or macro impact
+        \item Hard-negative non-market stories
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Novelty Position}
+  \begin{tabularx}{\textwidth}{@{}p{0.24\textwidth}X@{}}
+    \toprule
+    Reference idea & MarketGyan contribution \\
+    \midrule
+    FinBERT & Domain adaptation, but for Nepal market relevance rather than generic English finance sentiment. \\
+    FinGPT & Data-centric lightweight tuning using a curated, auditable local corpus. \\
+    FinLLM survey & Benchmark design, hallucination control, JSON validity, and grounding metrics. \\
+    FinTral & Multi-task structured financial reasoning with evidence, sectors, symbols, and impact mechanism. \\
+    \bottomrule
+  \end{tabularx}
+  \smallsep
+  \begin{block}{Claim boundary}
+    LoRA itself is not the novelty. The novelty is the NEPSE-specific ontology, bilingual benchmark, adjudication protocol, and evidence-grounded evaluation.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Data Pipeline}
+  \centering
+  \begin{tikzpicture}[
+    node distance=0.75cm,
+    box/.style={draw, rounded corners, align=center, minimum width=2.3cm, minimum height=0.8cm, fill=blue!5},
+    arrow/.style={-Latex, thick}
+  ]
+    \node[box] (sources) {NEPSE data\\news\\regulators};
+    \node[box, right=of sources] (clean) {Clean\\deduplicate\\sentence split};
+    \node[box, right=of clean] (gemma) {Gemma candidate\\structured labels};
+    \node[box, right=of gemma] (review) {Human review\\adjudication};
+    \node[box, below=of review] (gold) {NEPSE-Impact-500\\gold JSONL};
+    \node[box, left=of gold] (models) {XLM-R\\FinBERT\\Qwen QLoRA};
+    \node[box, left=of models] (rag) {Qdrant RAG\\post-market reports};
+    \draw[arrow] (sources.east) -- (clean.west);
+    \draw[arrow] (clean.east) -- (gemma.west);
+    \draw[arrow] (gemma.east) -- (review.west);
+    \draw[arrow] (review.south) -- (gold.north);
+    \draw[arrow] (gold.west) -- (models.east);
+    \draw[arrow] (models.west) -- (rag.east);
+  \end{tikzpicture}
+  \smallsep
+  \begin{itemize}
+    \item Numeric market data is deterministic and never model-controlled.
+    \item News/regulatory text is model-assisted but human-adjudicated.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Corpus Status}
+  \begin{tabularx}{\textwidth}{@{}lrrX@{}}
+    \toprule
+    Component & Count & Status & Notes \\
+    \midrule
+    Gold records & 500 & \good{Ready} & Human-adjudicated schema-v2 labels. \\
+    Direct records & 300 & \good{Target met} & Company or NEPSE-market direct relevance. \\
+    Indirect records & 100 & \good{Target met} & Sector or macro mechanism. \\
+    Hard negatives & 100 & \good{Target met} & General business but no NEPSE mechanism. \\
+    English records & 299 & \good{Target met} & Bilingual benchmark. \\
+    Nepali records & 200 & \good{Target met} & Minimum language target met. \\
+    Symbol-level records & 273 & \good{Target met} & Needed for listed-company mapping. \\
+    \bottomrule
+  \end{tabularx}
+\end{frame}
+
+\begin{frame}{Ontology and Label Schema}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \begin{block}{Core fields}
+        \begin{itemize}
+          \item Relevance: direct, indirect, not relevant
+          \item Event type
+          \item Impact scope
+          \item Impact direction
+          \item Impact horizon
+          \item Impact mechanism
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{block}{Grounding fields}
+        \begin{itemize}
+          \item NEPSE sectors
+          \item Listed symbols
+          \item Confidence band
+          \item Evidence sentence IDs
+          \item Source URL and date
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \smallsep
+  \begin{block}{Important rule}
+    A record is positive only when there is a concrete NEPSE company, sector, market, regulatory, liquidity, or macro mechanism.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Baseline Training Results}
+  \small
+  \begin{tabularx}{\textwidth}{@{}lccX@{}}
+    \toprule
+    Model/task & Accuracy & Macro-F1 & Main finding \\
+    \midrule
+    XLM-R relevance & 0.707 & 0.665 & Best reliable relevance baseline; indirect class remains weak. \\
+    XLM-R direction & 0.634 & 0.401 & Bearish and uncertain are usable; bullish and neutral need work. \\
+    FinBERT English direction & 0.929 & 0.636 & Strong but only 14 English test rows, so it is a motivation baseline. \\
+    Qwen QLoRA first run & 0.213 & 0.250 & Failed first iteration: 41.3\% JSON validity and all-direct bias. \\
+    \bottomrule
+  \end{tabularx}
+  \smallsep
+  \begin{block}{Interpretation}
+    XLM-R is currently the reliable baseline. Qwen requires compact-output retraining before its result is meaningful.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Error Audit Findings}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \begin{block}{Baseline errors}
+        \begin{itemize}
+          \item XLM-R relevance: 22/75 errors.
+          \item XLM-R direction: 15/41 errors.
+          \item FinBERT: 1/14 errors.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{block}{Qwen errors}
+        \begin{itemize}
+          \item 44/75 invalid or truncated JSON outputs.
+          \item 10 hard-negative false positives among valid JSON.
+          \item Strong bias toward direct relevance.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \smallsep
+  \begin{block}{Manual revalidation target}
+    Prioritize hard negatives that both XLM-R and Qwen mark as relevant, plus bullish direct records predicted as uncertain.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Why Qwen Failed in First Run}
+  \begin{itemize}
+    \item Full gold JSON targets were too verbose for stable generation.
+    \item Qwen was asked to generate summaries, rationales, evidence text, tags, and labels in one output.
+    \item The chronological split produced a language/source shift: train was mostly English/direct while test had many Nepali hard negatives.
+    \item The model learned output style but not a strong not-relevant gate.
+  \end{itemize}
+  \smallsep
+  \begin{block}{Fix already implemented}
+    Balanced duplicate-grouped split plus compact Qwen labels: canonical labels, sectors, symbols, confidence, and evidence sentence IDs only.
+  \end{block}
+\end{frame}
+
+\begin{frame}{New Training Scheme}
+  \begin{tabularx}{\textwidth}{@{}lX@{}}
+    \toprule
+    Part & Decision \\
+    \midrule
+    Split & Balanced duplicate-grouped 70/15/15; chronological retained as robustness check. \\
+    Qwen target & Compact JSON only; no summary, rationale, evidence text, tags, or prose. \\
+    Hard negatives & Oversample not-relevant, indirect, and Nepali hard-negative examples. \\
+    Evaluation & JSON validity, grounding, relevance macro-F1, event macro-F1, direction macro-F1, sector/symbol F1. \\
+    Report generation & Use RAG and deterministic data for current facts and citations. \\
+    \bottomrule
+  \end{tabularx}
+\end{frame}
+
+\begin{frame}{RAG and Automation Design}
+  \centering
+  \begin{tikzpicture}[
+    node distance=0.7cm,
+    box/.style={draw, rounded corners, align=center, minimum width=2.5cm, minimum height=0.78cm, fill=green!5},
+    arrow/.style={-Latex, thick}
+  ]
+    \node[box] (ingest) {Daily ingestion};
+    \node[box, right=of ingest] (index) {Qdrant index};
+    \node[box, right=of index] (retrieve) {Filtered retrieval};
+    \node[box, below=of retrieve] (qwen) {Compact Qwen labels};
+    \node[box, left=of qwen] (market) {NEPSE snapshot};
+    \node[box, right=of qwen] (report) {Grounded report JSON};
+    \draw[arrow] (ingest) -- (index);
+    \draw[arrow] (index) -- (retrieve);
+    \draw[arrow] (retrieve) -- (report);
+    \draw[arrow] (qwen) -- (report);
+    \draw[arrow] (market.south) -- ++(0,-0.35) -| (report.south);
+  \end{tikzpicture}
+  \smallsep
+  \begin{block}{Key boundary}
+    The adapter classifies and structures evidence. RAG supplies current facts and citations for post-market reports.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Demonstration Path}
+  \begin{enumerate}
+    \item Show the NEPSE-Impact-500 corpus and ontology.
+    \item Show human-adjudicated labels and evidence sentence IDs.
+    \item Show XLM-R/FinBERT baseline metrics.
+    \item Show first Qwen failure analysis and the corrective compact-label design.
+    \item Rerun compact Qwen and compare against XLM-R on identical balanced test IDs.
+    \item Use RAG to generate a cited post-market report from retrieved evidence and deterministic market data.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Next Milestones}
+  \begin{enumerate}
+    \item Revalidate priority error samples from the audit CSV.
+    \item Rerun XLM-R and FinBERT on the balanced split.
+    \item Rerun Qwen zero-shot, three-shot, and compact QLoRA.
+    \item Compare Qwen with XLM-R and base Qwen.
+    \item Complete second-review agreement on 110 stratified records.
+    \item Populate Qdrant and evaluate 30 retrieval queries.
+    \item Demonstrate one post-market report with citations and no investment advice.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Summary}
+  \begin{block}{What is complete}
+    Data pipeline, schema-v2 ontology, 500 adjudicated gold records, balanced split, baseline training outputs, Qwen failure audit, compact-Qwen fix, and RAG service boundary.
+  \end{block}
+  \begin{block}{What remains}
+    Revalidate difficult samples, rerun compact Qwen, complete second-review agreement, evaluate retrieval, and demonstrate one grounded post-market report.
+  \end{block}
+  \begin{block}{Core message}
+    MarketGyan is a Nepal-specific evidence-grounded market-impact benchmark and modeling workflow, not a trading signal or price-prediction system.
+  \end{block}
+\end{frame}
+
+\end{document}

@@ -9,6 +9,9 @@ const {
     regenerateLabel,
     reviewLabel
 } = require('../services/labelQueueService');
+const {
+    importRevalidationAudit
+} = require('../services/revalidationAuditService');
 
 const router = express.Router();
 
@@ -39,6 +42,18 @@ router.get('/stats', async (req, res) => {
     try {
         const data = await getReviewStats({
             schemaVersion: req.query.schemaVersion
+        });
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post('/audit/import', async (req, res) => {
+    try {
+        const data = await importRevalidationAudit({
+            schemaVersion: req.body?.schemaVersion || req.query.schemaVersion,
+            actor: marketGyanConfig.reviewerId
         });
         res.json({ success: true, data });
     } catch (error) {

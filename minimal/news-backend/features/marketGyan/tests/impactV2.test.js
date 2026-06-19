@@ -1,5 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const mongoose = require('mongoose');
 
 const {
@@ -22,10 +25,15 @@ const {
 const {
     adjudicatedLabelToExport,
     adjudicateLabelV2,
+    buildQueueQuery,
     exportApprovedLabels,
     listQueue,
+    markRevalidationResolved,
     saveAnnotationV2
 } = require('../services/labelQueueService');
+const {
+    importRevalidationAudit
+} = require('../services/revalidationAuditService');
 const {
     candidateDiffFields
 } = require('../services/assistantReviewService');
@@ -160,6 +168,138 @@ test('assistant-reviewed labels can append a submitted annotation revision', () 
     });
 
     assert.equal(label.validateSync(), undefined);
+});
+
+test('v2 labels can store model-error revalidation audit metadata', () => {
+    const label = new MarketLabel({
+        document: new mongoose.Types.ObjectId(),
+        idempotencyKey: 'revalidation-audit-schema-test',
+        status: 'approved',
+        input: {
+            title: 'Nabil Bank quarterly result',
+            excerpt: sentences.map((item) => item.text).join(' '),
+            contentHash: 'revalidation-audit-content-hash',
+            sentences
+        },
+        model: {
+            schemaVersion: 2
+        },
+        originalCandidate: directCandidate,
+        candidate: directCandidate,
+        revalidationAudit: {
+            needsReview: true,
+            source: 'training-run-error-audit',
+            priorityScore: 10,
+            models: ['xlmr-relevance', 'qwen-qlora'],
+            reasons: ['xlmr-relevance: not_relevant->direct']
+        },
+        revisions: [{
+            action: 'revalidation_flagged',
+            actor: 'test'
+        }]
+    });
+
+    assert.equal(label.validateSync(), undefined);
+});
+
+test('revalidation audit importer marks matching schema-v2 labels only', async () => {
+    const originalFind = MarketLabel.find;
+    const originalBulkWrite = MarketLabel.bulkWrite;
+    const existingId = new mongoose.Types.ObjectId().toString();
+    const missingId = new mongoose.Types.ObjectId().toString();
+    const auditPath = path.join(
+        fs.mkdtempSync(path.join(os.tmpdir(), 'market-gyan-audit-')),
+        'audit.json'
+    );
+    let capturedQuery;
+    let capturedOperations;
+
+    fs.writeFileSync(auditPath, JSON.stringify({
+        highestPriority: [{
+            id: existingId,
+            priorityScore: 10,
+            models: 'xlmr-relevance;qwen-qlora',
+            reasons: 'xlmr-relevance: not_relevant->direct; qwen relevance: not_relevant->direct'
+        }, {
+            id: missingId,
+            priorityScore: 8,
+            models: 'qwen-qlora',
+            reasons: 'qwen invalid/truncated JSON'
+        }]
+    }), 'utf8');
+
+    MarketLabel.find = (query) => {
+        capturedQuery = query;
+        return {
+            select: () => ({
+                lean: async () => [{ _id: existingId }]
+            })
+        };
+    };
+    MarketLabel.bulkWrite = async (operations) => {
+        capturedOperations = operations;
+        return { matchedCount: operations.length, modifiedCount: operations.length };
+    };
+
+    try {
+        const result = await importRevalidationAudit({
+            auditPath,
+            schemaVersion: 2,
+            actor: 'reviewer-1'
+        });
+
+        assert.equal(result.auditRows, 2);
+        assert.equal(result.imported, 1);
+        assert.deepEqual(result.missing, [missingId]);
+        assert.deepEqual(capturedQuery, {
+            _id: { $in: [existingId, missingId] },
+            'model.schemaVersion': 2
+        });
+        assert.equal(
+            capturedOperations[0].updateOne.update.$set['revalidationAudit.needsReview'],
+            true
+        );
+        assert.deepEqual(
+            capturedOperations[0].updateOne.update.$set['revalidationAudit.models'],
+            ['xlmr-relevance', 'qwen-qlora']
+        );
+        assert.equal(
+            capturedOperations[0].updateOne.update.$push.revisions.action,
+            'revalidation_flagged'
+        );
+    } finally {
+        MarketLabel.find = originalFind;
+        MarketLabel.bulkWrite = originalBulkWrite;
+    }
+});
+
+test('review queue supports model-error revalidation filtering', () => {
+    const query = buildQueueQuery({
+        schemaVersion: 2,
+        needsRevalidation: 'true'
+    });
+
+    assert.deepEqual(query, {
+        'model.schemaVersion': 2,
+        'revalidationAudit.needsReview': true
+    });
+});
+
+test('resolved revalidation labels are cleared and recorded in revisions', () => {
+    const job = {
+        revalidationAudit: {
+            needsReview: true,
+            priorityScore: 10,
+            source: 'training-run-error-audit'
+        },
+        revisions: []
+    };
+
+    markRevalidationResolved(job, 'reviewer-1');
+
+    assert.equal(job.revalidationAudit.needsReview, false);
+    assert.equal(job.revalidationAudit.resolvedBy, 'reviewer-1');
+    assert.equal(job.revisions[0].action, 'revalidation_resolved');
 });
 
 test('company aliases map bilingual mentions to a registered symbol', () => {

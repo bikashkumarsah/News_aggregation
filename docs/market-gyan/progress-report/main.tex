@@ -123,7 +123,10 @@ adjudicated gold records. The current NEPSE-Impact-500 gold corpus contains
 passes the composition, language, source, symbol, and event-coverage gates.
 The approved JSONL export and balanced duplicate-grouped split manifest are
 ready for training reruns. The first model run has been audited, but compact
-Qwen reruns have not yet produced replacement results.
+Qwen reruns have not yet produced replacement results. The model-error audit
+flagged 40 high-priority records for source-grounded revalidation; those
+records have now been submitted through the validation workflow, active audit
+flags are cleared, and the gold export has been refreshed.
 
 The modeling plan now compares Gemma before edits, base Qwen3-8B zero-shot,
 base Qwen3-8B three-shot, XLM-R, English-only FinBERT, and MarketGyan
@@ -146,7 +149,7 @@ public data. It is not investment advice and does not place trades.
 \begin{table}[htbp]
   \centering
   \caption{MarketGyan implementation snapshot as of \SnapshotDate.}
-  \begin{tabularx}{\textwidth}{@{}Y r@{}}
+  \begin{tabularx}{\textwidth}{@{}L{0.45\textwidth}Y@{}}
     \toprule
     \textbf{Measure} & \textbf{Current value} \\
     \midrule
@@ -167,6 +170,11 @@ public data. It is not investment advice and does not place trades.
       \PilotApprovedCount{} / \PilotRejectedCount \\
     Schema-v2 queued / pending / adjudicated &
       \VTwoQueuedCount{} / \VTwoPendingCount{} / \VTwoAdjudicatedCount \\
+    Schema-v2 excluded / failed / total labels &
+      \VTwoExcludedCount{} / \VTwoFailedCount{} / \VTwoTotalLabelCount \\
+    Submitted reviewer annotations & \SubmittedAnnotationCount \\
+    Active model-error records still flagged for revalidation &
+      \RevalidationAuditCount{} with max priority \RevalidationMaxPriority \\
     NEPSE-Impact target & \CandidateCollectionTarget{} adjudicated records \\
     Gemma tokens recorded across v1 and v2 & \GemmaTokenCount \\
     Schema-v2 smoke-test tokens & \VTwoGemmaTokenCount \\
@@ -248,13 +256,14 @@ composition gates must be checked again after adjudication.
   Annotation and gold export & \implemented &
   Reviewer-specific annotations, explicit adjudication, pilot-only v1 export,
   and adjudicated-only v2 JSONL export. NEPSE-Impact-500 is exported and split. \\
-  XLM-R and FinBERT baselines & \planned &
-  Notebook code trains relevance and direction with XLM-R and English
-  direction with FinBERT. The dataset is ready; no completed run exists. \\
-  Qwen3-8B QLoRA & \planned &
+  XLM-R and FinBERT baselines & \implemented &
+  First training outputs exist and have been audited. XLM-R is currently the
+  strongest reliable classifier; a balanced-split rerun is still required. \\
+  Qwen3-8B QLoRA & \implemented &
   A direct Colab/Kaggle notebook implements zero-shot, three-shot, four-bit
   QLoRA, checkpoint resumption, deterministic JSON generation, ablation
-  controls, plots, and metric export; no fine-tuning run has been completed. \\
+  controls, plots, and metric export. The first Qwen run failed validity and
+  bias gates, so the compact-label rerun is pending. \\
   Qdrant retrieval & \implemented &
   Dedicated collection, deterministic chunking, content-hash idempotency,
   metadata filters, and citation reconstruction are implemented. No live
@@ -274,7 +283,11 @@ composition gates must be checked again after adjudication.
 \normalsize
 
 \section{Milestone history}
+\begingroup
+\raggedright
 \MarketGyanMilestoneHistory
+\par
+\endgroup
 
 \chapter{Data Pipeline}
 
@@ -541,6 +554,31 @@ training export. At present, \VTwoAdjudicatedCount{} schema-v2 records are
 adjudicated, exported, validated, and split. Non-gold records remain blocked
 from export.
 
+\section{Model-error revalidation workflow}
+
+After the first model run, prediction artifacts were joined back to
+\texttt{nepse-impact-500.jsonl} by label ID. The resulting audit ranks
+examples where model disagreement suggests either a difficult case or a
+possible annotation issue. The imported audit flagged 40 records, mostly
+hard-negative general-business stories that XLM-R or Qwen predicted as
+market-relevant, plus a smaller set of direct bullish records that baseline
+models predicted as not relevant or uncertain. As of this snapshot, those
+records have been reviewed and submitted, leaving
+\RevalidationAuditCount{} active audit flags.
+
+The audit is not a replacement for human judgment. It writes a
+\texttt{revalidationAudit} marker to the corresponding \texttt{MarketLabel}
+record, including priority score, model names, and disagreement reasons.
+Submitting, rejecting, excluding, or adjudicating a flagged record clears the
+marker. The refreshed gold export now passes dataset validation and the
+500-record training gate.
+Reviewers then open the same validation workflow, filter
+\texttt{needsReview}, inspect the original source sentences and URL, and
+submit the corrected annotation or confirm the existing gold label. A draft
+keeps the audit flag active. Submission, rejection, exclusion, or
+adjudication clears the flag and records a revision, preserving the audit
+trail while avoiding manual JSONL edits.
+
 \chapter{Dataset Preparation}
 
 \section{Adjudicated schema-v2 JSONL contract}
@@ -674,8 +712,17 @@ recall, F1, support, and confusion counts. The
 language, event, and direction distributions, training and evaluation loss,
 confusion matrices, and per-class metrics. It loads the best checkpoint and
 exports each model, tokenizer, plot, prediction file, and
-\texttt{metrics.json}. It is implemented but has not been run on adjudicated
-MarketGyan labels.
+\texttt{metrics.json}.
+
+The first completed run produced the current baseline reference rather than
+the final benchmark result. XLM-R relevance classification reached
+\XLMRRelevanceAccuracy{} accuracy and \XLMRRelevanceMacroFOne{} macro-F1,
+with \XLMRRelevanceErrors{} errors on 75 test rows. Direction classification
+on relevant rows reached \XLMRDirectionAccuracy{} accuracy and
+\XLMRDirectionMacroFOne{} macro-F1, with \XLMRDirectionErrors{} errors on
+41 test rows. The main weakness is still indirect relevance and bullish
+direction, so the balanced split and revalidated audit cases should be used
+before final thesis metrics are claimed.
 
 \section{English-only FinBERT baseline}
 
@@ -685,6 +732,11 @@ uncertain examples are excluded because the published FinBERT sentiment head
 uses three classes. This baseline directly tests the proposal's
 financial-domain adaptation motivation while making its English-only
 limitation explicit.
+
+The first English-only FinBERT evaluation reached \FinBERTAccuracy{} accuracy
+and \FinBERTMacroFOne{} macro-F1, with \FinBERTErrors{} error on 14 English
+relevant test rows. The small support makes it useful as a motivation and
+sanity-check baseline, not as a sufficient standalone benchmark.
 
 \section{Qwen3-8B QLoRA experiment}
 
@@ -750,6 +802,16 @@ relevance, event, direction, sector, symbol, sentence-evidence, validity,
 grounding, and confusion-matrix results.
 Adapters, tokenizer files, predictions, plots, and metrics are archived for
 download.
+
+The first Qwen QLoRA run is therefore treated as a failure-analysis artifact.
+It reached only \QwenFirstRunAccuracy{} relevance accuracy,
+\QwenFirstRunMacroFOne{} relevance macro-F1, and
+\QwenStructuredValidity{} structured-output validity. Of 75 test outputs,
+\QwenInvalidJsonCount{} were invalid or truncated JSON and only
+\QwenValidJsonCount{} were valid JSON. Among valid outputs, the model showed
+an all-direct bias and produced \QwenHardNegativeFalsePositiveCount{}
+hard-negative false positives. These findings justify the compact-label
+target, balanced split, and hard-negative oversampling before rerunning Qwen.
 
 \section{Evaluation plan}
 
@@ -879,11 +941,14 @@ adaptation experiment while reducing stale-knowledge and hallucination risk.
   \endhead
   Financial corpus & \implemented &
   Schema-v1 collection reached \PilotTotalCount{} records but exposed
-  relevance errors. V2 selection and contracts are implemented; archive
-  expansion, regeneration, and adjudication remain. \\
+  relevance errors. V2 selection, adjudication, rebalance, JSONL export, and
+  duplicate-grouped split are complete. The 40-record model-error audit loop
+  has been reviewed and the refreshed export passes validation before final
+  reruns. \\
   Model experiments & \planned &
-  XLM-R, FinBERT, base-Qwen, and QLoRA notebook paths are implemented.
-  Adjudicated data, GPU runs, ablations, and measured results remain. \\
+  XLM-R, FinBERT, and one Qwen QLoRA run have been executed and audited.
+  Compact-Qwen rerun, base-Qwen zero-shot/three-shot, ablations, and final
+  measured results remain. \\
   Finance RAG & \implemented &
   Qdrant chunking, payload provenance, filters, and citation reconstruction
   exist. Live indexing and 30-query manual evaluation remain. \\
@@ -944,9 +1009,9 @@ by default and fail closed when dependencies or credentials are unavailable.
         excluded by the project scope.
   \item The schema-v1 pool over-represents general business coverage and is
         not a valid NEPSE-impact benchmark.
-  \item The v2 gold corpus passes the current composition gates, but targeted
-        human-adjudicated replacements and exclusions must be reported as part
-        of the dataset construction audit trail.
+  \item The v2 gold corpus passes the current composition gates and the
+        model-error revalidation loop is submitted, but final claims still
+        require rerunning every model on the refreshed balanced split.
   \item The first chronological split was source- and language-shifted because
         the collection timeline differs by outlet; it is retained only as a
         secondary robustness check.
@@ -960,8 +1025,9 @@ by default and fail closed when dependencies or credentials are unavailable.
         \RetryableFailureCount{} transient jobs remain eligible under the
         current retry policy.
   \item Independent second-review agreement has not yet been measured.
-  \item No fine-tuning, live retrieval, agent, or inference benchmarks exist
-        yet.
+  \item The first Qwen fine-tuning run failed structured-validity and bias
+        gates; compact-label Qwen results do not exist yet.
+  \item No live retrieval, agent, or inference benchmarks exist yet.
 \end{itemize}
 
 \section{Report update procedure}
@@ -982,9 +1048,11 @@ versioned ontology, bilingual aliases, sentence-grounded Gemma proposals,
 independent annotations, explicit adjudication, duplicate-safe export,
 reaction records, and model notebooks covering XLM-R, FinBERT, base Qwen, and
 Qwen3-8B QLoRA. The methodology and quota-compliant 500-record adjudicated
-dataset are implemented and exported, but agreement results, model
-experiments, retrieval benchmarks, agent benchmarks, and reaction analysis are
-not complete.
+dataset are implemented and exported. First XLM-R, FinBERT, and Qwen outputs
+have been audited; Qwen failed validity and bias gates, and the
+source-grounded revalidation queue is now cleared. Agreement results,
+compact-Qwen rerun results, retrieval benchmarks, agent benchmarks, and
+reaction analysis are not complete.
 
 \chapter{Remaining Work}
 
@@ -997,11 +1065,12 @@ application interface:
   \item Report kappa and multilabel agreement; revise guidelines and reannotate
         disagreement-heavy categories if relevance or direction kappa is
         below 0.70.
-  \item Train and evaluate XLM-R relevance and direction baselines on the
-        frozen split.
-  \item Run English-only FinBERT on the English relevant subset.
+  \item Rerun XLM-R relevance and direction baselines on the final balanced
+        split after any revalidation edits.
+  \item Rerun English-only FinBERT on the final English relevant subset.
   \item Run Gemma-before-edit, base-Qwen zero-shot, base-Qwen three-shot,
-        XLM-R, English FinBERT, and Qwen3-8B QLoRA on identical test IDs.
+        XLM-R, English FinBERT, and compact-label Qwen3-8B QLoRA on identical
+        test IDs.
   \item Run QLoRA/base-Qwen, hard-negative, and RAG ablations; use paired
         bootstrap analysis for the adaptation claim.
   \item Compute first- and third-session market reactions with missing-data

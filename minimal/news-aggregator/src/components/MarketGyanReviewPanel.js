@@ -4,10 +4,12 @@ import {
   Check,
   Download,
   ExternalLink,
+  Flag,
   RefreshCw,
   RotateCcw,
   Save,
   Send,
+  Upload,
   X
 } from 'lucide-react';
 import { API_URL } from '../config';
@@ -41,6 +43,10 @@ const emptyStats = {
   adjudicationCounts: {},
   assistantReviewed: 0,
   assistantCorrected: 0,
+  revalidationAudit: {
+    needsReview: 0,
+    bySource: {}
+  },
   reviewerRole: 'primary',
   gemmaFailures: 0
 };
@@ -134,12 +140,16 @@ const MarketGyanReviewPanel = () => {
     sector: '',
     adjudicationStatus: 'pending',
     secondReview: false,
+    needsRevalidation: false,
+    includeReviewed: false,
     hasErrors: false
   });
   const [candidate, setCandidate] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [auditImporting, setAuditImporting] = useState(false);
+  const [auditMessage, setAuditMessage] = useState('');
   const [error, setError] = useState('');
 
   const query = useMemo(() => {
@@ -220,6 +230,37 @@ const MarketGyanReviewPanel = () => {
     }
   };
 
+  const importAudit = async () => {
+    setAuditImporting(true);
+    setAuditMessage('');
+    setError('');
+    try {
+      const response = await fetch(`${API_URL}/market-gyan/review/audit/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ schemaVersion: 2 })
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || 'Audit import failed');
+      }
+      const imported = payload.data?.imported || 0;
+      const missing = payload.data?.missing?.length || 0;
+      setAuditMessage(`Loaded ${imported} audit-priority records${missing ? `; ${missing} IDs were not found in MongoDB` : ''}.`);
+      setFilters((current) => ({
+        ...current,
+        status: '',
+        adjudicationStatus: '',
+        needsRevalidation: true,
+        includeReviewed: true
+      }));
+    } catch (requestError) {
+      setError(requestError.message || 'Audit import failed');
+    } finally {
+      setAuditImporting(false);
+    }
+  };
+
   const setList = (field, value) => {
     setCandidate((current) => ({
       ...current,
@@ -245,6 +286,7 @@ const MarketGyanReviewPanel = () => {
           <Metric label="Submitted reviews" value={stats.annotationCounts.submitted || 0} />
           <Metric label="Excluded" value={stats.adjudicationCounts.excluded || 0} />
           <Metric label="Gemma failures" value={stats.gemmaFailures || 0} />
+          <Metric label="Need revalidation" value={stats.revalidationAudit?.needsReview || 0} />
           <Metric label="Codex reviewed" value={stats.assistantReviewed || 0} />
           <Metric label="Codex corrected" value={stats.assistantCorrected || 0} />
           <Metric label="Reviewer role" value={stats.reviewerRole || 'primary'} />
@@ -266,7 +308,28 @@ const MarketGyanReviewPanel = () => {
             <input type="checkbox" checked={filters.secondReview} onChange={(event) => setFilters({ ...filters, secondReview: event.target.checked })} />
             Second-review subset
           </label>
+          <label className="flex items-center gap-2 pb-2 text-sm font-semibold">
+            <input
+              type="checkbox"
+              checked={filters.needsRevalidation}
+              onChange={(event) => setFilters({
+                ...filters,
+                needsRevalidation: event.target.checked,
+                includeReviewed: event.target.checked ? true : filters.includeReviewed,
+                status: event.target.checked ? '' : filters.status,
+                adjudicationStatus: event.target.checked ? '' : filters.adjudicationStatus
+              })}
+            />
+            Needs revalidation
+          </label>
+          <label className="flex items-center gap-2 pb-2 text-sm font-semibold">
+            <input type="checkbox" checked={filters.includeReviewed} onChange={(event) => setFilters({ ...filters, includeReviewed: event.target.checked })} />
+            Show submitted
+          </label>
           <div className="ml-auto flex gap-2">
+            <button disabled={auditImporting} type="button" onClick={importAudit} className="btn-secondary flex items-center gap-2">
+              <Upload className="w-4 h-4" /> {auditImporting ? 'Loading audit...' : 'Load error audit'}
+            </button>
             <a href={`${API_URL}/market-gyan/review/export?schemaVersion=2`} className="btn-secondary flex items-center gap-2">
               <Download className="w-4 h-4" /> Gold export
             </a>
@@ -276,6 +339,12 @@ const MarketGyanReviewPanel = () => {
           </div>
         </div>
       </section>
+
+      {auditMessage && (
+        <div role="status" className="premium-card border-emerald-300 p-4 text-sm text-emerald-700 dark:text-emerald-300">
+          <Flag className="inline w-5 h-5 mr-2" />{auditMessage}
+        </div>
+      )}
 
       {error && (
         <div role="alert" className="premium-card border-red-300 p-4 text-red-700 dark:text-red-300">
@@ -322,8 +391,21 @@ const MarketGyanReviewPanel = () => {
                   <p className="mt-2 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                     {item.assistantReview.changedFields?.length
                       ? `Codex-corrected suggestion: ${item.assistantReview.changedFields.map(labelText).join(', ')}`
-                      : 'Codex review confirmed the generated candidate without changes.'}
+                    : 'Codex review confirmed the generated candidate without changes.'}
                   </p>
+                )}
+                {item.revalidationAudit?.needsReview && (
+                  <div role="note" className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                    <p className="font-black">
+                      Needs revalidation: priority {item.revalidationAudit.priorityScore || 0}
+                    </p>
+                    {item.revalidationAudit.models?.length > 0 && (
+                      <p className="mt-1">Models: {item.revalidationAudit.models.join(', ')}</p>
+                    )}
+                    {item.revalidationAudit.reasons?.length > 0 && (
+                      <p className="mt-1">Reason: {item.revalidationAudit.reasons.join('; ')}</p>
+                    )}
+                  </div>
                 )}
               </div>
               <a href={item.input.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label="Open source" className="p-2 rounded-lg border" style={{ borderColor: 'var(--border)' }}>

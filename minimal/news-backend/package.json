@@ -20,6 +20,7 @@
     "market-gyan:adjudicate-submitted": "node features/marketGyan/scripts/marketGyan.js adjudicate-submitted",
     "market-gyan:rebalance-audit": "node features/marketGyan/scripts/marketGyan.js rebalance-audit",
     "market-gyan:rebalance-apply": "node features/marketGyan/scripts/marketGyan.js rebalance-apply",
+    "market-gyan:import-revalidation-audit": "node features/marketGyan/scripts/marketGyan.js import-revalidation-audit",
     "market-gyan:status": "node features/marketGyan/scripts/marketGyan.js status",
     "market-gyan:index": "node features/marketGyan/scripts/marketGyan.js index",
     "market-gyan:report": "node features/marketGyan/scripts/marketGyan.js report",

@@ -29,6 +29,24 @@ const MAX_EXCERPT_LENGTH = 1500;
 const PROCESSING_TIMEOUT_MS = 15 * 60 * 1000;
 const SENTIMENTS = ['bullish', 'bearish', 'neutral'];
 
+const markRevalidationResolved = (job, reviewer) => {
+    if (!job.revalidationAudit?.needsReview) return;
+    const currentAudit = job.revalidationAudit?.toObject?.()
+        || job.revalidationAudit
+        || {};
+    job.revalidationAudit = {
+        ...currentAudit,
+        needsReview: false,
+        resolvedAt: new Date(),
+        resolvedBy: reviewer
+    };
+    job.revisions.push({
+        action: 'revalidation_resolved',
+        reason: 'Resolved from the MarketGyan validation UI',
+        actor: reviewer
+    });
+};
+
 const modelScope = (config = marketGyanConfig) => ({
     'model.name': config.gemmaModel,
     'model.promptVersion': config.promptVersion,
@@ -570,6 +588,9 @@ const reviewLabelV1 = async (id, {
 
     job.reviewedAt = new Date();
     job.reviewer = reviewer;
+    if (action !== 'save') {
+        markRevalidationResolved(job, reviewer);
+    }
     await job.save();
     return job;
 };
@@ -628,6 +649,9 @@ const saveAnnotationV2 = async (job, {
         actor: reviewer
     });
     job.reviewedAt = new Date();
+    if (status !== 'draft') {
+        markRevalidationResolved(job, reviewer);
+    }
 
     // Validate the label before persisting the independent annotation so a
     // schema mismatch cannot leave a submitted annotation without its audit.
@@ -690,6 +714,7 @@ const adjudicateLabelV2 = async (job, {
             reason: job.adjudication.reason,
             actor: reviewer
         });
+        markRevalidationResolved(job, reviewer);
     } else {
         const normalized = await validateReviewCandidateV2(job, candidate);
         job.adjudication = {
@@ -707,6 +732,7 @@ const adjudicateLabelV2 = async (job, {
             reason: job.adjudication.reason,
             actor: reviewer
         });
+        markRevalidationResolved(job, reviewer);
     }
     job.reviewedAt = new Date();
     job.reviewer = reviewer;
@@ -821,6 +847,9 @@ const buildQueueQuery = (filters = {}) => {
     if (String(filters.hasErrors) === 'true') {
         query['validationErrors.0'] = { $exists: true };
     }
+    if (String(filters.needsRevalidation) === 'true') {
+        query['revalidationAudit.needsReview'] = true;
+    }
     return query;
 };
 
@@ -846,10 +875,13 @@ const listQueue = async ({
             query._id = { $nin: reviewedLabelIds };
         }
     }
+    const sort = String(filters.needsRevalidation) === 'true'
+        ? { 'revalidationAudit.priorityScore': -1, 'input.publishedAt': 1, _id: 1 }
+        : { createdAt: 1 };
     const [items, total] = await Promise.all([
         MarketLabel.find(query)
             .select('-rawResponse')
-            .sort({ createdAt: 1 })
+            .sort(sort)
             .skip((parsedPage - 1) * parsedLimit)
             .limit(parsedLimit)
             .lean(),
@@ -888,7 +920,8 @@ const getReviewStats = async ({ schemaVersion = marketGyanConfig.schemaVersion }
             annotationRows,
             adjudicationRows,
             goldRows,
-            assistantRows
+            assistantRows,
+            revalidationRows
         ] = await Promise.all([
             MarketLabel.aggregate([
                 { $match: match },
@@ -941,6 +974,21 @@ const getReviewStats = async ({ schemaVersion = marketGyanConfig.schemaVersion }
                         }
                     }
                 }
+            ]),
+            MarketLabel.aggregate([
+                {
+                    $match: {
+                        ...match,
+                        'revalidationAudit.needsReview': true
+                    }
+                },
+                {
+                    $group: {
+                        _id: '$revalidationAudit.source',
+                        count: { $sum: 1 },
+                        maxPriority: { $max: '$revalidationAudit.priorityScore' }
+                    }
+                }
             ])
         ]);
         const counts = Object.fromEntries(rows.map((row) => [row._id, row.count]));
@@ -963,6 +1011,15 @@ const getReviewStats = async ({ schemaVersion = marketGyanConfig.schemaVersion }
             goldDistribution: goldRows,
             assistantReviewed: assistantRows[0]?.reviewed || 0,
             assistantCorrected: assistantRows[0]?.corrected || 0,
+            revalidationAudit: {
+                needsReview: revalidationRows.reduce((sum, row) => sum + row.count, 0),
+                bySource: Object.fromEntries(
+                    revalidationRows.map((row) => [row._id || 'unknown', {
+                        count: row.count,
+                        maxPriority: row.maxPriority || 0
+                    }])
+                )
+            },
             gemmaFailures: counts.failed || 0
         };
     }
@@ -1123,5 +1180,6 @@ module.exports = {
     retryFailedLabels,
     reviewLabel,
     saveAnnotationV2,
+    markRevalidationResolved,
     trainingGateFromCounts
 };
