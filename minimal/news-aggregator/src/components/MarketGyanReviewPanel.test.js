@@ -60,6 +60,10 @@ const statsPayload = {
     adjudicationCounts: { pending: 1 },
     assistantReviewed: 1,
     assistantCorrected: 1,
+    revalidationAudit: {
+      needsReview: 0,
+      bySource: {}
+    },
     reviewerRole: 'primary',
     gemmaFailures: 0
   }
@@ -201,4 +205,65 @@ test('shows review API failures without exposing an editor', async () => {
 
   expect(await screen.findByRole('alert')).toHaveTextContent('Review tools are not available');
   expect(screen.queryByLabelText('Candidate summary')).not.toBeInTheDocument();
+});
+
+test('imports the model error audit and enables the revalidation queue filter', async () => {
+  const requestedUrls = [];
+  const flaggedQueuePayload = {
+    ...queuePayload,
+    data: {
+      ...queuePayload.data,
+      items: [{
+        ...queuePayload.data.items[0],
+        revalidationAudit: {
+          needsReview: true,
+          priorityScore: 10,
+          models: ['xlmr-relevance', 'qwen-qlora'],
+          reasons: [
+            'xlmr-relevance: not_relevant->direct',
+            'qwen relevance: not_relevant->direct'
+          ],
+          source: 'training-run-error-audit'
+        }
+      }]
+    }
+  };
+  global.fetch = jest.fn((url, options = {}) => {
+    requestedUrls.push(url);
+    if (url.includes('/audit/import')) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: { imported: 67, missing: [] }
+        })
+      });
+    }
+    if (url.includes('/queue') && url.includes('needsRevalidation=true')) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => flaggedQueuePayload
+      });
+    }
+    return Promise.resolve({
+      ok: true,
+      json: async () => responseFor(url)
+    });
+  });
+
+  render(<MarketGyanReviewPanel />);
+
+  await screen.findByText('Nabil Bank quarterly result');
+  await userEvent.click(screen.getByRole('button', { name: /load error audit/i }));
+
+  expect(await screen.findByText(/Loaded 67 audit-priority records/)).toBeInTheDocument();
+  await waitFor(() => expect(
+    requestedUrls.some((url) => (
+      url.includes('/queue')
+      && url.includes('needsRevalidation=true')
+      && url.includes('includeReviewed=true')
+    ))
+  ).toBe(true));
+  expect(screen.getByRole('note')).toHaveTextContent('Needs revalidation: priority 10');
+  expect(screen.getByRole('note')).toHaveTextContent('xlmr-relevance');
 });

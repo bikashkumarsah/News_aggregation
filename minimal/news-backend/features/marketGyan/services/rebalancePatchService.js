@@ -217,15 +217,33 @@ const evidenceSentenceIds = (input) => input.sentences
     .slice(0, Math.min(3, input.sentences.length))
     .map((sentence) => sentence.id);
 
-const summaryFor = (input, eventType) => truncateAtWord(
-    `${input.title}. The source provides evidence for a ${eventType.replace(/_/g, ' ')} label.`,
-    240
-);
+const eventPhrase = (eventType) => eventType.replace(/_/g, ' ');
 
-const rationaleFor = ({ relevance, eventType, input }) => truncateAtWord(
-    `This targeted gold label uses source sentences from ${input.sourceName} because the text explicitly supports ${relevance} NEPSE relevance and the ${eventType.replace(/_/g, ' ')} event type.`,
-    360
-);
+const evidenceTextFor = (input) => (input.sentences || [])
+    .slice(0, 2)
+    .map((sentence) => sentence.text)
+    .filter(Boolean)
+    .join(' ');
+
+const summaryFor = (input) => {
+    const evidenceText = evidenceTextFor(input);
+    if (!evidenceText) return truncateAtWord(input.title, 240);
+    const titleAlreadyCovered = evidenceText
+        .toLowerCase()
+        .includes(input.title.toLowerCase().slice(0, 80));
+    return truncateAtWord(
+        titleAlreadyCovered ? evidenceText : `${input.title}: ${evidenceText}`,
+        280
+    );
+};
+
+const rationaleFor = ({ relevance, eventType, input }) => {
+    const ids = evidenceSentenceIds(input);
+    return truncateAtWord(
+        `Evidence ${ids.join(', ')} identifies a ${eventPhrase(eventType)} event with ${relevance} NEPSE relevance, so the label is grounded in the cited article text.`,
+        360
+    );
+};
 
 const stripMongoKeys = (value) => {
     if (Array.isArray(value)) return value.map(stripMongoKeys);
@@ -261,7 +279,7 @@ const buildCandidate = ({ definition, document, securities }) => {
         input,
         candidate: {
             language: input.languageHint || document.language,
-            summary: summaryFor(input, definition.eventType),
+            summary: summaryFor(input),
             relevance: definition.relevance,
             eventType: definition.eventType,
             impactScope,

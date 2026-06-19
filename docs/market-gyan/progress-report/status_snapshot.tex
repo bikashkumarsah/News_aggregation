@@ -2,10 +2,10 @@
 % Update the macros below after each milestone, then append one dated entry to
 % \MarketGyanMilestoneHistory. Keep implementation details in main.tex stable.
 
-\newcommand{\SnapshotDate}{June 17, 2026}
-\newcommand{\SnapshotTimestamp}{the dataset status after balanced split regeneration and compact-Qwen target update on June 17, 2026}
-\newcommand{\CurrentMilestone}{NEPSE-Impact-500 gold export, balanced split, and compact-Qwen target}
-\newcommand{\CurrentMilestoneState}{The gold corpus passes all relevance, language, event, symbol, and source gates; JSONL export and balanced duplicate-grouped splits are ready for baseline and compact-Qwen reruns}
+\newcommand{\SnapshotDate}{June 19, 2026}
+\newcommand{\SnapshotTimestamp}{the dataset, model-audit, and revalidation status after the June 19, 2026 validation submission}
+\newcommand{\CurrentMilestone}{NEPSE-Impact-500 revalidated export and compact-Qwen rerun preparation}
+\newcommand{\CurrentMilestoneState}{The gold corpus is training-ready; model-error revalidation is submitted, the gold export is refreshed, and the balanced split is ready for XLM-R, FinBERT, and compact-Qwen reruns}
 
 \newcommand{\SnapshotCount}{224}
 \newcommand{\SnapshotStartDate}{June 11, 2025}
@@ -52,6 +52,8 @@
 \newcommand{\VTwoPendingCount}{0}
 \newcommand{\VTwoFailedCount}{50}
 \newcommand{\VTwoAdjudicatedCount}{500}
+\newcommand{\VTwoExcludedCount}{56}
+\newcommand{\VTwoTotalLabelCount}{606}
 \newcommand{\VTwoDirectSelectionCount}{300}
 \newcommand{\VTwoIndirectSelectionCount}{100}
 \newcommand{\VTwoNegativeSelectionCount}{100}
@@ -72,13 +74,31 @@
 \newcommand{\CodexReviewedCount}{233}
 \newcommand{\CodexCorrectedCount}{105}
 \newcommand{\CodexConfirmedCount}{128}
-\newcommand{\SubmittedAnnotationCount}{500}
+\newcommand{\SubmittedAnnotationCount}{560}
+\newcommand{\RevalidationAuditCount}{0}
+\newcommand{\RevalidationMaxPriority}{0}
+
+\newcommand{\XLMRRelevanceAccuracy}{0.707}
+\newcommand{\XLMRRelevanceMacroFOne}{0.665}
+\newcommand{\XLMRRelevanceErrors}{22}
+\newcommand{\XLMRDirectionAccuracy}{0.634}
+\newcommand{\XLMRDirectionMacroFOne}{0.401}
+\newcommand{\XLMRDirectionErrors}{15}
+\newcommand{\FinBERTAccuracy}{0.929}
+\newcommand{\FinBERTMacroFOne}{0.636}
+\newcommand{\FinBERTErrors}{1}
+\newcommand{\QwenFirstRunAccuracy}{0.213}
+\newcommand{\QwenFirstRunMacroFOne}{0.250}
+\newcommand{\QwenStructuredValidity}{41.3\%}
+\newcommand{\QwenInvalidJsonCount}{44}
+\newcommand{\QwenValidJsonCount}{31}
+\newcommand{\QwenHardNegativeFalsePositiveCount}{10}
 
 \newcommand{\GemmaTokenCount}{1,786,130}
 \newcommand{\VTwoGemmaTokenCount}{3,642}
 \newcommand{\GemmaAverageTokenCount}{2,895}
 
-\newcommand{\FineTuningState}{First baseline and Qwen run analyzed; compact-label Qwen rerun is pending}
+\newcommand{\FineTuningState}{First XLM-R, FinBERT, and Qwen run analyzed; revalidation has been submitted and exported; compact-label Qwen rerun is pending}
 \newcommand{\RuntimeInferenceState}{Implemented but disabled pending evaluation}
 
 \newcommand{\MarketGyanMilestoneHistory}{%
@@ -92,11 +112,11 @@
     queued jobs were resumable; the 450-candidate target and all human approval
     remained incomplete.
     \item[June 13, 2026, final collection audit] The Gemma worker resumed after
-    a successful live API check and reached \PendingCandidateCount{}
+    a successful live API check and reached 452
     schema-valid, evidence-grounded candidates. This exceeds the
     \CandidateCollectionTarget{}-candidate collection target. Duplicate
     idempotency keys, invalid pending candidates, and over-length excerpts are
-    all zero. Human approval remains at \ApprovedRecordCount{}, so model
+    all zero. Human approval remained at 0, so model
     training has not started.
     \item[June 14, 2026] Added two linear training notebooks, strict approval
     and class-coverage gates, a frozen split manifest, finance-specific Qdrant
@@ -176,10 +196,28 @@
     chronological duplicate-grouped train/validation/test splits of 350/75/75
     all passed.
     \item[June 17, 2026] The first baseline and Qwen training outputs were
-    audited. XLM-R remained the strongest reliable classifier, while Qwen
-    QLoRA suffered from low JSON validity, all-direct relevance bias, and
-    verbose target truncation. The primary benchmark split was changed from
-    chronological to balanced duplicate-grouped 70/15/15, and Qwen training was
-    reframed around compact labels rather than full gold JSON prose.
+    audited. XLM-R reached \XLMRRelevanceMacroFOne{} relevance macro-F1 and
+    \XLMRDirectionMacroFOne{} direction macro-F1; English-only FinBERT reached
+    \FinBERTMacroFOne{} macro-F1 on a small English relevant subset. Qwen
+    QLoRA suffered from \QwenStructuredValidity{} JSON validity,
+    all-direct relevance bias, and verbose target truncation. The primary
+    benchmark split was changed from chronological to balanced
+    duplicate-grouped 70/15/15, and Qwen training was reframed around compact
+    labels rather than full gold JSON prose.
+    \item[June 17, 2026, revalidation loop] The model-error audit was joined
+    back to MongoDB labels and 40 high-priority records
+    were flagged for source-grounded revalidation. The validation queue now
+    filters \texttt{needsReview} records by audit priority, shows the model
+    disagreement reason, and clears the flag only when the record is submitted,
+    rejected, excluded, or adjudicated. This keeps dataset correction inside
+    the existing annotation workflow rather than manual JSONL edits.
+    \item[June 19, 2026] The 40 model-error revalidation records were reviewed
+    and submitted through the MarketGyan validation workflow. All active
+    revalidation flags are now cleared. The gold export was regenerated with
+    500 records and the same target composition: 300 direct, 100 indirect, and
+    100 not-relevant records. Placeholder text left by the targeted rebalance
+    generator was repaired in 53 gold labels and 57 stored annotations. The
+    refreshed \texttt{nepse-impact-500.jsonl} passed dataset validation, the
+    500-record gate, and the balanced duplicate-grouped 350/75/75 split.
   \end{description}
 }

@@ -97,7 +97,9 @@ const revisionSchema = new mongoose.Schema({
             'assistant_reviewed',
             'annotation_submitted',
             'adjudicated',
-            'excluded'
+            'excluded',
+            'revalidation_flagged',
+            'revalidation_resolved'
         ],
         required: true
     },
@@ -184,6 +186,27 @@ const marketLabelSchema = new mongoose.Schema({
         type: [String],
         default: []
     },
+    revalidationAudit: {
+        needsReview: {
+            type: Boolean,
+            default: false,
+            index: true
+        },
+        source: String,
+        priorityScore: Number,
+        models: {
+            type: [String],
+            default: []
+        },
+        reasons: {
+            type: [String],
+            default: []
+        },
+        importedAt: Date,
+        importedBy: String,
+        resolvedAt: Date,
+        resolvedBy: String
+    },
     rejectionReason: String,
     model: {
         provider: {
@@ -240,6 +263,7 @@ marketLabelSchema.index({ 'candidate.sentiment': 1, status: 1 });
 marketLabelSchema.index({ 'model.schemaVersion': 1, status: 1, createdAt: 1 });
 marketLabelSchema.index({ 'adjudication.status': 1, 'model.schemaVersion': 1 });
 marketLabelSchema.index({ 'assistantReview.reviewedAt': 1, 'model.schemaVersion': 1 });
+marketLabelSchema.index({ 'revalidationAudit.needsReview': 1, 'model.schemaVersion': 1 });
 
 module.exports = mongoose.models.MarketLabel
     || mongoose.model('MarketLabel', marketLabelSchema);

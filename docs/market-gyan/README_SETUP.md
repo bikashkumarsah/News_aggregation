@@ -288,6 +288,27 @@ MARKET_GYAN_REVIEWER_ROLE=adjudicator
 There is no blank manual-label workflow. Regeneration is blocked after a
 review is submitted or a record is adjudicated.
 
+### Model-error revalidation pass
+
+After a training run, import the generated error audit so difficult examples
+are reviewed inside the same validation UI instead of by manually editing
+JSONL:
+
+```bash
+cd minimal/news-backend
+npm run market-gyan:import-revalidation-audit -- --schema-version=2
+```
+
+The review UI also exposes a **Load error audit** button that runs the same
+local-only import endpoint. Then enable the **Needs revalidation** filter. The
+UI automatically clears the normal status/adjudication filters and includes
+already submitted records, so previously reviewed items can be corrected from
+the original source text, sentence IDs, ontology controls, and revision history.
+
+Submitting, rejecting, excluding, or adjudicating a flagged item clears its
+`needsReview` flag so the queue advances to the next priority sample. Saving a
+draft keeps the flag active.
+
 ## 8. Export and Freeze NEPSE-Impact-500
 
 After all primary annotations are submitted, validate them without changing the
