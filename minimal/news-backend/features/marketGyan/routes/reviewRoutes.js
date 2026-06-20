@@ -12,6 +12,9 @@ const {
 const {
     importRevalidationAudit
 } = require('../services/revalidationAuditService');
+const {
+    runTaxonomyConsistencyAudit
+} = require('../services/taxonomyConsistencyAuditService');
 
 const router = express.Router();
 
@@ -53,7 +56,22 @@ router.post('/audit/import', async (req, res) => {
     try {
         const data = await importRevalidationAudit({
             schemaVersion: req.body?.schemaVersion || req.query.schemaVersion,
-            actor: marketGyanConfig.reviewerId
+            actor: marketGyanConfig.reviewerId,
+            force: req.body?.force === true || req.query.force === 'true'
+        });
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post('/audit/taxonomy', async (req, res) => {
+    try {
+        const data = await runTaxonomyConsistencyAudit({
+            schemaVersion: req.body?.schemaVersion || req.query.schemaVersion,
+            actor: marketGyanConfig.reviewerId,
+            importToReview: true,
+            force: req.body?.force === true || req.query.force === 'true'
         });
         res.json({ success: true, data });
     } catch (error) {

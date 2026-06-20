@@ -254,16 +254,97 @@ test('imports the model error audit and enables the revalidation queue filter', 
   render(<MarketGyanReviewPanel />);
 
   await screen.findByText('Nabil Bank quarterly result');
-  await userEvent.click(screen.getByRole('button', { name: /load error audit/i }));
+  await userEvent.click(screen.getByRole('button', { name: /load model-error audit/i }));
 
-  expect(await screen.findByText(/Loaded 67 audit-priority records/)).toBeInTheDocument();
+  expect(await screen.findByText(/Loaded 67 model-error audit records/)).toBeInTheDocument();
   await waitFor(() => expect(
     requestedUrls.some((url) => (
       url.includes('/queue')
       && url.includes('needsRevalidation=true')
       && url.includes('includeReviewed=true')
+      && url.includes('revalidationSource=training-run-error-audit')
     ))
   ).toBe(true));
   expect(screen.getByRole('note')).toHaveTextContent('Needs revalidation: priority 10');
   expect(screen.getByRole('note')).toHaveTextContent('xlmr-relevance');
+});
+
+test('imports the taxonomy audit and keeps submitted revalidation records visible', async () => {
+  const requestedUrls = [];
+  const flaggedQueuePayload = {
+    ...queuePayload,
+    data: {
+      ...queuePayload.data,
+      items: [{
+        ...queuePayload.data.items[0],
+        status: 'approved',
+        revalidationAudit: {
+          needsReview: true,
+          priorityScore: 8,
+          models: ['taxonomy-consistency-audit'],
+          reasons: [
+            'Dividend proposal or no-dividend decisions should use earnings.'
+          ],
+          source: 'taxonomy-consistency-audit'
+        },
+        currentAnnotation: {
+          annotation: candidate,
+          status: 'submitted',
+          reviewerId: 'local-reviewer'
+        }
+      }]
+    }
+  };
+  global.fetch = jest.fn((url, options = {}) => {
+    requestedUrls.push(url);
+    if (url.includes('/audit/taxonomy')) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {
+            source: 'taxonomy-consistency-audit',
+            imported: 57,
+            skippedResolved: 6,
+            missing: []
+          }
+        })
+      });
+    }
+    if (
+      url.includes('/queue')
+      && url.includes('needsRevalidation=true')
+      && url.includes('revalidationSource=taxonomy-consistency-audit')
+    ) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => flaggedQueuePayload
+      });
+    }
+    return Promise.resolve({
+      ok: true,
+      json: async () => responseFor(url)
+    });
+  });
+
+  render(<MarketGyanReviewPanel />);
+
+  await screen.findByText('Nabil Bank quarterly result');
+  await userEvent.click(screen.getByRole('button', { name: /load taxonomy audit/i }));
+
+  expect(await screen.findByText(/Loaded 57 taxonomy audit records/)).toBeInTheDocument();
+  expect(screen.getByText(/skipped 6 already resolved records/)).toBeInTheDocument();
+  await waitFor(() => expect(
+    requestedUrls.some((url) => (
+      url.includes('/queue')
+      && url.includes('needsRevalidation=true')
+      && url.includes('includeReviewed=true')
+      && url.includes('revalidationSource=taxonomy-consistency-audit')
+      && !url.includes('status=pending_review')
+      && !url.includes('adjudicationStatus=pending')
+    ))
+  ).toBe(true));
+  expect(screen.getByRole('checkbox', { name: /show submitted/i })).toBeChecked();
+  expect(screen.getByRole('checkbox', { name: /show submitted/i })).toBeDisabled();
+  expect(screen.getByRole('note')).toHaveTextContent('taxonomy-consistency-audit');
 });
