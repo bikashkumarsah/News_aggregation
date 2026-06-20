@@ -396,6 +396,10 @@ type, direction, sector, symbol, and evidence selection.
 !pip install -q 'datasets>=3.2,<4' 'trl>=0.15,<1' \
   'matplotlib>=3.9,<4' 'seaborn>=0.13,<1' 'tqdm>=4.66,<5'
 """, ["setup"]),
+    code("""
+!pip install -q --upgrade --force-reinstall "numpy>=1.26.4,<1.28" "urllib3<=2.5.0"
+!pip check
+""", ["setup"]),
     markdown("## 1. Verify the GPU and load the frozen corpus"),
     code("""
 import torch
@@ -415,8 +419,8 @@ print(len(train_rows), len(validation_rows), len(test_rows))
 from unsloth import FastLanguageModel
 
 MODEL_NAME = "unsloth/Qwen3-8B"
-MAX_SEQ_LENGTH = 1024
-MAX_GENERATION_TOKENS = 384
+MAX_SEQ_LENGTH = 1536
+MAX_GENERATION_TOKENS = 192
 MAX_PROMPT_TOKENS = MAX_SEQ_LENGTH - MAX_GENERATION_TOKENS
 use_bf16 = torch.cuda.is_bf16_supported()
 model, tokenizer = FastLanguageModel.from_pretrained(
@@ -499,24 +503,27 @@ def generate_json(row, demonstrations=None):
         add_generation_prompt=True,
         enable_thinking=False,
     )
+    # Prefixing the first JSON brace prevents Qwen from starting with Markdown
+    # bullets while keeping official scoring strict.
+    text = text + "{"
     inputs = tokenize_generation_prompt(text)
-    total_max_length = min(
-        MAX_SEQ_LENGTH,
-        inputs["input_ids"].shape[1] + MAX_GENERATION_TOKENS,
-    )
     with torch.no_grad():
         output = model.generate(
             **inputs,
-            max_length=total_max_length,
+            max_new_tokens=MAX_GENERATION_TOKENS,
             do_sample=False,
             temperature=None,
             top_p=None,
+            repetition_penalty=1.05,
             pad_token_id=tokenizer.eos_token_id,
         )
     raw = tokenizer.decode(
         output[0][inputs["input_ids"].shape[1]:],
         skip_special_tokens=True,
     ).strip()
+    raw = "{" + raw
+    if raw.startswith("{{"):
+        raw = raw[1:]
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
@@ -576,28 +583,33 @@ def oversample_training_rows(values):
     selected = list(values)
     selected.extend(
         row for row in values
+        if row["gold"]["language"] == "ne"
+    )
+    selected.extend(
+        row for row in values
         if row["gold"]["relevance"] in {"indirect", "not_relevant"}
     )
     selected.extend(
         row for row in values
         if (
-            row["gold"]["relevance"] == "not_relevant"
+            row["gold"]["relevance"] in {"indirect", "not_relevant"}
             and row["gold"]["language"] == "ne"
         )
     )
     return selected
 
-def make_dataset(values, include_hard_negatives=True):
+def make_dataset(values, include_hard_negatives=True, oversample=False):
     selected = values if include_hard_negatives else [
         row for row in values if row["gold"]["relevance"] != "not_relevant"
     ]
-    selected = oversample_training_rows(selected)
+    if oversample:
+        selected = oversample_training_rows(selected)
     return Dataset.from_list([
         {"text": format_training_text(row)}
         for row in selected
     ])
 
-train_data = make_dataset(train_rows)
+train_data = make_dataset(train_rows, oversample=True)
 validation_data = make_dataset(validation_rows)
 print(len(train_data), len(validation_data))
 print(train_data[0]["text"][:600])
@@ -626,7 +638,7 @@ output_dir = OUTPUTS / "marketgyan-qwen3-8b-unsloth-qlora"
 updates_per_epoch = max(1, (len(train_data) + 15) // 16)
 print(
     f"Training Unsloth QLoRA: train={len(train_data)}, "
-    f"validation={len(validation_data)}, approx_steps={updates_per_epoch * 3}"
+    f"validation={len(validation_data)}, approx_steps={updates_per_epoch * 5}"
 )
 arguments = SFTConfig(
     output_dir=str(output_dir),
@@ -636,8 +648,8 @@ arguments = SFTConfig(
     per_device_train_batch_size=1,
     per_device_eval_batch_size=1,
     gradient_accumulation_steps=16,
-    learning_rate=2e-4,
-    num_train_epochs=3,
+    learning_rate=1e-4,
+    num_train_epochs=5,
     warmup_ratio=0.05,
     logging_steps=5,
     eval_strategy="steps",
@@ -674,7 +686,37 @@ tokenizer.save_pretrained(output_dir)
 for checkpoint in output_dir.glob("checkpoint-*"):
     shutil.rmtree(checkpoint, ignore_errors=True)
 """, ["gpu"]),
-    markdown("## 6. Deterministic held-out generation with the adapter"),
+    markdown("## 6. Smoke-test strict JSON before full held-out generation"),
+    code("""
+from market_gyan.metrics import benchmark_predictions
+
+def smoke_rows_for_generation(rows, limit=10):
+    selected = []
+    for language in ("ne", "en"):
+        selected.extend([
+            row for row in rows
+            if row["gold"]["language"] == language
+        ][:limit // 2])
+    seen = {row["id"] for row in selected}
+    selected.extend(row for row in rows if row["id"] not in seen)
+    return selected[:limit]
+
+smoke_rows = smoke_rows_for_generation(validation_rows, limit=10)
+smoke_predictions = []
+for row in tqdm(smoke_rows, desc="Qwen adapter smoke generation", unit="doc"):
+    smoke_predictions.append({"id": row["id"], "prediction": generate_json(row)})
+smoke_metrics = benchmark_predictions(smoke_rows, smoke_predictions)
+(output_dir / "smoke_metrics.json").write_text(
+    json.dumps(smoke_metrics, indent=2), encoding="utf-8"
+)
+print(json.dumps({
+    "strictValidity": smoke_metrics["structuredOutputValidity"],
+    "evidenceGrounding": smoke_metrics["evidenceGrounding"],
+    "invalidOutputCount": smoke_metrics["invalidOutputCount"],
+}, indent=2))
+assert smoke_metrics["structuredOutputValidity"] >= 0.8, smoke_metrics["invalidOutputExamples"]
+""", ["gpu"]),
+    markdown("## 7. Deterministic held-out generation with the adapter"),
     code("""
 FastLanguageModel.for_inference(model)
 adapter_predictions = []
@@ -682,17 +724,122 @@ for row in tqdm(test_rows, desc="Qwen adapter test generation", unit="doc"):
     adapter_predictions.append({"id": row["id"], "prediction": generate_json(row)})
 write_jsonl(output_dir / "test_predictions.jsonl", adapter_predictions)
 """, ["gpu"]),
-    markdown("## 7. Score and plot all Qwen conditions"),
+    markdown("## 8. Score and plot all Qwen conditions"),
     code("""
 import matplotlib.pyplot as plt
+import re
 import seaborn as sns
+from market_gyan.dataset import (
+    COMPACT_QWEN_FIELDS,
+    CONFIDENCE_BANDS,
+    EVENT_TYPES,
+    IMPACT_DIRECTIONS,
+    IMPACT_HORIZONS,
+    IMPACT_MECHANISMS,
+    IMPACT_SCOPES,
+    NOT_RELEVANT_COMPACT_VALUES,
+    RELEVANCE,
+)
 from market_gyan.metrics import benchmark_predictions
+
+ENUMS = {
+    "relevance": RELEVANCE,
+    "eventType": EVENT_TYPES,
+    "impactScope": IMPACT_SCOPES,
+    "impactDirection": IMPACT_DIRECTIONS,
+    "impactHorizon": IMPACT_HORIZONS,
+    "impactMechanism": IMPACT_MECHANISMS,
+    "confidenceBand": CONFIDENCE_BANDS,
+}
+
+ALIASES = {
+    "relevant": "direct",
+    "irrelevant": "not_relevant",
+    "not relevant": "not_relevant",
+    "not-relevant": "not_relevant",
+    "positive": "bullish",
+    "negative": "bearish",
+    "mixed": "uncertain",
+    "not applicable": "not_applicable",
+    "not-applicable": "not_applicable",
+    "short term": "short_term",
+    "short-term": "short_term",
+    "medium term": "medium_term",
+    "medium-term": "medium_term",
+    "ownership supply": "ownership_supply",
+    "earnings cash flow": "earnings_cash_flow",
+    "financing liquidity": "financing_liquidity",
+    "market flow": "market_flow",
+}
+
+def normalize_enum(value, allowed):
+    value = str(value).strip().strip('",.').lower()
+    value = ALIASES.get(value, value)
+    value = value.replace("-", "_").replace(" ", "_")
+    return value if value in allowed else value
+
+def parse_list_value(value):
+    value = str(value).strip().rstrip(",")
+    try:
+        parsed = json.loads(value)
+        if isinstance(parsed, list):
+            return [str(item).strip() for item in parsed if str(item).strip()]
+    except json.JSONDecodeError:
+        pass
+    bracket = re.search(r"\\[(.*?)\\]", value)
+    if bracket:
+        value = bracket.group(1)
+    return [
+        item.strip().strip('"\\'')
+        for item in re.split(r"[,;]", value)
+        if item.strip().strip('"\\'')
+    ]
+
+def repair_compact_prediction(prediction):
+    if isinstance(prediction, dict) and "raw" not in prediction:
+        return prediction
+    raw = prediction.get("raw", "") if isinstance(prediction, dict) else str(prediction)
+    repaired = {}
+    for line in raw.splitlines():
+        match = re.match(r'\\s*[-*]?\\s*`?"?([A-Za-z][A-Za-z0-9 _-]+)`?"?\\s*[:=]\\s*(.+?)\\s*$', line)
+        if not match:
+            continue
+        key = match.group(1).replace(" ", "").replace("-", "")
+        field = next(
+            (
+                candidate for candidate in COMPACT_QWEN_FIELDS
+                if key.lower() == candidate.lower()
+            ),
+            None,
+        )
+        if not field:
+            continue
+        value = match.group(2)
+        if field in {"sectors", "symbols", "evidenceSentenceIds"}:
+            repaired[field] = parse_list_value(value)
+        elif field in ENUMS:
+            repaired[field] = normalize_enum(value, ENUMS[field])
+    if repaired.get("relevance") == "not_relevant":
+        repaired.update(NOT_RELEVANT_COMPACT_VALUES)
+    return repaired if repaired else prediction
 
 benchmarks = {
     "zero_shot": benchmark_predictions(test_rows, zero_shot),
     "three_shot": benchmark_predictions(test_rows, three_shot),
     "unsloth_qlora": benchmark_predictions(test_rows, adapter_predictions),
 }
+repaired_adapter_predictions = [
+    {"id": row["id"], "prediction": repair_compact_prediction(row["prediction"])}
+    for row in adapter_predictions
+]
+benchmarks["unsloth_qlora_repaired_diagnostic"] = benchmark_predictions(
+    test_rows,
+    repaired_adapter_predictions,
+)
+write_jsonl(
+    output_dir / "qwen_repaired_diagnostic.jsonl",
+    repaired_adapter_predictions,
+)
 (output_dir / "metrics.json").write_text(
     json.dumps(benchmarks, indent=2), encoding="utf-8"
 )
@@ -719,7 +866,7 @@ sns.heatmap(
     xticklabels=labels, yticklabels=labels
 )
 axes[0].set_title("Relevance confusion matrix")
-benchmark_names = list(benchmarks.keys())
+benchmark_names = ["zero_shot", "three_shot", "unsloth_qlora"]
 bars = axes[1].bar(
     benchmark_names,
     [benchmarks[name]["relevance"]["macroF1"] for name in benchmark_names],
@@ -737,7 +884,7 @@ plt.show()
 plt.close(fig)
 """, ["gpu", "plot"]),
     markdown("""
-## 8. Required ablations
+## 9. Required ablations
 
 Run a second training job with `include_hard_negatives=False` in
 `make_dataset(...)` and compare relevance macro-F1. The RAG-enabled versus
@@ -761,7 +908,7 @@ plt.savefig(output_dir / "loss.png", dpi=160, bbox_inches="tight")
 plt.show()
 plt.close(fig)
 """, ["gpu", "plot"]),
-    markdown("## 9. Archive final adapter, predictions, metrics, and plots"),
+    markdown("## 10. Archive final adapter, predictions, metrics, and plots"),
     code("""
 import shutil
 archive = shutil.make_archive(str(output_dir), "zip", output_dir)

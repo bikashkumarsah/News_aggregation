@@ -1,0 +1,1488 @@
+{
+  "source": "taxonomy-consistency-audit",
+  "auditRows": 57,
+  "byBucket": {
+    "debt-financing": 1,
+    "dividend-decision": 26,
+    "ipo-fpo-listing-allotment": 23,
+    "market-summary": 2,
+    "right-share": 5
+  },
+  "rows": [
+    {
+      "id": "6a2f0a578a1c034887d30686",
+      "title": "7.50% Everest Bank Limited Debenture 2091 Listed on NEPSE",
+      "source": "ShareSansar",
+      "publishedAt": "2025-04-22T04:18:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Debenture, debt, bond, or loan records should use credit_financing.",
+        "debt-financing: eventType capital_action -> credit_financing"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "neutral"
+      },
+      "recommended": {
+        "eventType": "credit_financing",
+        "impactMechanism": "financing_liquidity"
+      },
+      "bucket": "debt-financing"
+    },
+    {
+      "id": "6a2f0a578a1c034887d306f7",
+      "title": "Kalika Laghubitta Proposes 10.5263% Dividend for the Fiscal Year 2081/82",
+      "source": "ShareSansar",
+      "publishedAt": "2025-12-21T04:53:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism ownership_supply -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d306f8",
+      "title": "Reliable Nepal Life Insurance Company Proposes 12% Dividend For FY 2081/82",
+      "source": "ShareSansar",
+      "publishedAt": "2025-12-21T05:02:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism valuation_sentiment -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "valuation_sentiment",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a568a1c034887d3064e",
+      "title": "No Dividend To NIC Asia Laghubitta Shareholders For FY 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-01-05T05:08:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism valuation_sentiment -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "valuation_sentiment",
+        "impactDirection": "bearish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a568a1c034887d30650",
+      "title": "Nepal Life Insurance Proposes 21.05% Dividend for FY 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-01-12T04:57:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism ownership_supply -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30651",
+      "title": "No Dividend To Janautthan Samudayic Laghubitta Shareholders for FY 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-01-12T05:00:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "earnings_cash_flow",
+        "impactDirection": "bearish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30652",
+      "title": "Salt Trading Corporation Proposes 10% Cash Dividend for Fiscal Year 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-01-12T05:09:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "earnings_cash_flow",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30672",
+      "title": "Nepal Insurance Company Proposes 15.79% Dividend For FY 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-03-09T04:18:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism ownership_supply -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30673",
+      "title": "No Dividend To NMB Laghubitta Shareholders for FY 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-03-09T04:22:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism valuation_sentiment -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "valuation_sentiment",
+        "impactDirection": "bearish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30689",
+      "title": "Neco Insurance Announces 7.3684% Dividend for FY 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-04-24T05:02:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism ownership_supply -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30661",
+      "title": "IGI Prudential Insurance Proposes 9.73% Cash Dividend for FY 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-02-06T04:43:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "earnings_cash_flow",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d306b8",
+      "title": "United Ajod Insurance Proposes 10.5263% Dividend for FY 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-06-19T05:23:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism ownership_supply -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30670",
+      "title": "Swarojgar Laghubitta Proposes 14.62507% Dividend for FY 2080/81; How Much in Bonus Shares and Cash?",
+      "source": "ShareSansar",
+      "publishedAt": "2025-03-06T04:32:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism ownership_supply -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30698",
+      "title": "Life Insurance Corporation Nepal Limited Proposes 10.526% Dividend for FY 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-05-15T04:33:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism ownership_supply -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d306ee",
+      "title": "Barun Hydropower Company Limited Proposes 5% Dividend for FY 2081/82",
+      "source": "ShareSansar",
+      "publishedAt": "2025-11-20T04:23:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism ownership_supply -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d307d1",
+      "title": "२६ अंक घट्यो सेयर बजार, बैंकहरूको नाफा बढ्दा पनि परेन प्रभाव",
+      "source": "बिजनेस – Page 21 – Online Khabar",
+      "publishedAt": "2026-04-28T09:29:51.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType market_trading -> earnings",
+        "dividend-decision: impactMechanism market_flow -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "market_trading",
+        "impactMechanism": "market_flow",
+        "impactDirection": "bearish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d306f9",
+      "title": "Upper Hewakhola Hydropower Company Proposes 15.789% Dividend",
+      "source": "ShareSansar",
+      "publishedAt": "2025-12-23T04:46:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism ownership_supply -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30660",
+      "title": "Siddhartha Premier Insurance Proposes 30% Cash Dividend for FY 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-02-04T04:40:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism valuation_sentiment -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "valuation_sentiment",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30666",
+      "title": "Bishal Bazar Company Limited Proposes 14% Cash Dividend, AGM Called on Falgun 28",
+      "source": "ShareSansar",
+      "publishedAt": "2025-02-11T05:49:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "earnings_cash_flow",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30693",
+      "title": "Himalayan Reinsurance Limited Proposes 4.74% Dividend for FY 2080/81; How Much in Bonus Shares and Cash?",
+      "source": "ShareSansar",
+      "publishedAt": "2025-05-06T04:36:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism ownership_supply -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply",
+        "impactDirection": "neutral"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d306e3",
+      "title": "Garima Bikas Bank Proposes 10.53% Dividend for FY 2081/82",
+      "source": "ShareSansar",
+      "publishedAt": "2025-10-14T03:56:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism ownership_supply -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d306c7",
+      "title": "No Dividend To Sun Nepal Life Insurance Company Limited's Shareholders for FY 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-08-13T05:03:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism valuation_sentiment -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "valuation_sentiment",
+        "impactDirection": "bearish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a3163498dd189ed627e34a0",
+      "title": "Supermai Hydropower Limited Proposes 21.11% Dividend; Plans 100% Right Shares Issue",
+      "source": "ShareSansar",
+      "publishedAt": "2026-02-04T04:24:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType credit_financing -> earnings",
+        "dividend-decision: impactMechanism financing_liquidity -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "credit_financing",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d306b3",
+      "title": "No Dividend To Aviyan Laghubitta Shareholders for FY 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-06-11T04:56:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism valuation_sentiment -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "valuation_sentiment",
+        "impactDirection": "bearish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30694",
+      "title": "Reliable Nepal Life Insurance Company Proposes 12.6315% Dividend For FY 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-05-07T04:55:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism ownership_supply -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30697",
+      "title": "National Life Insurance Company Proposes 15% Dividend for FY 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-05-14T04:45:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings",
+        "dividend-decision: impactMechanism ownership_supply -> earnings_cash_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a2f0a578a1c034887d306aa",
+      "title": "Himalayan Life Insurance Proposes 8% Cash Dividend for FY 2080/81",
+      "source": "ShareSansar",
+      "publishedAt": "2025-05-28T05:17:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Dividend proposal or no-dividend decisions should use earnings.",
+        "dividend-decision: eventType capital_action -> earnings"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "earnings_cash_flow",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow"
+      },
+      "bucket": "dividend-decision"
+    },
+    {
+      "id": "6a3163498dd189ed627e3536",
+      "title": "IPO Proposal of Taksar Pikhuwa Khola Hydropower Approved By SEBON",
+      "source": "ShareSansar",
+      "publishedAt": "2026-02-13T10:06:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType regulation -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism regulation -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "regulation",
+        "impactMechanism": "regulation",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30720",
+      "title": "Palpa Cements Industries Limited Closing IPO Today, Oversubscribed by approximately 5.61 Times So Far",
+      "source": "ShareSansar",
+      "publishedAt": "2026-02-27T01:29:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType other -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism uncertain -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "indirect",
+        "eventType": "other",
+        "impactMechanism": "uncertain",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a3163498dd189ed627e3579",
+      "title": "SEBON Adds IPO Shares of Four Manufacturing Companies to It's Pipeline",
+      "source": "ShareSansar",
+      "publishedAt": "2026-06-05T07:13:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType regulation -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism regulation -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "regulation",
+        "impactMechanism": "regulation",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a31634a8dd189ed627e358f",
+      "title": "SEBON Adds Another IPO Shares of Two Hydropower Companies to It's Pipeline",
+      "source": "ShareSansar",
+      "publishedAt": "2026-06-05T08:02:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType regulation -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism regulation -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "regulation",
+        "impactMechanism": "regulation",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a2f0a578a1c034887d3083f",
+      "title": "सेयर बजारलाई उत्कृष्ट बजेट, यस्ता छन् समेटिएका विषय",
+      "source": "बिजनेस – Page 7 – Online Khabar",
+      "publishedAt": "2026-05-29T14:42:30.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType fiscal_macroeconomic -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism regulation -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "fiscal_macroeconomic",
+        "impactMechanism": "regulation",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30842",
+      "title": "IPO for General Public: Sanigad Hydro Limited Issue 46,74,000 Units IPO Shares from Today",
+      "source": "ShareSansar",
+      "publishedAt": "2026-06-01T02:40:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: impactMechanism financing_liquidity -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a3163498dd189ed627e3500",
+      "title": "Hilora Hills Resort to Issue 4 Million Units IPO to Fuel Expansion",
+      "source": "ShareSansar",
+      "publishedAt": "2026-04-05T03:12:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType credit_financing -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism financing_liquidity -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "credit_financing",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a3163498dd189ed627e350a",
+      "title": "Jalshakti Hydro to Issue 1 Crore Units IPO for 23.675 MW Project",
+      "source": "ShareSansar",
+      "publishedAt": "2026-04-05T03:16:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType credit_financing -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism financing_liquidity -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "credit_financing",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a2f0a578a1c034887d306fb",
+      "title": "Wean Nepal Laghubitta Signs MOU with Swarojgar Laghubitta for Acquisition",
+      "source": "ShareSansar",
+      "publishedAt": "2025-12-28T04:42:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType governance -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism valuation_sentiment -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "governance",
+        "impactMechanism": "valuation_sentiment",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a3163498dd189ed627e34f1",
+      "title": "IPO Proposal of Venture Hire Purchase Limited Added to SEBON's Pipleline",
+      "source": "ShareSansar",
+      "publishedAt": "2026-03-15T11:36:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType credit_financing -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism financing_liquidity -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "credit_financing",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a3163498dd189ed627e3566",
+      "title": "IPO Proposal of Mount Everest Power, Sarvottam Paints, and Everest Colour Approved By SEBON",
+      "source": "ShareSansar",
+      "publishedAt": "2026-04-16T04:51:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType regulation -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism regulation -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "regulation",
+        "impactMechanism": "regulation",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30760",
+      "title": "Mechi Industries Appoints Nepal SBI Merchant Banking for IPO Management",
+      "source": "ShareSansar",
+      "publishedAt": "2026-04-16T09:40:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: impactMechanism financing_liquidity -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a2f0a578a1c034887d307e0",
+      "title": "वित्तीय प्रणालीको सवा १ खर्ब अधिक तरलता खिच्दै राष्ट्र बैंक",
+      "source": "बिजनेस – Page 20 – Online Khabar",
+      "publishedAt": "2026-04-30T08:26:07.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType monetary_liquidity -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism financing_liquidity -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "indirect",
+        "eventType": "monetary_liquidity",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "bearish"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30712",
+      "title": "Shikhar Power Development Limited Concludes IPO Allotment for Project-Affected Locals of Baglung",
+      "source": "ShareSansar",
+      "publishedAt": "2026-02-12T05:57:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType other -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism uncertain -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "indirect",
+        "eventType": "other",
+        "impactMechanism": "uncertain",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a3163498dd189ed627e3544",
+      "title": "IPO Proposal of Beni Hydropower Project Approved By SEBON",
+      "source": "ShareSansar",
+      "publishedAt": "2026-02-12T11:05:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType regulation -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism regulation -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "regulation",
+        "impactMechanism": "regulation",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a3163498dd189ed627e34e0",
+      "title": "Hulas Finserv Hire Purchase Limited Proposes IPO at Rs 358.85",
+      "source": "ShareSansar",
+      "publishedAt": "2026-02-26T09:07:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType credit_financing -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism financing_liquidity -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "credit_financing",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a2f0a578a1c034887d3084e",
+      "title": "IPO Issue of Sanigad Hydro Limited Closing Today; Oversubscribed 5.88 Times So Far",
+      "source": "ShareSansar",
+      "publishedAt": "2026-06-04T00:52:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: impactMechanism demand_revenue -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "demand_revenue",
+        "impactDirection": "bullish"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30791",
+      "title": "IPO Issue of Sopan Pharmaceuticals Limited Closing Today; Oversubscribed 8.30 Times So Far",
+      "source": "ShareSansar",
+      "publishedAt": "2026-04-21T03:17:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType other -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism uncertain -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "indirect",
+        "eventType": "other",
+        "impactMechanism": "uncertain",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a3163498dd189ed627e3553",
+      "title": "IPO Proposal of Kalanga Hydro and Sanigad Hydro Approved By SEBON",
+      "source": "ShareSansar",
+      "publishedAt": "2026-03-10T07:24:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType regulation -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism regulation -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "regulation",
+        "impactMechanism": "regulation",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30738",
+      "title": "Conversion of Promoter Shares of NMB Microfinance; Shareholding Ratio To Be Changed To 51:49",
+      "source": "ShareSansar",
+      "publishedAt": "2026-03-24T05:17:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType earnings -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism earnings_cash_flow -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "earnings",
+        "impactMechanism": "earnings_cash_flow",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a2f0a578a1c034887d3081a",
+      "title": "IPO for General Public: Sanigad Hydro Limited to Issue 46,74,000 Units IPO Shares from Jestha 14",
+      "source": "ShareSansar",
+      "publishedAt": "2026-05-19T04:32:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: impactMechanism financing_liquidity -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a3163498dd189ed627e3522",
+      "title": "SEBON Issues 10th Amendment to Securities Issuance and Allotment Guidelines 2082",
+      "source": "ShareSansar",
+      "publishedAt": "2025-11-25T04:41:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType regulation -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism regulation -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "regulation",
+        "impactMechanism": "regulation",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a3163498dd189ed627e3516",
+      "title": "Time Pharmaceuticals Signs NEPSE Agreement for Institutional Share Sale",
+      "source": "ShareSansar",
+      "publishedAt": "2026-04-08T05:06:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "IPO, FPO, listing, and allotment records should use capital_action.",
+        "ipo-fpo-listing-allotment: eventType credit_financing -> capital_action",
+        "ipo-fpo-listing-allotment: impactMechanism financing_liquidity -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "credit_financing",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "ipo-fpo-listing-allotment"
+    },
+    {
+      "id": "6a31634a8dd189ed627e35c7",
+      "title": "NEPSE Revises Stock Dealer Guidelines to Enhance Market Liquidity; Loss-Making Stocks Now Tradable",
+      "source": "ShareSansar",
+      "publishedAt": "2026-04-10T04:34:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "NEPSE index, turnover, and weekly-summary records should use market_trading.",
+        "market-summary: eventType monetary_liquidity -> market_trading",
+        "market-summary: impactMechanism financing_liquidity -> market_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "monetary_liquidity",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "market_trading",
+        "impactMechanism": "market_flow"
+      },
+      "bucket": "market-summary"
+    },
+    {
+      "id": "6a2f0a578a1c034887d30844",
+      "title": "बजेटप्रति सेयर लगानीकर्ता निराश, तीन समूहगत सूचकमा उच्च प्रभाव",
+      "source": "बिजनेस – Page 6 – Online Khabar",
+      "publishedAt": "2026-06-01T09:35:31.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "NEPSE index, turnover, and weekly-summary records should use market_trading.",
+        "market-summary: eventType fiscal_macroeconomic -> market_trading",
+        "market-summary: impactMechanism regulation -> market_flow"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "fiscal_macroeconomic",
+        "impactMechanism": "regulation",
+        "impactDirection": "bearish"
+      },
+      "recommended": {
+        "eventType": "market_trading",
+        "impactMechanism": "market_flow"
+      },
+      "bucket": "market-summary"
+    },
+    {
+      "id": "6a3163498dd189ed627e34af",
+      "title": "Himalayan Hydropower Receives Preliminary Approval from ERC to Issue Right Shares at the Ratio of 1: 1",
+      "source": "ShareSansar",
+      "publishedAt": "2026-02-06T05:21:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Right-share records should use capital_action and ownership_supply.",
+        "right-share: eventType credit_financing -> capital_action",
+        "right-share: impactMechanism financing_liquidity -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "credit_financing",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "right-share"
+    },
+    {
+      "id": "6a3163498dd189ed627e34cb",
+      "title": "Arun Kabeli Power Limited Receives Preliminary Approval from ERC to Issue Right Shares at the Ratio of 1: 0.50",
+      "source": "ShareSansar",
+      "publishedAt": "2026-04-27T04:37:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Right-share records should use capital_action and ownership_supply.",
+        "right-share: eventType credit_financing -> capital_action",
+        "right-share: impactMechanism financing_liquidity -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "credit_financing",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "right-share"
+    },
+    {
+      "id": "6a3163498dd189ed627e3496",
+      "title": "Singati Hydro Energy Announces Plan to Issue 100% Rights Shares After Bonus Distribution",
+      "source": "ShareSansar",
+      "publishedAt": "2025-11-25T04:51:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Right-share records should use capital_action and ownership_supply.",
+        "right-share: eventType credit_financing -> capital_action",
+        "right-share: impactMechanism financing_liquidity -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "credit_financing",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "right-share"
+    },
+    {
+      "id": "6a3163498dd189ed627e34be",
+      "title": "Sahas Urja Limited Receives Preliminary Approval from ERC to Issue Right Shares at the Ratio of 1: 1",
+      "source": "ShareSansar",
+      "publishedAt": "2026-04-01T04:40:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Right-share records should use capital_action and ownership_supply.",
+        "right-share: eventType credit_financing -> capital_action",
+        "right-share: impactMechanism financing_liquidity -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "credit_financing",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "right-share"
+    },
+    {
+      "id": "6a2f0a578a1c034887d306c8",
+      "title": "Mandakini Hydropower Limited Proposes to Issue 66.39% Right Shares",
+      "source": "ShareSansar",
+      "publishedAt": "2025-08-13T05:26:00.000Z",
+      "priorityScore": 8,
+      "models": [
+        "taxonomy-consistency-audit"
+      ],
+      "reasons": [
+        "Right-share records should use capital_action and ownership_supply.",
+        "right-share: impactMechanism financing_liquidity -> ownership_supply"
+      ],
+      "current": {
+        "relevance": "direct",
+        "eventType": "capital_action",
+        "impactMechanism": "financing_liquidity",
+        "impactDirection": "uncertain"
+      },
+      "recommended": {
+        "eventType": "capital_action",
+        "impactMechanism": "ownership_supply"
+      },
+      "bucket": "right-share"
+    }
+  ],
+  "imported": 57,
+  "matched": 57,
+  "modified": 57,
+  "missing": []
+}

@@ -35,6 +35,9 @@ const {
     importRevalidationAudit
 } = require('../services/revalidationAuditService');
 const {
+    runTaxonomyConsistencyAudit
+} = require('../services/taxonomyConsistencyAuditService');
+const {
     applyGoldRebalancePatch
 } = require('../services/rebalancePatchService');
 const {
@@ -326,6 +329,25 @@ const main = async () => {
                 actor: options.reviewer || marketGyanConfig.reviewerId
             }));
             break;
+        case 'taxonomy-audit': {
+            const report = await runTaxonomyConsistencyAudit({
+                schemaVersion: Number(
+                    options['schema-version'] || marketGyanConfig.schemaVersion
+                ),
+                actor: options.reviewer || marketGyanConfig.reviewerId,
+                importToReview: options.import === 'true'
+            });
+            if (options.output) {
+                const { rows, ...summary } = report;
+                writeJson({
+                    ...summary,
+                    output: writeJsonFile(report, options.output)
+                });
+            } else {
+                writeJson(report);
+            }
+            break;
+        }
         case 'status':
             writeJson(await getCorpusStatus({
                 target: options.target || (
@@ -368,7 +390,7 @@ const main = async () => {
             break;
         default:
             throw new Error(
-                'Usage: marketGyan.js ingest|backfill|queue|queue-balanced|select-v2|queue-v2|process|retry|assistant-review-export|assistant-review-import|adjudicate-submitted|rebalance-audit|rebalance-apply|import-revalidation-audit|status|index|report|reactions|sync-ontology|export-reactions|export [--key=value]'
+                'Usage: marketGyan.js ingest|backfill|queue|queue-balanced|select-v2|queue-v2|process|retry|assistant-review-export|assistant-review-import|adjudicate-submitted|rebalance-audit|rebalance-apply|import-revalidation-audit|taxonomy-audit|status|index|report|reactions|sync-ontology|export-reactions|export [--key=value]'
             );
     }
 };

@@ -35,6 +35,10 @@ const {
     importRevalidationAudit
 } = require('../services/revalidationAuditService');
 const {
+    auditTaxonomyRows,
+    runTaxonomyConsistencyAudit
+} = require('../services/taxonomyConsistencyAuditService');
+const {
     candidateDiffFields
 } = require('../services/assistantReviewService');
 const {
@@ -300,6 +304,163 @@ test('resolved revalidation labels are cleared and recorded in revisions', () =>
     assert.equal(job.revalidationAudit.needsReview, false);
     assert.equal(job.revalidationAudit.resolvedBy, 'reviewer-1');
     assert.equal(job.revisions[0].action, 'revalidation_resolved');
+});
+
+test('taxonomy audit flags dividend decisions mislabeled as capital actions', () => {
+    const label = {
+        _id: new mongoose.Types.ObjectId(),
+        input: {
+            title: 'Neco Insurance Announces 7.3684% Dividend for FY 2080/81',
+            excerpt: 'The company announced a cash dividend for shareholders.',
+            sourceName: 'ShareSansar',
+            publishedAt: new Date()
+        },
+        adjudication: {
+            goldCandidate: {
+                ...directCandidate,
+                eventType: 'capital_action',
+                impactMechanism: 'ownership_supply'
+            }
+        }
+    };
+
+    const report = auditTaxonomyRows([label]);
+
+    assert.equal(report.auditRows, 1);
+    assert.equal(report.rows[0].bucket, 'dividend-decision');
+    assert.equal(report.rows[0].recommended.eventType, 'earnings');
+    assert.equal(
+        report.rows[0].recommended.impactMechanism,
+        'earnings_cash_flow'
+    );
+});
+
+test('taxonomy audit does not flag bonus-share listings already marked as capital actions', () => {
+    const label = {
+        _id: new mongoose.Types.ObjectId(),
+        input: {
+            title: 'Bonus Shares of Oriental Hotel Limited Now Listed in NEPSE',
+            excerpt: 'Bonus shares have been listed in NEPSE.',
+            sourceName: 'ShareSansar',
+            publishedAt: new Date()
+        },
+        adjudication: {
+            goldCandidate: {
+                ...directCandidate,
+                eventType: 'capital_action',
+                impactMechanism: 'ownership_supply'
+            }
+        }
+    };
+
+    const report = auditTaxonomyRows([label]);
+
+    assert.equal(report.auditRows, 0);
+});
+
+test('taxonomy audit limits financing flags to explicit securities financing records', () => {
+    const genericLoan = {
+        _id: new mongoose.Types.ObjectId(),
+        input: {
+            title: 'Bank launches digital loan platform',
+            excerpt: 'The bank introduced a new loan service for customers.',
+            sourceName: 'Online Khabar',
+            publishedAt: new Date()
+        },
+        adjudication: {
+            goldCandidate: {
+                ...directCandidate,
+                eventType: 'project_operations',
+                impactMechanism: 'operations_capacity'
+            }
+        }
+    };
+    const debenture = {
+        _id: new mongoose.Types.ObjectId(),
+        input: {
+            title: 'Nabil Bank opens debenture issue',
+            excerpt: 'The debenture issue will raise capital for financing.',
+            sourceName: 'ShareSansar',
+            publishedAt: new Date()
+        },
+        adjudication: {
+            goldCandidate: {
+                ...directCandidate,
+                eventType: 'capital_action',
+                impactMechanism: 'ownership_supply'
+            }
+        }
+    };
+
+    const report = auditTaxonomyRows([genericLoan, debenture]);
+
+    assert.equal(report.auditRows, 1);
+    assert.equal(report.rows[0].bucket, 'debt-financing');
+    assert.equal(report.rows[0].id, debenture._id.toString());
+});
+
+test('taxonomy audit can import flags into the review queue', async () => {
+    const originalFind = MarketLabel.find;
+    const originalBulkWrite = MarketLabel.bulkWrite;
+    const labelId = new mongoose.Types.ObjectId();
+    let capturedOperations;
+    MarketLabel.find = (query) => {
+        if (query._id) {
+            return {
+                select: () => ({
+                    lean: async () => [{ _id: labelId }]
+                })
+            };
+        }
+        return {
+            select: () => ({
+                lean: async () => [{
+                    _id: labelId,
+                    input: {
+                        title: 'Neco Insurance Announces 7.3684% Dividend for FY 2080/81',
+                        excerpt: 'The company announced a cash dividend.',
+                        sourceName: 'ShareSansar',
+                        publishedAt: new Date()
+                    },
+                    model: { schemaVersion: 2 },
+                    adjudication: {
+                        status: 'adjudicated',
+                        goldCandidate: {
+                            ...directCandidate,
+                            eventType: 'capital_action',
+                            impactMechanism: 'ownership_supply'
+                        }
+                    }
+                }]
+            })
+        };
+    };
+    MarketLabel.bulkWrite = async (operations) => {
+        capturedOperations = operations;
+        return { matchedCount: operations.length, modifiedCount: operations.length };
+    };
+
+    try {
+        const result = await runTaxonomyConsistencyAudit({
+            schemaVersion: 2,
+            actor: 'reviewer-1',
+            importToReview: true
+        });
+
+        assert.equal(result.auditRows, 1);
+        assert.equal(result.imported, 1);
+        assert.equal(
+            capturedOperations[0].updateOne.update.$set['revalidationAudit.source'],
+            'taxonomy-consistency-audit'
+        );
+        assert.equal(
+            capturedOperations[0].updateOne.update.$set['revalidationAudit.needsReview'],
+            true
+        );
+    } finally {
+        MarketLabel.find = originalFind;
+        MarketLabel.bulkWrite = originalBulkWrite;
+    }
 });
 
 test('company aliases map bilingual mentions to a registered symbol', () => {
