@@ -326,7 +326,8 @@ const main = async () => {
                 schemaVersion: Number(
                     options['schema-version'] || marketGyanConfig.schemaVersion
                 ),
-                actor: options.reviewer || marketGyanConfig.reviewerId
+                actor: options.reviewer || marketGyanConfig.reviewerId,
+                force: options.force === 'true'
             }));
             break;
         case 'taxonomy-audit': {
@@ -335,7 +336,8 @@ const main = async () => {
                     options['schema-version'] || marketGyanConfig.schemaVersion
                 ),
                 actor: options.reviewer || marketGyanConfig.reviewerId,
-                importToReview: options.import === 'true'
+                importToReview: options.import === 'true',
+                force: options.force === 'true'
             });
             if (options.output) {
                 const { rows, ...summary } = report;

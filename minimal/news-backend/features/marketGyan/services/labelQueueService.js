@@ -822,10 +822,11 @@ const regenerateLabel = async (id, { reviewer = 'local-reviewer' } = {}) => {
 
 const buildQueueQuery = (filters = {}) => {
     const query = {};
+    const needsRevalidation = String(filters.needsRevalidation) === 'true';
     if (filters.schemaVersion) {
         query['model.schemaVersion'] = Number(filters.schemaVersion);
     }
-    if (filters.status) query.status = filters.status;
+    if (!needsRevalidation && filters.status) query.status = filters.status;
     if (filters.source) {
         query['input.sourceName'] = new RegExp(
             String(filters.source).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
@@ -837,7 +838,7 @@ const buildQueueQuery = (filters = {}) => {
     if (filters.relevance) query['candidate.relevance'] = filters.relevance;
     if (filters.eventType) query['candidate.eventType'] = filters.eventType;
     if (filters.direction) query['candidate.impactDirection'] = filters.direction;
-    if (filters.adjudicationStatus) {
+    if (!needsRevalidation && filters.adjudicationStatus) {
         query['adjudication.status'] = filters.adjudicationStatus;
     }
     if (String(filters.secondReview) === 'true') {
@@ -847,8 +848,11 @@ const buildQueueQuery = (filters = {}) => {
     if (String(filters.hasErrors) === 'true') {
         query['validationErrors.0'] = { $exists: true };
     }
-    if (String(filters.needsRevalidation) === 'true') {
+    if (needsRevalidation) {
         query['revalidationAudit.needsReview'] = true;
+        if (filters.revalidationSource) {
+            query['revalidationAudit.source'] = filters.revalidationSource;
+        }
     }
     return query;
 };
@@ -864,8 +868,11 @@ const listQueue = async ({
     const parsedLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
     const query = buildQueueQuery(filters);
     if (
+        String(filters.needsRevalidation) !== 'true'
+        && (
         reviewerRole !== 'adjudicator'
         && String(filters.includeReviewed) !== 'true'
+        )
     ) {
         const reviewedLabelIds = await MarketAnnotation.distinct('label', {
             reviewerId,

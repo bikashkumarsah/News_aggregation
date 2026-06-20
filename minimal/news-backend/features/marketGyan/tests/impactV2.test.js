@@ -277,15 +277,72 @@ test('revalidation audit importer marks matching schema-v2 labels only', async (
     }
 });
 
+test('revalidation audit importer does not reopen resolved labels by default', async () => {
+    const originalFind = MarketLabel.find;
+    const originalBulkWrite = MarketLabel.bulkWrite;
+    const resolvedId = new mongoose.Types.ObjectId().toString();
+    const auditPath = path.join(
+        fs.mkdtempSync(path.join(os.tmpdir(), 'market-gyan-audit-')),
+        'audit.json'
+    );
+    let capturedOperations;
+
+    fs.writeFileSync(auditPath, JSON.stringify({
+        highestPriority: [{
+            id: resolvedId,
+            priorityScore: 10,
+            models: 'xlmr-relevance',
+            reasons: 'xlmr-relevance: not_relevant->direct'
+        }]
+    }), 'utf8');
+
+    MarketLabel.find = () => ({
+        select: () => ({
+            lean: async () => [{
+                _id: resolvedId,
+                revalidationAudit: {
+                    source: 'training-run-error-audit',
+                    needsReview: false
+                },
+                revisions: [{ action: 'revalidation_resolved' }]
+            }]
+        })
+    });
+    MarketLabel.bulkWrite = async (operations) => {
+        capturedOperations = operations;
+        return { matchedCount: operations.length, modifiedCount: operations.length };
+    };
+
+    try {
+        const result = await importRevalidationAudit({
+            auditPath,
+            schemaVersion: 2,
+            actor: 'reviewer-1'
+        });
+
+        assert.equal(result.imported, 0);
+        assert.equal(result.skippedResolved, 1);
+        assert.deepEqual(result.missing, []);
+        assert.equal(capturedOperations, undefined);
+    } finally {
+        MarketLabel.find = originalFind;
+        MarketLabel.bulkWrite = originalBulkWrite;
+    }
+});
+
 test('review queue supports model-error revalidation filtering', () => {
     const query = buildQueueQuery({
         schemaVersion: 2,
-        needsRevalidation: 'true'
+        status: 'pending_review',
+        adjudicationStatus: 'pending',
+        needsRevalidation: 'true',
+        revalidationSource: 'taxonomy-consistency-audit'
     });
 
     assert.deepEqual(query, {
         'model.schemaVersion': 2,
-        'revalidationAudit.needsReview': true
+        'revalidationAudit.needsReview': true,
+        'revalidationAudit.source': 'taxonomy-consistency-audit'
     });
 });
 

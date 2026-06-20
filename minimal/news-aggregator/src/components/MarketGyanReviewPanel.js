@@ -141,6 +141,7 @@ const MarketGyanReviewPanel = () => {
     adjudicationStatus: 'pending',
     secondReview: false,
     needsRevalidation: false,
+    revalidationSource: '',
     includeReviewed: false,
     hasErrors: false
   });
@@ -154,7 +155,15 @@ const MarketGyanReviewPanel = () => {
 
   const query = useMemo(() => {
     const params = new URLSearchParams({ limit: '50' });
-    Object.entries(filters).forEach(([key, value]) => {
+    const effectiveFilters = filters.needsRevalidation
+      ? {
+          ...filters,
+          status: '',
+          adjudicationStatus: '',
+          includeReviewed: true
+        }
+      : filters;
+    Object.entries(effectiveFilters).forEach(([key, value]) => {
       if (value) params.set(key, String(value));
     });
     return params.toString();
@@ -230,12 +239,15 @@ const MarketGyanReviewPanel = () => {
     }
   };
 
-  const importAudit = async () => {
+  const importAudit = async (kind = 'model-error') => {
     setAuditImporting(true);
     setAuditMessage('');
     setError('');
     try {
-      const response = await fetch(`${API_URL}/market-gyan/review/audit/import`, {
+      const endpoint = kind === 'taxonomy'
+        ? `${API_URL}/market-gyan/review/audit/taxonomy`
+        : `${API_URL}/market-gyan/review/audit/import`;
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ schemaVersion: 2 })
@@ -245,14 +257,28 @@ const MarketGyanReviewPanel = () => {
         throw new Error(payload.error || 'Audit import failed');
       }
       const imported = payload.data?.imported || 0;
+      const active = payload.data?.skippedActive || 0;
+      const skipped = payload.data?.skippedResolved || 0;
       const missing = payload.data?.missing?.length || 0;
-      setAuditMessage(`Loaded ${imported} audit-priority records${missing ? `; ${missing} IDs were not found in MongoDB` : ''}.`);
+      const source = payload.data?.source || (
+        kind === 'taxonomy'
+          ? 'taxonomy-consistency-audit'
+          : 'training-run-error-audit'
+      );
+      setAuditMessage(
+        `Loaded ${imported} ${kind === 'taxonomy' ? 'taxonomy' : 'model-error'} audit records`
+        + (active ? `; ${active} were already active` : '')
+        + (skipped ? `; skipped ${skipped} already resolved records` : '')
+        + (missing ? `; ${missing} IDs were not found in MongoDB` : '')
+        + '.'
+      );
       setFilters((current) => ({
         ...current,
         status: '',
         adjudicationStatus: '',
         needsRevalidation: true,
-        includeReviewed: true
+        includeReviewed: true,
+        revalidationSource: source
       }));
     } catch (requestError) {
       setError(requestError.message || 'Audit import failed');
@@ -304,6 +330,15 @@ const MarketGyanReviewPanel = () => {
           <FieldSelect label="Event" ariaLabel="Event filter" value={filters.eventType} values={['', ...ontology.eventTypes]} onChange={(value) => setFilters({ ...filters, eventType: value })} />
           <FieldSelect label="Direction" ariaLabel="Direction filter" value={filters.direction} values={['', ...ontology.impactDirections]} onChange={(value) => setFilters({ ...filters, direction: value })} />
           <FieldSelect label="Adjudication" ariaLabel="Adjudication filter" value={filters.adjudicationStatus} values={['', 'pending', 'adjudicated', 'excluded']} onChange={(value) => setFilters({ ...filters, adjudicationStatus: value })} />
+          {filters.needsRevalidation && (
+            <FieldSelect
+              label="Audit source"
+              ariaLabel="Audit source filter"
+              value={filters.revalidationSource}
+              values={['', 'taxonomy-consistency-audit', 'training-run-error-audit']}
+              onChange={(value) => setFilters({ ...filters, revalidationSource: value })}
+            />
+          )}
           <label className="flex items-center gap-2 pb-2 text-sm font-semibold">
             <input type="checkbox" checked={filters.secondReview} onChange={(event) => setFilters({ ...filters, secondReview: event.target.checked })} />
             Second-review subset
@@ -323,12 +358,20 @@ const MarketGyanReviewPanel = () => {
             Needs revalidation
           </label>
           <label className="flex items-center gap-2 pb-2 text-sm font-semibold">
-            <input type="checkbox" checked={filters.includeReviewed} onChange={(event) => setFilters({ ...filters, includeReviewed: event.target.checked })} />
+            <input
+              type="checkbox"
+              checked={filters.needsRevalidation || filters.includeReviewed}
+              disabled={filters.needsRevalidation}
+              onChange={(event) => setFilters({ ...filters, includeReviewed: event.target.checked })}
+            />
             Show submitted
           </label>
           <div className="ml-auto flex gap-2">
-            <button disabled={auditImporting} type="button" onClick={importAudit} className="btn-secondary flex items-center gap-2">
-              <Upload className="w-4 h-4" /> {auditImporting ? 'Loading audit...' : 'Load error audit'}
+            <button disabled={auditImporting} type="button" onClick={() => importAudit('taxonomy')} className="btn-secondary flex items-center gap-2">
+              <Upload className="w-4 h-4" /> {auditImporting ? 'Loading audit...' : 'Load taxonomy audit'}
+            </button>
+            <button disabled={auditImporting} type="button" onClick={() => importAudit('model-error')} className="btn-secondary flex items-center gap-2">
+              <Upload className="w-4 h-4" /> {auditImporting ? 'Loading audit...' : 'Load model-error audit'}
             </button>
             <a href={`${API_URL}/market-gyan/review/export?schemaVersion=2`} className="btn-secondary flex items-center gap-2">
               <Download className="w-4 h-4" /> Gold export

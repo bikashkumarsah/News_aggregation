@@ -184,17 +184,51 @@ const auditTaxonomyRows = (labels) => {
 const importTaxonomyRows = async ({
     rows,
     schemaVersion,
-    actor
+    actor,
+    force = false
 }) => {
     const ids = rows.map((row) => row.id);
     if (!ids.length) {
-        return { imported: 0, matched: 0, modified: 0, missing: [] };
+        return {
+            imported: 0,
+            matched: 0,
+            modified: 0,
+            skippedActive: 0,
+            skippedResolved: 0,
+            missing: []
+        };
     }
     const existing = await MarketLabel.find({
         _id: { $in: ids },
         'model.schemaVersion': Number(schemaVersion)
-    }).select('_id').lean();
-    const existingIds = new Set(existing.map((row) => row._id.toString()));
+    }).select('_id revalidationAudit revisions.action').lean();
+    const skippedActive = existing
+        .filter((row) => (
+            !force
+            && row.revalidationAudit?.source === AUDIT_SOURCE
+            && row.revalidationAudit?.needsReview === true
+        ))
+        .map((row) => row._id.toString());
+    const skippedResolved = existing
+        .filter((row) => (
+            !force
+            && row.revalidationAudit?.source === AUDIT_SOURCE
+            && (
+                row.revalidationAudit?.needsReview === false
+                || (row.revisions || []).some(
+                    (revision) => revision.action === 'revalidation_resolved'
+                )
+            )
+        ))
+        .map((row) => row._id.toString());
+    const skippedActiveIds = new Set(skippedActive);
+    const skippedResolvedIds = new Set(skippedResolved);
+    const existingIds = new Set(
+        existing
+            .map((row) => row._id.toString())
+            .filter((id) => !skippedActiveIds.has(id))
+            .filter((id) => !skippedResolvedIds.has(id))
+    );
     const now = new Date();
     const operations = rows
         .filter((row) => existingIds.has(row.id))
@@ -233,14 +267,20 @@ const importTaxonomyRows = async ({
         imported: operations.length,
         matched: result.matchedCount || operations.length,
         modified: result.modifiedCount || 0,
-        missing: ids.filter((id) => !existingIds.has(id))
+        skippedActive: skippedActive.length,
+        skippedResolved: skippedResolved.length,
+        missing: ids
+            .filter((id) => !existingIds.has(id))
+            .filter((id) => !skippedActiveIds.has(id))
+            .filter((id) => !skippedResolvedIds.has(id))
     };
 };
 
 const runTaxonomyConsistencyAudit = async ({
     schemaVersion = marketGyanConfig.schemaVersion,
     actor = marketGyanConfig.reviewerId,
-    importToReview = false
+    importToReview = false,
+    force = false
 } = {}) => {
     const labels = await MarketLabel.find({
         'model.schemaVersion': Number(schemaVersion),
@@ -263,7 +303,8 @@ const runTaxonomyConsistencyAudit = async ({
         ...(await importTaxonomyRows({
             rows: report.rows,
             schemaVersion,
-            actor
+            actor,
+            force
         }))
     };
 };

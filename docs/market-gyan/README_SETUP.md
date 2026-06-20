@@ -299,9 +299,9 @@ cd minimal/news-backend
 npm run market-gyan:import-revalidation-audit -- --schema-version=2
 ```
 
-The review UI also exposes a **Load error audit** button that runs the same
-local-only import endpoint. Then enable the **Needs revalidation** filter. The
-UI automatically clears the normal status/adjudication filters and includes
+The review UI also exposes a **Load model-error audit** button that runs the
+same local-only import endpoint. Then enable the **Needs revalidation** filter.
+The UI automatically clears the normal status/adjudication filters and includes
 already submitted records, so previously reviewed items can be corrected from
 the original source text, sentence IDs, ontology controls, and revision history.
 
@@ -332,6 +332,11 @@ should confirm or correct the event type and mechanism using the source
 sentences. The second-run audit imported 57 flags: 26 dividend decisions,
 23 IPO/listing/allotment records, 5 right-share records, 2 market-summary
 records, and 1 debenture record.
+
+The review UI has a separate **Load taxonomy audit** button. Audit imports are
+idempotent by default: already active records are skipped, and records with a
+prior `revalidation_resolved` revision are not reopened unless a command is
+run explicitly with `--force=true`.
 
 ## 8. Export and Freeze NEPSE-Impact-500
 
