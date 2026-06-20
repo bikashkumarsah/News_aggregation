@@ -309,6 +309,30 @@ Submitting, rejecting, excluding, or adjudicating a flagged item clears its
 `needsReview` flag so the queue advances to the next priority sample. Saving a
 draft keeps the flag active.
 
+### Taxonomy-consistency revalidation pass
+
+Before another Qwen run, flag likely ontology drift in dividend, right-share,
+IPO/listing/allotment, debenture, and market-summary records. The audit never
+edits gold labels by itself; it only queues records in the validation UI:
+
+```bash
+cd minimal/news-backend
+npm run market-gyan:taxonomy-audit -- \
+  --schema-version=2 \
+  --output=../../docs/market-gyan/taxonomy-audit/second-run-taxonomy-audit.json
+
+npm run market-gyan:taxonomy-audit -- \
+  --schema-version=2 \
+  --import=true \
+  --output=../../docs/market-gyan/taxonomy-audit/second-run-taxonomy-audit.json
+```
+
+Then use the **Needs revalidation** filter in the validation UI. Reviewers
+should confirm or correct the event type and mechanism using the source
+sentences. The second-run audit imported 57 flags: 26 dividend decisions,
+23 IPO/listing/allotment records, 5 right-share records, 2 market-summary
+records, and 1 debenture record.
+
 ## 8. Export and Freeze NEPSE-Impact-500
 
 After all primary annotations are submitted, validate them without changing the
@@ -399,7 +423,9 @@ PYTHONPATH=. python3 -m market_gyan.cli split \
   --strategy balanced
 ```
 
-Do not regenerate the manifest between model runs.
+Do not regenerate the manifest between model runs unless revalidation changes
+one or more gold labels. If labels change, export, validate, gate, and freeze a
+new balanced split before rerunning any model.
 
 ## 9. Run Model Experiments
 
@@ -425,14 +451,23 @@ Run `notebooks/qwen3_8b_qlora.ipynb` next. It evaluates:
 The QLoRA notebook uses `unsloth/Qwen3-8B`, `FastLanguageModel`,
 `FastLanguageModel.get_peft_model`, Unsloth gradient checkpointing,
 TRL `SFTTrainer`, and response-only masking. The configuration is 4-bit
-loading, sequence length 1024, LoRA rank 16, alpha 32, dropout 0.05, batch
-size 1, gradient accumulation 16, learning rate `2e-4`, and three epochs.
+loading, sequence length 1536 with a 1024 fallback if GPU memory fails, LoRA
+rank 16, alpha 32, dropout 0.05, batch size 1, gradient accumulation 16,
+learning rate `1e-4`, and five epochs.
 Qwen is trained as a compact classifier/extractor: it generates only canonical
 labels, sectors, symbols, confidence, and evidence sentence IDs. Evidence text,
 summaries, rationales, and report prose are reconstructed later from RAG
-evidence and deterministic market data. The notebook oversamples indirect and
-hard-negative records, including Nepali hard negatives, to reduce the
-all-direct failure mode seen in the first QLoRA run.
+evidence and deterministic market data. The notebook oversamples all Nepali
+records, all indirect and hard-negative records, and one additional copy of
+Nepali indirect and Nepali hard-negative records. Generation uses
+`max_new_tokens`, an opening-JSON-brace prefix, `MAX_GENERATION_TOKENS=192`,
+and `repetition_penalty=1.05` to discourage Markdown bullets and looping
+evidence lists.
+
+After training, run the built-in 10-example smoke generation cell before the
+full test generation cell. Continue only if at least 8 of the 10 validation
+outputs are strict valid compact JSON. The official metrics remain strict; the
+optional repaired-output metric is diagnostic only.
 
 For Colab or Kaggle:
 
@@ -454,10 +489,12 @@ output directory.
 Recommended rerun order after dataset or notebook changes:
 
 1. Validate the adjudicated JSONL.
-2. Regenerate the balanced split.
-3. Rerun XLM-R and FinBERT baselines.
-4. Rerun Qwen zero-shot, three-shot, and Unsloth QLoRA.
-5. Compare all models on the identical balanced test IDs.
+2. Run and review the taxonomy-consistency audit if a previous run exposed
+   label drift.
+3. Regenerate the balanced split only if labels changed.
+4. Rerun XLM-R and FinBERT baselines if labels changed.
+5. Rerun Qwen zero-shot, three-shot, and Unsloth QLoRA.
+6. Compare all models on the identical balanced test IDs.
 
 ## 10. Benchmark and Adaptation Claim
 

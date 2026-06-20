@@ -71,7 +71,7 @@
   {\large Engineering Progress Report\par}
   \vspace{2.0cm}
 
-  \begin{tabularx}{0.92\textwidth}{@{}rX@{}}
+  \begin{tabularx}{0.92\textwidth}{@{}rY@{}}
     \textbf{Author:} & Bikash Kumar Sah \\
     \textbf{Report date:} & \SnapshotDate \\
     \textbf{Current milestone:} & \CurrentMilestone \\
@@ -122,11 +122,13 @@ adjudicated gold records. The current NEPSE-Impact-500 gold corpus contains
 \VTwoNegativeSelectionCount{} hard negatives after targeted rebalance. It
 passes the composition, language, source, symbol, and event-coverage gates.
 The approved JSONL export and balanced duplicate-grouped split manifest are
-ready for training reruns. The first model run has been audited, but compact
-Qwen reruns have not yet produced replacement results. The model-error audit
-flagged 40 high-priority records for source-grounded revalidation; those
-records have now been submitted through the validation workflow, active audit
-flags are cleared, and the gold export has been refreshed.
+ready for training. Two model runs have now been audited. XLM-R is the
+current reliable supervised baseline, while the second compact-label Qwen
+QLoRA run still failed the strict JSON and evidence-grounding gates. A
+targeted taxonomy-consistency audit has imported
+\TaxonomyAuditFlagCount{} records into the existing validation workflow,
+mostly dividend decisions and capital-action records, before the third Qwen
+run.
 
 The modeling plan now compares Gemma before edits, base Qwen3-8B zero-shot,
 base Qwen3-8B three-shot, XLM-R, English-only FinBERT, and MarketGyan
@@ -173,7 +175,7 @@ public data. It is not investment advice and does not place trades.
     Schema-v2 excluded / failed / total labels &
       \VTwoExcludedCount{} / \VTwoFailedCount{} / \VTwoTotalLabelCount \\
     Submitted reviewer annotations & \SubmittedAnnotationCount \\
-    Active model-error records still flagged for revalidation &
+    Active records still flagged for revalidation &
       \RevalidationAuditCount{} with max priority \RevalidationMaxPriority \\
     NEPSE-Impact target & \CandidateCollectionTarget{} adjudicated records \\
     Gemma tokens recorded across v1 and v2 & \GemmaTokenCount \\
@@ -257,13 +259,15 @@ composition gates must be checked again after adjudication.
   Reviewer-specific annotations, explicit adjudication, pilot-only v1 export,
   and adjudicated-only v2 JSONL export. NEPSE-Impact-500 is exported and split. \\
   XLM-R and FinBERT baselines & \implemented &
-  First training outputs exist and have been audited. XLM-R is currently the
-  strongest reliable classifier; a balanced-split rerun is still required. \\
+  Second-run outputs exist and have been audited. XLM-R relevance is currently
+  the strongest reliable classifier; direction remains weaker, especially for
+  neutral cases. \\
   Qwen3-8B QLoRA & \implemented &
   A direct Colab/Kaggle notebook implements zero-shot, three-shot, four-bit
   QLoRA, checkpoint resumption, deterministic JSON generation, ablation
-  controls, plots, and metric export. The first Qwen run failed validity and
-  bias gates, so the compact-label rerun is pending. \\
+  controls, plots, smoke testing, and metric export. The second compact-label
+  Qwen run still failed strict validity and grounding gates, so runtime use
+  remains disabled. \\
   Qdrant retrieval & \implemented &
   Dedicated collection, deterministic chunking, content-hash idempotency,
   metadata filters, and citation reconstruction are implemented. No live
@@ -554,7 +558,7 @@ training export. At present, \VTwoAdjudicatedCount{} schema-v2 records are
 adjudicated, exported, validated, and split. Non-gold records remain blocked
 from export.
 
-\section{Model-error revalidation workflow}
+\section{Model-error and taxonomy revalidation workflow}
 
 After the first model run, prediction artifacts were joined back to
 \texttt{nepse-impact-500.jsonl} by label ID. The resulting audit ranks
@@ -562,16 +566,26 @@ examples where model disagreement suggests either a difficult case or a
 possible annotation issue. The imported audit flagged 40 records, mostly
 hard-negative general-business stories that XLM-R or Qwen predicted as
 market-relevant, plus a smaller set of direct bullish records that baseline
-models predicted as not relevant or uncertain. As of this snapshot, those
-records have been reviewed and submitted, leaving
-\RevalidationAuditCount{} active audit flags.
+models predicted as not relevant or uncertain. Those records have been
+reviewed, submitted, and re-exported through the normal validation workflow.
+
+The second training-run analysis exposed a separate taxonomy-consistency
+issue: dividend-related records were split across \texttt{capital\_action},
+\texttt{earnings}, and \texttt{credit\_financing}. A targeted audit now flags
+\TaxonomyAuditFlagCount{} records for source-grounded review:
+\TaxonomyDividendFlagCount{} dividend decisions,
+\TaxonomyIpoFlagCount{} IPO, listing, and allotment records,
+\TaxonomyRightShareFlagCount{} right-share records,
+\TaxonomyMarketSummaryFlagCount{} market-summary records, and
+\TaxonomyDebtFlagCount{} debenture record. These flags are active as of this
+snapshot, so the JSONL export should not be regenerated for the third Qwen run
+until the reviewer confirms or corrects them.
 
 The audit is not a replacement for human judgment. It writes a
 \texttt{revalidationAudit} marker to the corresponding \texttt{MarketLabel}
 record, including priority score, model names, and disagreement reasons.
 Submitting, rejecting, excluding, or adjudicating a flagged record clears the
-marker. The refreshed gold export now passes dataset validation and the
-500-record training gate.
+marker. The current taxonomy audit changes no gold labels by itself.
 Reviewers then open the same validation workflow, filter
 \texttt{needsReview}, inspect the original source sentences and URL, and
 submit the corrected annotation or confirm the existing gold label. A draft
@@ -714,14 +728,15 @@ confusion matrices, and per-class metrics. It loads the best checkpoint and
 exports each model, tokenizer, plot, prediction file, and
 \texttt{metrics.json}.
 
-The first completed run produced the current baseline reference rather than
-the final benchmark result. XLM-R relevance classification reached
+The second completed run produced the current baseline reference, but not the
+final benchmark claim because the taxonomy audit is still pending. XLM-R
+relevance classification reached
 \XLMRRelevanceAccuracy{} accuracy and \XLMRRelevanceMacroFOne{} macro-F1,
 with \XLMRRelevanceErrors{} errors on 75 test rows. Direction classification
 on relevant rows reached \XLMRDirectionAccuracy{} accuracy and
 \XLMRDirectionMacroFOne{} macro-F1, with \XLMRDirectionErrors{} errors on
-41 test rows. The main weakness is still indirect relevance and bullish
-direction, so the balanced split and revalidated audit cases should be used
+the relevant test subset. The main weakness is still neutral direction and
+some indirect relevance cases, so the taxonomy-audited export should be used
 before final thesis metrics are claimed.
 
 \section{English-only FinBERT baseline}
@@ -733,9 +748,9 @@ uses three classes. This baseline directly tests the proposal's
 financial-domain adaptation motivation while making its English-only
 limitation explicit.
 
-The first English-only FinBERT evaluation reached \FinBERTAccuracy{} accuracy
-and \FinBERTMacroFOne{} macro-F1, with \FinBERTErrors{} error on 14 English
-relevant test rows. The small support makes it useful as a motivation and
+The second English-only FinBERT evaluation reached \FinBERTAccuracy{} accuracy
+and \FinBERTMacroFOne{} macro-F1, with \FinBERTErrors{} errors on the English
+relevant test subset. The small support makes it useful as a motivation and
 sanity-check baseline, not as a sufficient standalone benchmark.
 
 \section{Qwen3-8B QLoRA experiment}
@@ -763,19 +778,19 @@ reviewed JSON response. The implemented configuration is:
     Base model & \texttt{unsloth/Qwen3-8B} (Qwen3-8B family) \\
     Quantization & Unsloth 4-bit loading for QLoRA \\
     Compute precision & BF16 when supported, otherwise FP16 \\
-    Maximum sequence length & 1,024 tokens \\
+    Maximum sequence length & 1,536 tokens, with 1,024 fallback if GPU memory fails \\
     LoRA rank / alpha / dropout & 16 / 32 / 0.05 \\
     Adapter targets & Attention projections and MLP projections \\
     Device batch size & 1 train, 1 evaluation \\
     Gradient accumulation & 16 steps \\
     Effective train batch & 16 examples per optimizer step \\
-    Learning rate & \(2 \times 10^{-4}\) \\
-    Epochs & 3 \\
+    Learning rate & \(1 \times 10^{-4}\) \\
+    Epochs & 5 \\
     Warmup ratio & 0.05 \\
     Optimizer & Paged AdamW 8-bit through the Unsloth/TRL stack \\
     Memory controls & Unsloth gradient checkpointing and 4-bit loading \\
-    Evaluation / save interval & Every 25 steps \\
-    Checkpoint retention & No intermediate checkpoints retained \\
+    Evaluation / save interval & Evaluation every 25 steps; no intermediate saves \\
+    Checkpoint retention & Final adapter artifacts only \\
     Resume behavior & Rerun from the training cell if interrupted \\
     \bottomrule
   \end{tabularx}
@@ -788,13 +803,18 @@ full evidence text, summaries, rationales, tags, or report prose. Those fields
 are reconstructed later from RAG evidence and deterministic market data. This
 change follows the first training-output audit, where full-gold JSON targets
 caused truncation, low structured validity, and an all-direct relevance bias.
-The rerun also oversamples indirect and hard-negative examples, including
-Nepali hard negatives.
+The third-run notebook oversamples all Nepali rows, all indirect and
+hard-negative rows, and an additional copy of Nepali indirect and Nepali
+hard-negative rows. Generation uses \texttt{max\_new\_tokens} only, prefixes
+the assistant answer with an opening JSON brace, limits generation to 192 new
+tokens, and applies a small repetition penalty to reduce looping evidence
+lists.
 
-The minimum planned environment is an NVIDIA T4 with 16 GB VRAM in Kaggle or
-Google Colab. Actual fit, throughput, and maximum sequence length must be
-confirmed during reruns. The compact-Qwen configuration is code-complete, but
-its results have not yet replaced the first low-validity Qwen output.
+The minimum planned environment is an NVIDIA T4 with 16 GB VRAM in Kaggle,
+Colab, or Lightning AI. Actual fit, throughput, and maximum sequence length
+must be confirmed during reruns. Before generating the full test set, the
+notebook now runs a 10-example validation smoke test and stops unless at least
+80\% of those outputs are strict valid JSON.
 The \texttt{notebooks/qwen3\_8b\_qlora.ipynb} workflow evaluates base
 Qwen3-8B zero-shot and three-shot before training the Unsloth QLoRA adapter on
 the same frozen split as XLM-R. It generates deterministic JSON and exports
@@ -803,15 +823,18 @@ grounding, and confusion-matrix results.
 Adapters, tokenizer files, predictions, plots, and metrics are archived for
 download.
 
-The first Qwen QLoRA run is therefore treated as a failure-analysis artifact.
-It reached only \QwenFirstRunAccuracy{} relevance accuracy,
-\QwenFirstRunMacroFOne{} relevance macro-F1, and
-\QwenStructuredValidity{} structured-output validity. Of 75 test outputs,
-\QwenInvalidJsonCount{} were invalid or truncated JSON and only
-\QwenValidJsonCount{} were valid JSON. Among valid outputs, the model showed
-an all-direct bias and produced \QwenHardNegativeFalsePositiveCount{}
-hard-negative false positives. These findings justify the compact-label
-target, balanced split, and hard-negative oversampling before rerunning Qwen.
+Both Qwen QLoRA runs are therefore treated as failure-analysis artifacts. The
+first run used verbose targets and reached only \QwenStructuredValidity{}
+structured-output validity. The second compact-label run still failed the
+strict gate: relevance accuracy was \QwenSecondRunAccuracy{}, relevance
+macro-F1 was \QwenSecondRunMacroFOne{}, direction macro-F1 was
+\QwenSecondRunDirectionMacroFOne{}, strict JSON validity was
+\QwenSecondRunStructuredValidity{}, evidence grounding was
+\QwenSecondRunGrounding{}, and \QwenSecondRunRawOutputCount{} of 75 adapter
+outputs were raw or unparsed text. Nepali relevance accuracy was
+\QwenSecondRunNepaliAccuracy{}, so the next run must fix generation control,
+language balancing, and taxonomy consistency before any adaptation claim is
+made.
 
 \section{Evaluation plan}
 
@@ -829,6 +852,8 @@ measures:
   \item reviewer agreement by kappa and multilabel F1;
   \item balanced test coverage and chronological robustness coverage; and
   \item qualitative analysis of unsupported rationales and taxonomy errors;
+  \item optional repaired-output diagnostics for Qwen raw text, reported only
+        for failure analysis and not as official strict metrics;
   \item retrieval Precision@5 and citation correctness over at least 30
         manually judged finance queries; and
   \item report schema validity, freshness, generation latency, and
@@ -1009,9 +1034,9 @@ by default and fail closed when dependencies or credentials are unavailable.
         excluded by the project scope.
   \item The schema-v1 pool over-represents general business coverage and is
         not a valid NEPSE-impact benchmark.
-  \item The v2 gold corpus passes the current composition gates and the
-        model-error revalidation loop is submitted, but final claims still
-        require rerunning every model on the refreshed balanced split.
+  \item The v2 gold corpus passes the current composition gates, but the
+        taxonomy-consistency audit must be reviewed before the next official
+        export and model rerun.
   \item The first chronological split was source- and language-shifted because
         the collection timeline differs by outlet; it is retained only as a
         secondary robustness check.
@@ -1025,8 +1050,8 @@ by default and fail closed when dependencies or credentials are unavailable.
         \RetryableFailureCount{} transient jobs remain eligible under the
         current retry policy.
   \item Independent second-review agreement has not yet been measured.
-  \item The first Qwen fine-tuning run failed structured-validity and bias
-        gates; compact-label Qwen results do not exist yet.
+  \item The second Qwen fine-tuning run still failed strict JSON validity,
+        evidence grounding, Nepali relevance, and macro-F1 gates.
   \item No live retrieval, agent, or inference benchmarks exist yet.
 \end{itemize}
 
@@ -1048,11 +1073,13 @@ versioned ontology, bilingual aliases, sentence-grounded Gemma proposals,
 independent annotations, explicit adjudication, duplicate-safe export,
 reaction records, and model notebooks covering XLM-R, FinBERT, base Qwen, and
 Qwen3-8B QLoRA. The methodology and quota-compliant 500-record adjudicated
-dataset are implemented and exported. First XLM-R, FinBERT, and Qwen outputs
-have been audited; Qwen failed validity and bias gates, and the
-source-grounded revalidation queue is now cleared. Agreement results,
-compact-Qwen rerun results, retrieval benchmarks, agent benchmarks, and
-reaction analysis are not complete.
+dataset are implemented and exported. Two XLM-R, FinBERT, and Qwen output
+sets have been audited, and the second run currently positions XLM-R as the
+reliable supervised baseline. Qwen remains a negative experiment until it can
+produce strict JSON and grounded evidence consistently. The latest taxonomy
+audit has flagged \TaxonomyAuditFlagCount{} records for UI review before the
+next export. Agreement results, the third Qwen rerun, retrieval benchmarks,
+agent benchmarks, and reaction analysis are not complete.
 
 \chapter{Remaining Work}
 
@@ -1060,17 +1087,20 @@ The next work must complete the research evidence rather than expand the
 application interface:
 
 \begin{enumerate}[leftmargin=1.8em]
+  \item Review the \TaxonomyAuditFlagCount{} taxonomy audit flags in the UI.
+        Regenerate the JSONL export and balanced split only if labels change.
   \item Complete independent second annotation for
         \SecondReviewTarget{} stratified records and report agreement.
   \item Report kappa and multilabel agreement; revise guidelines and reannotate
         disagreement-heavy categories if relevance or direction kappa is
         below 0.70.
-  \item Rerun XLM-R relevance and direction baselines on the final balanced
-        split after any revalidation edits.
-  \item Rerun English-only FinBERT on the final English relevant subset.
+  \item Rerun XLM-R relevance and direction baselines on the taxonomy-reviewed
+        balanced split.
+  \item Rerun English-only FinBERT on the taxonomy-reviewed English relevant
+        subset.
   \item Run Gemma-before-edit, base-Qwen zero-shot, base-Qwen three-shot,
-        XLM-R, English FinBERT, and compact-label Qwen3-8B QLoRA on identical
-        test IDs.
+        XLM-R, English FinBERT, and the third compact-label Qwen3-8B QLoRA on
+        identical test IDs.
   \item Run QLoRA/base-Qwen, hard-negative, and RAG ablations; use paired
         bootstrap analysis for the adaptation claim.
   \item Compute first- and third-session market reactions with missing-data

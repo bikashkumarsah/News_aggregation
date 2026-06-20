@@ -30,12 +30,16 @@ def oversample_training_rows(rows):
     selected = list(rows)
     selected.extend(
         row for row in rows
+        if row["gold"]["language"] == "ne"
+    )
+    selected.extend(
+        row for row in rows
         if row["gold"]["relevance"] in {"indirect", "not_relevant"}
     )
     selected.extend(
         row for row in rows
         if (
-            row["gold"]["relevance"] == "not_relevant"
+            row["gold"]["relevance"] in {"indirect", "not_relevant"}
             and row["gold"]["language"] == "ne"
         )
     )
@@ -83,7 +87,7 @@ def main():
             return tokenizer(
                 batch["text"],
                 truncation=True,
-                max_length=1024,
+                max_length=1536,
                 padding=False,
             )
 
@@ -125,8 +129,8 @@ def main():
         per_device_train_batch_size=1,
         per_device_eval_batch_size=1,
         gradient_accumulation_steps=16,
-        learning_rate=2e-4,
-        num_train_epochs=3,
+        learning_rate=1e-4,
+        num_train_epochs=5,
         warmup_ratio=0.05,
         logging_steps=5,
         eval_strategy="steps",

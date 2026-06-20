@@ -2,10 +2,10 @@
 % Update the macros below after each milestone, then append one dated entry to
 % \MarketGyanMilestoneHistory. Keep implementation details in main.tex stable.
 
-\newcommand{\SnapshotDate}{June 19, 2026}
-\newcommand{\SnapshotTimestamp}{the dataset, model-audit, and revalidation status after the June 19, 2026 validation submission}
-\newcommand{\CurrentMilestone}{NEPSE-Impact-500 revalidated export and compact-Qwen rerun preparation}
-\newcommand{\CurrentMilestoneState}{The gold corpus is training-ready; model-error revalidation is submitted, the gold export is refreshed, and the balanced split is ready for XLM-R, FinBERT, and compact-Qwen reruns}
+\newcommand{\SnapshotDate}{June 20, 2026}
+\newcommand{\SnapshotTimestamp}{the dataset, second training-run, and taxonomy-audit status after the June 20, 2026 Qwen analysis}
+\newcommand{\CurrentMilestone}{Second training-run audit and taxonomy-consistency revalidation}
+\newcommand{\CurrentMilestoneState}{XLM-R is the current reliable baseline; Qwen run 2 failed strict output and grounding gates, and 57 taxonomy-consistency records are flagged for UI review before the next export and rerun}
 
 \newcommand{\SnapshotCount}{224}
 \newcommand{\SnapshotStartDate}{June 11, 2025}
@@ -75,30 +75,43 @@
 \newcommand{\CodexCorrectedCount}{105}
 \newcommand{\CodexConfirmedCount}{128}
 \newcommand{\SubmittedAnnotationCount}{560}
-\newcommand{\RevalidationAuditCount}{0}
-\newcommand{\RevalidationMaxPriority}{0}
+\newcommand{\RevalidationAuditCount}{57}
+\newcommand{\RevalidationMaxPriority}{8}
 
-\newcommand{\XLMRRelevanceAccuracy}{0.707}
-\newcommand{\XLMRRelevanceMacroFOne}{0.665}
-\newcommand{\XLMRRelevanceErrors}{22}
-\newcommand{\XLMRDirectionAccuracy}{0.634}
-\newcommand{\XLMRDirectionMacroFOne}{0.401}
-\newcommand{\XLMRDirectionErrors}{15}
-\newcommand{\FinBERTAccuracy}{0.929}
-\newcommand{\FinBERTMacroFOne}{0.636}
-\newcommand{\FinBERTErrors}{1}
+\newcommand{\XLMRRelevanceAccuracy}{0.800}
+\newcommand{\XLMRRelevanceMacroFOne}{0.722}
+\newcommand{\XLMRRelevanceErrors}{15}
+\newcommand{\XLMRDirectionAccuracy}{0.650}
+\newcommand{\XLMRDirectionMacroFOne}{0.536}
+\newcommand{\XLMRDirectionErrors}{21}
+\newcommand{\FinBERTAccuracy}{0.889}
+\newcommand{\FinBERTMacroFOne}{0.616}
+\newcommand{\FinBERTErrors}{3}
 \newcommand{\QwenFirstRunAccuracy}{0.213}
 \newcommand{\QwenFirstRunMacroFOne}{0.250}
 \newcommand{\QwenStructuredValidity}{41.3\%}
 \newcommand{\QwenInvalidJsonCount}{44}
 \newcommand{\QwenValidJsonCount}{31}
 \newcommand{\QwenHardNegativeFalsePositiveCount}{10}
+\newcommand{\QwenSecondRunAccuracy}{0.333}
+\newcommand{\QwenSecondRunMacroFOne}{0.276}
+\newcommand{\QwenSecondRunDirectionMacroFOne}{0.421}
+\newcommand{\QwenSecondRunStructuredValidity}{34.7\%}
+\newcommand{\QwenSecondRunGrounding}{34.7\%}
+\newcommand{\QwenSecondRunRawOutputCount}{49}
+\newcommand{\QwenSecondRunNepaliAccuracy}{0.000}
+\newcommand{\TaxonomyAuditFlagCount}{57}
+\newcommand{\TaxonomyDividendFlagCount}{26}
+\newcommand{\TaxonomyIpoFlagCount}{23}
+\newcommand{\TaxonomyRightShareFlagCount}{5}
+\newcommand{\TaxonomyMarketSummaryFlagCount}{2}
+\newcommand{\TaxonomyDebtFlagCount}{1}
 
 \newcommand{\GemmaTokenCount}{1,786,130}
 \newcommand{\VTwoGemmaTokenCount}{3,642}
 \newcommand{\GemmaAverageTokenCount}{2,895}
 
-\newcommand{\FineTuningState}{First XLM-R, FinBERT, and Qwen run analyzed; revalidation has been submitted and exported; compact-label Qwen rerun is pending}
+\newcommand{\FineTuningState}{Second XLM-R, FinBERT, and Qwen run analyzed; Qwen remains below strict validity and grounding gates; taxonomy-consistency review is pending before the third Qwen run}
 \newcommand{\RuntimeInferenceState}{Implemented but disabled pending evaluation}
 
 \newcommand{\MarketGyanMilestoneHistory}{%
@@ -221,5 +234,27 @@
     export. The
     refreshed \texttt{nepse-impact-500.jsonl} passed dataset validation, the
     500-record gate, and the balanced duplicate-grouped 350/75/75 split.
+    \item[June 20, 2026] The second training run was analyzed. XLM-R relevance
+    improved to \XLMRRelevanceAccuracy{} accuracy and
+    \XLMRRelevanceMacroFOne{} macro-F1, making it the current reliable
+    baseline. XLM-R direction reached \XLMRDirectionAccuracy{} accuracy and
+    \XLMRDirectionMacroFOne{} macro-F1, while English-only FinBERT reached
+    \FinBERTAccuracy{} accuracy and \FinBERTMacroFOne{} macro-F1 on the small
+    English relevant subset. Qwen3-8B QLoRA still failed the research and
+    deployment gates: strict JSON validity and evidence grounding were both
+    \QwenSecondRunStructuredValidity{}, relevance macro-F1 was
+    \QwenSecondRunMacroFOne{}, direction macro-F1 was
+    \QwenSecondRunDirectionMacroFOne{}, and
+    \QwenSecondRunRawOutputCount{} of 75 adapter outputs were raw or unparsed.
+    The run also exposed dividend-related taxonomy drift across earnings,
+    capital-action, and credit/financing labels. A targeted taxonomy-consistency
+    audit imported \TaxonomyAuditFlagCount{} UI revalidation flags:
+    \TaxonomyDividendFlagCount{} dividend decisions,
+    \TaxonomyIpoFlagCount{} IPO/listing/allotment records,
+    \TaxonomyRightShareFlagCount{} right-share records,
+    \TaxonomyMarketSummaryFlagCount{} market-summary records, and
+    \TaxonomyDebtFlagCount{} debenture record. These flags must be reviewed in
+    the existing validation workflow before regenerating the export and running
+    the third Qwen experiment.
   \end{description}
 }
