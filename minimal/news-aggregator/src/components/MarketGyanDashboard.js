@@ -63,6 +63,35 @@ const StatusPill = ({ active, label }) => (
   </span>
 );
 
+const SnapshotMetric = ({ label, value, variant = 'value' }) => (
+  <div
+    className="min-w-0 rounded-xl border p-4"
+    style={{ borderColor: 'var(--border)', backgroundColor: 'var(--background)' }}
+  >
+    <p
+      className="text-xs font-bold uppercase tracking-widest"
+      style={{ color: 'var(--text-muted)' }}
+    >
+      {label}
+    </p>
+    {variant === 'status' ? (
+      <span
+        className="mt-3 inline-flex max-w-full rounded-full px-3 py-1 text-sm font-bold capitalize"
+        style={{ backgroundColor: 'var(--card)', color: 'var(--text-main)' }}
+      >
+        {value ?? 'N/A'}
+      </span>
+    ) : (
+      <p
+        className="mt-2 min-w-0 break-words text-xl font-black leading-tight lg:text-2xl"
+        style={{ color: 'var(--text-main)' }}
+      >
+        {value ?? 'N/A'}
+      </p>
+    )}
+  </div>
+);
+
 const RuntimeNotice = ({ title, children }) => (
   <div
     role="alert"
@@ -683,23 +712,16 @@ const MarketGyanDashboard = () => {
               </div>
 
               {data.snapshot ? (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>NEPSE close</p>
-                    <p className="mt-2 text-2xl font-black" style={{ color: 'var(--text-main)' }}>{data.snapshot.index?.close ?? 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Change</p>
-                    <p className="mt-2 text-2xl font-black" style={{ color: 'var(--text-main)' }}>{data.snapshot.index?.changePercent ?? 'N/A'}%</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Turnover</p>
-                    <p className="mt-2 text-2xl font-black" style={{ color: 'var(--text-main)' }}>{data.snapshot.turnover?.amount ?? 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Status</p>
-                    <p className="mt-2 text-2xl font-black capitalize" style={{ color: 'var(--text-main)' }}>{data.snapshot.status ?? 'N/A'}</p>
-                  </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <SnapshotMetric label="NEPSE close" value={data.snapshot.index?.close} />
+                  <SnapshotMetric
+                    label="Change"
+                    value={data.snapshot.index?.changePercent != null
+                      ? `${data.snapshot.index.changePercent}%`
+                      : undefined}
+                  />
+                  <SnapshotMetric label="Turnover" value={data.snapshot.turnover?.amount} />
+                  <SnapshotMetric label="Status" value={data.snapshot.status} variant="status" />
                 </div>
               ) : (
                 <div className="rounded-2xl border border-dashed p-8 text-center" style={{ borderColor: 'var(--border)' }}>
