@@ -4,6 +4,7 @@ const MarketSnapshot = require('../models/MarketSnapshot');
 const { marketGyanConfig } = require('../config');
 const { createAgentClient } = require('./agentClientService');
 const { contentHash } = require('./textService');
+const mongoose = require('mongoose');
 
 const reportDay = (value) => new Date(`${new Date(value).toISOString().slice(0, 10)}T00:00:00.000Z`);
 
@@ -14,9 +15,40 @@ const reportAsText = (report) => [
         `${item.sector}: ${item.sentiment}. ${item.summary || ''}`
     )),
     ...(report.evidence || []).map((item) => (
-        `Source: ${item.title}. ${item.excerpt || ''}`
+        [
+            `Source: ${item.title}${item.sourceUrl ? ` (${item.sourceUrl})` : ''}.`,
+            item.excerpt || '',
+            ...(item.sentences || []).map((sentence) => (
+                `${sentence.id}: ${sentence.text}`
+            ))
+        ].filter(Boolean).join(' ')
     ))
 ].filter(Boolean).join('\n\n');
+
+const validObjectId = (value) => (
+    value && mongoose.Types.ObjectId.isValid(String(value))
+);
+
+const citationToEvidence = (citation) => ({
+    ...(validObjectId(citation.documentId) ? { document: citation.documentId } : {}),
+    title: citation.title,
+    sourceUrl: citation.url,
+    excerpt: citation.excerpt,
+    relevanceScore: citation.score,
+    source: citation.source,
+    publishedAt: citation.publishedAt ? new Date(citation.publishedAt) : undefined,
+    chunkId: citation.chunkId,
+    contentHash: citation.contentHash,
+    sentenceIds: Array.isArray(citation.sentenceIds) ? citation.sentenceIds : [],
+    sentences: Array.isArray(citation.sentences)
+        ? citation.sentences
+            .filter((sentence) => sentence?.id && sentence?.text)
+            .map((sentence) => ({
+                id: String(sentence.id),
+                text: String(sentence.text)
+            }))
+        : []
+});
 
 const archivePublishedReport = async (report) => {
     const date = report.reportDate.toISOString().slice(0, 10);
@@ -91,13 +123,7 @@ const generateDailyReport = async ({
         report.marketSnapshot = snapshot._id;
         report.headline = result.headline;
         report.summary = result.summary;
-        report.evidence = result.citations.map((citation) => ({
-            document: citation.documentId,
-            title: citation.title,
-            sourceUrl: citation.url,
-            excerpt: citation.excerpt,
-            relevanceScore: citation.score
-        }));
+        report.evidence = result.citations.map(citationToEvidence);
         report.sectorAnalysis = (result.sectorAnalysis || []).map((item) => ({
             sector: item.sector,
             sentiment: item.sentiment,
@@ -143,6 +169,7 @@ const answerMarketQuery = async ({
 module.exports = {
     answerMarketQuery,
     archivePublishedReport,
+    citationToEvidence,
     generateDailyReport,
     reportAsText,
     reportDay

@@ -2,14 +2,31 @@ import unittest
 
 try:
     from pydantic import ValidationError
+    from agent_service import workflow
+    from agent_service.config import Settings
     from agent_service.schemas import AnalysisResult, DISCLAIMER
-    from agent_service.workflow import crewai_model_name, validate_grounded_result
+    from agent_service.workflow import crewai_model_name, run_mock, validate_grounded_result
 except ImportError:
     ValidationError = None
 
 
 @unittest.skipIf(ValidationError is None, "agent-service dependencies are not installed")
 class AgentServiceTest(unittest.TestCase):
+    def set_fake_retrieval(self, rows):
+        original = workflow.RetrievalClient
+
+        class FakeRetrievalClient:
+            def __init__(self, settings):
+                self.settings = settings
+                self.seen = []
+
+            def search(self, query, filters=None):
+                self.seen = rows
+                return rows
+
+        workflow.RetrievalClient = FakeRetrievalClient
+        self.addCleanup(lambda: setattr(workflow, "RetrievalClient", original))
+
     def test_local_model_uses_openai_compatible_provider(self):
         self.assertEqual(
             crewai_model_name("marketgyan-qwen3-8b"),
@@ -148,6 +165,75 @@ class AgentServiceTest(unittest.TestCase):
                 "url": "https://example.com/market",
                 "text": "NEPSE closed higher after a mixed trading session.",
             }])
+
+    def test_mock_query_uses_retrieved_sentence_citations(self):
+        self.set_fake_retrieval([{
+            "documentId": "doc-1",
+            "title": "Daily market",
+            "url": "https://example.com/market",
+            "text": "NEPSE closed higher after a mixed trading session.",
+            "score": 0.9,
+            "source": "ShareSansar",
+            "publishedAtIso": "2026-06-13T00:00:00.000Z",
+            "chunkId": "chunk-1",
+            "contentHash": "hash-1",
+            "sentenceIds": ["S1"],
+            "sentences": [{
+                "id": "S1",
+                "text": "NEPSE closed higher after a mixed trading session.",
+            }],
+        }])
+        request = workflow.AnalysisRequest(
+            mode="query",
+            question="What happened today?",
+            filters={"sector": "Banking"},
+        )
+
+        result = run_mock(request, Settings(mock_enabled=True, query_enabled=True))
+
+        self.assertEqual(result.mode, "query")
+        self.assertEqual(result.modelVersion, "mock-rag-local")
+        self.assertEqual(result.citations[0].sentenceIds, ["S1"])
+        self.assertIn("NEPSE closed higher", result.answer)
+
+    def test_mock_report_returns_grounded_sector_analysis(self):
+        self.set_fake_retrieval([{
+            "documentId": "doc-1",
+            "title": "Banking update",
+            "url": "https://example.com/banking",
+            "text": "Banking turnover increased.",
+            "score": 0.8,
+            "source": "ShareSansar",
+            "publishedAtIso": "2026-06-13T00:00:00.000Z",
+            "chunkId": "chunk-1",
+            "contentHash": "hash-1",
+            "sectors": ["Banking"],
+            "sentenceIds": ["S1"],
+            "sentences": [{"id": "S1", "text": "Banking turnover increased."}],
+        }])
+        request = workflow.AnalysisRequest(
+            mode="report",
+            reportDate="2026-06-13",
+            snapshot={"status": "partial"},
+            filters={"limit": 5},
+        )
+
+        result = run_mock(request, Settings(mock_enabled=True, query_enabled=True))
+
+        self.assertEqual(result.mode, "report")
+        self.assertEqual(result.headline, "MarketGyan local RAG report")
+        self.assertEqual(result.sectorAnalysis[0].sector, "Banking")
+        self.assertEqual(result.citations[0].sentences[0].text, "Banking turnover increased.")
+
+    def test_mock_mode_fails_without_retrieved_evidence(self):
+        self.set_fake_retrieval([])
+        request = workflow.AnalysisRequest(
+            mode="query",
+            question="What happened today?",
+        )
+
+        with self.assertRaisesRegex(ValueError, "No retrievable"):
+            run_mock(request, Settings(mock_enabled=True, query_enabled=True))
 
 
 if __name__ == "__main__":

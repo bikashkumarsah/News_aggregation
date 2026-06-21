@@ -9,6 +9,7 @@ def enabled(value):
 @dataclass(frozen=True)
 class Settings:
     query_enabled: bool = enabled(os.getenv("MARKET_GYAN_QUERY_ENABLED"))
+    mock_enabled: bool = enabled(os.getenv("MARKET_GYAN_AGENT_MOCK_ENABLED"))
     service_token: str = os.getenv("MARKET_GYAN_AGENT_SERVICE_TOKEN", "")
     node_base_url: str = os.getenv(
         "MARKET_GYAN_NODE_BASE_URL",

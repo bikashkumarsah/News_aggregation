@@ -9,6 +9,10 @@ const {
     answerMarketQuery,
     generateDailyReport
 } = require('../services/reportService');
+const {
+    isLocalReportGenerationAllowed,
+    loadRuntimeStatus
+} = require('../services/runtimeStatusService');
 const reviewRoutes = require('./reviewRoutes');
 
 const router = express.Router();
@@ -54,6 +58,14 @@ router.post('/query', async (req, res) => {
     }
 });
 
+router.get('/runtime/status', async (req, res) => {
+    try {
+        return res.json({ success: true, data: await loadRuntimeStatus(req) });
+    } catch (error) {
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 router.get('/reports/latest', async (_req, res) => {
     try {
         const report = await MarketReport.findOne({ status: 'published' })
@@ -62,6 +74,28 @@ router.get('/reports/latest', async (_req, res) => {
         return res.json({ success: true, data: report });
     } catch (error) {
         return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post('/reports/generate', async (req, res) => {
+    if (!isLocalReportGenerationAllowed(req)) {
+        return res.status(404).json({
+            success: false,
+            error: 'Market Gyan local report generation is not available'
+        });
+    }
+    try {
+        const data = await generateDailyReport({
+            date: req.body?.date || new Date(),
+            force: req.body?.force === true
+        });
+        return res.json({ success: true, data });
+    } catch (error) {
+        return res.status(error.status || 500).json({
+            success: false,
+            error: error.message,
+            validationErrors: error.validationErrors || []
+        });
     }
 });
 

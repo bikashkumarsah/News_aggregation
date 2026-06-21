@@ -619,6 +619,47 @@ agent citations should carry `documentId`, `chunkId`, `title`, `url`, `source`,
 retrieved excerpt. The user-facing report should show the source title, URL,
 date, and quoted evidence text, not only labels such as `S3`.
 
+For a local end-to-end frontend demo without relying on Qwen generation
+quality, use the deterministic mock agent mode. It still calls the Node
+internal search endpoint and validates citations, but it builds a simple
+grounded answer/report from retrieved Qdrant chunks:
+
+```bash
+# Terminal 1: Qdrant
+docker run --rm -p 6333:6333 qdrant/qdrant
+
+# Terminal 2: backend
+cd minimal/news-backend
+export MARKET_GYAN_QUERY_ENABLED=true
+export MARKET_GYAN_REVIEW_ENABLED=true
+export MARKET_GYAN_AGENT_SERVICE_TOKEN=local-dev-token
+export QDRANT_URL=http://127.0.0.1:6333
+npm start
+
+# Terminal 3: index evidence
+cd minimal/news-backend
+npm run market-gyan:index -- --limit=1000
+
+# Terminal 4: FastAPI agent in deterministic mock mode
+cd ml/marketGyan
+python -m pip install -r requirements-agent.txt
+export MARKET_GYAN_QUERY_ENABLED=true
+export MARKET_GYAN_AGENT_MOCK_ENABLED=true
+export MARKET_GYAN_AGENT_SERVICE_TOKEN=local-dev-token
+export MARKET_GYAN_NODE_BASE_URL=http://127.0.0.1:5001
+PYTHONPATH=. uvicorn agent_service.app:app --host 127.0.0.1 --port 8100
+
+# Terminal 5: frontend
+cd minimal/news-aggregator
+npm start
+```
+
+In the Market Gyan dashboard, use **Evidence Search** to confirm Qdrant
+retrieval, **Ask MarketGyan** to confirm grounded Q&A, **Reports** to generate
+a local report, and **System** to inspect runtime readiness. The report
+generation button is hidden unless the request is local, non-production, and
+review mode is enabled.
+
 ## Troubleshooting
 
 ### HTTP 429

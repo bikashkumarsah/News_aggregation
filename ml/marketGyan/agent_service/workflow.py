@@ -124,6 +124,111 @@ def research_query(request):
     )
 
 
+def _citation_from_row(row):
+    sentences = row.get("sentences") if isinstance(row.get("sentences"), list) else []
+    sentence_ids = row.get("sentenceIds") if isinstance(row.get("sentenceIds"), list) else []
+    selected_sentences = []
+    if sentence_ids and sentences:
+        wanted = {str(value) for value in sentence_ids}
+        selected_sentences = [
+            {"id": str(sentence.get("id")), "text": str(sentence.get("text"))}
+            for sentence in sentences
+            if str(sentence.get("id")) in wanted and sentence.get("text")
+        ]
+    elif sentences:
+        selected_sentences = [{
+            "id": str(sentences[0].get("id")),
+            "text": str(sentences[0].get("text")),
+        }]
+        sentence_ids = [selected_sentences[0]["id"]]
+
+    excerpt = (
+        selected_sentences[0]["text"]
+        if selected_sentences
+        else str(row.get("text") or "")
+    )
+    return {
+        "documentId": str(row.get("documentId") or row.get("_id") or ""),
+        "title": str(row.get("title") or "Untitled MarketGyan evidence"),
+        "url": str(row.get("url") or row.get("sourceUrl") or ""),
+        "excerpt": excerpt,
+        "score": float(row.get("score") or 0.0),
+        "source": row.get("source"),
+        "publishedAt": row.get("publishedAtIso") or row.get("publishedAt"),
+        "chunkId": row.get("chunkId") or row.get("pointId"),
+        "contentHash": row.get("contentHash"),
+        "sentenceIds": [str(value) for value in sentence_ids],
+        "sentences": selected_sentences,
+    }
+
+
+def _usable_citations(rows, limit=5):
+    citations = []
+    for row in rows:
+        citation = _citation_from_row(row)
+        if citation["documentId"] and citation["url"] and citation["excerpt"]:
+            citations.append(citation)
+        if len(citations) >= limit:
+            break
+    return citations
+
+
+def run_mock(request: AnalysisRequest, settings: Settings):
+    retrieval = RetrievalClient(settings)
+    rows = retrieval.search(research_query(request), request.filters)
+    citations = _usable_citations(rows)
+    if not citations:
+        raise ValueError("No retrievable MarketGyan evidence is available")
+
+    if request.mode == "query":
+        result = parse_result({
+            "mode": "query",
+            "answer": (
+                "Retrieved MarketGyan evidence points to: "
+                + " ".join(citation["excerpt"] for citation in citations[:2])
+            ),
+            "citations": citations,
+            "disclaimer": DISCLAIMER,
+            "modelVersion": "mock-rag-local",
+        })
+        return validate_grounded_result(result, retrieval.seen)
+
+    sector_names = []
+    for row in rows:
+        for sector in row.get("sectors") or []:
+            if sector and sector not in sector_names:
+                sector_names.append(sector)
+    sector_analysis = [
+        {
+            "sector": sector,
+            "sentiment": "neutral",
+            "summary": "Retrieved evidence mentions this sector; the mock service does not infer a trading recommendation.",
+            "confidence": 0.5,
+            "evidenceIndexes": [0],
+        }
+        for sector in sector_names[:5]
+    ] or [{
+        "sector": "Market",
+        "sentiment": "unavailable",
+        "summary": "No sector-specific evidence was available in retrieved chunks.",
+        "confidence": 0.0,
+        "evidenceIndexes": [0],
+    }]
+    result = parse_result({
+        "mode": "report",
+        "headline": "MarketGyan local RAG report",
+        "summary": (
+            "This local mock report is generated only from retrieved evidence "
+            "and deterministic market context."
+        ),
+        "sectorAnalysis": sector_analysis,
+        "citations": citations,
+        "disclaimer": DISCLAIMER,
+        "modelVersion": "mock-rag-local",
+    })
+    return validate_grounded_result(result, retrieval.seen)
+
+
 def parse_result(value):
     if hasattr(AnalysisResult, "model_validate"):
         return AnalysisResult.model_validate(value)
@@ -137,6 +242,9 @@ def parse_result_json(value):
 
 
 def run_crew(request: AnalysisRequest, settings: Settings):
+    if settings.mock_enabled:
+        return run_mock(request, settings)
+
     try:
         from crewai import Agent, Crew, LLM, Process, Task
         from crewai.tools import tool

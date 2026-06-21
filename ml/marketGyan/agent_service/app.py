@@ -20,6 +20,7 @@ def health():
     return {
         "ok": True,
         "queryEnabled": settings.query_enabled,
+        "mockEnabled": settings.mock_enabled,
         "model": settings.inference_model,
     }
 

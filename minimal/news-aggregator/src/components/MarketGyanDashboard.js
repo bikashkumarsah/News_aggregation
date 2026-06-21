@@ -1,10 +1,15 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   BarChart3,
   BookOpen,
+  CheckCircle,
+  Database,
+  ExternalLink,
   FileText,
+  MessageSquare,
   RefreshCw,
+  Search,
   ShieldAlert,
   TrendingUp
 } from 'lucide-react';
@@ -13,6 +18,43 @@ import MarketGyanReviewPanel from './MarketGyanReviewPanel';
 
 const FALLBACK_DISCLAIMER =
   'Informational analysis based on public data, not investment advice.';
+
+const cleanFilters = (filters) => Object.fromEntries(
+  Object.entries(filters).filter(([, value]) => String(value || '').trim())
+);
+
+const formatDate = (value) => {
+  if (!value) return 'N/A';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString();
+};
+
+const readJson = async (response, fallbackMessage) => {
+  let payload = {};
+  try {
+    payload = await response.json();
+  } catch {
+    payload = {};
+  }
+  if (!response.ok || payload.success === false) {
+    const error = new Error(payload.error || fallbackMessage);
+    error.validationErrors = payload.validationErrors || [];
+    throw error;
+  }
+  return payload;
+};
+
+const StatusPill = ({ active, label }) => (
+  <span
+    className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+      active
+        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+    }`}
+  >
+    {label}
+  </span>
+);
 
 const EmptyPanel = ({ icon: Icon, title, message }) => (
   <section className="premium-card p-6">
@@ -35,12 +77,291 @@ const EmptyPanel = ({ icon: Icon, title, message }) => (
   </section>
 );
 
+const Field = ({ label, children }) => (
+  <label className="block">
+    <span className="block text-xs font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
+      {label}
+    </span>
+    {children}
+  </label>
+);
+
+const inputClass =
+  'w-full rounded-xl border px-4 py-3 bg-transparent outline-none focus:ring-2 focus:ring-blue-500/30';
+
+const MarketFilters = ({ filters, onChange }) => {
+  const update = (field, value) => onChange({ ...filters, [field]: value });
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
+      <Field label="Sector">
+        <input
+          value={filters.sector || ''}
+          onChange={(event) => update('sector', event.target.value)}
+          className={inputClass}
+          style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+          placeholder="Banking"
+        />
+      </Field>
+      <Field label="Source">
+        <input
+          value={filters.source || ''}
+          onChange={(event) => update('source', event.target.value)}
+          className={inputClass}
+          style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+          placeholder="ShareSansar"
+        />
+      </Field>
+      <Field label="Type">
+        <select
+          value={filters.documentType || ''}
+          onChange={(event) => update('documentType', event.target.value)}
+          className={inputClass}
+          style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+        >
+          <option value="">Any</option>
+          <option value="financial_news">Financial news</option>
+          <option value="regulatory_document">Regulatory document</option>
+          <option value="archived_report">Archived report</option>
+        </select>
+      </Field>
+      <Field label="Language">
+        <select
+          value={filters.language || ''}
+          onChange={(event) => update('language', event.target.value)}
+          className={inputClass}
+          style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+        >
+          <option value="">Any</option>
+          <option value="en">English</option>
+          <option value="ne">Nepali</option>
+        </select>
+      </Field>
+      <Field label="From">
+        <input
+          type="date"
+          value={filters.from || ''}
+          onChange={(event) => update('from', event.target.value)}
+          className={inputClass}
+          style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+        />
+      </Field>
+      <Field label="To">
+        <input
+          type="date"
+          value={filters.to || ''}
+          onChange={(event) => update('to', event.target.value)}
+          className={inputClass}
+          style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+        />
+      </Field>
+    </div>
+  );
+};
+
+const CitationList = ({ citations = [] }) => {
+  if (!citations.length) {
+    return (
+      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+        No citations were returned. MarketGyan should fail closed before using uncited output.
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      {citations.map((citation, index) => {
+        const url = citation.url || citation.sourceUrl;
+        const score = citation.score ?? citation.relevanceScore;
+        return (
+          <article
+            key={`${url || citation.title}-${index}`}
+            className="rounded-2xl border p-4"
+            style={{ borderColor: 'var(--border)', backgroundColor: 'var(--background)' }}
+          >
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+              <div>
+                <h3 className="font-bold" style={{ color: 'var(--text-main)' }}>
+                  {citation.title || 'Untitled evidence'}
+                </h3>
+                <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  {[citation.source, formatDate(citation.publishedAt)].filter(Boolean).join(' • ')}
+                  {score !== undefined ? ` • score ${Number(score).toFixed(2)}` : ''}
+                </p>
+              </div>
+              {url && (
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm font-bold text-blue-600"
+                >
+                  Source
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
+            </div>
+            <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--text-main)' }}>
+              {citation.excerpt || citation.text || 'No excerpt available.'}
+            </p>
+            {citation.sentenceIds?.length > 0 && (
+              <div className="mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+                Sentence anchors: {citation.sentenceIds.join(', ')}
+              </div>
+            )}
+            {citation.sentences?.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {citation.sentences.map((sentence) => (
+                  <blockquote
+                    key={sentence.id}
+                    className="border-l-4 pl-3 text-sm"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+                  >
+                    <strong>{sentence.id}:</strong> {sentence.text}
+                  </blockquote>
+                ))}
+              </div>
+            )}
+          </article>
+        );
+      })}
+    </div>
+  );
+};
+
+const ReportPanel = ({ report }) => {
+  if (!report) {
+    return (
+      <EmptyPanel
+        icon={FileText}
+        title="Latest report"
+        message="No published report is available yet. Use local report generation after Qdrant and the agent service are running."
+      />
+    );
+  }
+  return (
+    <section className="premium-card p-6 space-y-5">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-black" style={{ color: 'var(--text-main)' }}>
+            {report.headline || 'MarketGyan report'}
+          </h2>
+          <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+            {formatDate(report.reportDate)} • {report.status || 'unknown'} • {report.model?.version || report.model?.name || 'model unknown'}
+          </p>
+        </div>
+        <StatusPill active={report.status === 'published'} label={report.status || 'unknown'} />
+      </div>
+      <p className="text-base leading-relaxed" style={{ color: 'var(--text-main)' }}>
+        {report.summary || 'No summary was stored for this report.'}
+      </p>
+      <div>
+        <h3 className="font-bold mb-3" style={{ color: 'var(--text-main)' }}>
+          Sector analysis
+        </h3>
+        {report.sectorAnalysis?.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {report.sectorAnalysis.map((sector) => (
+              <div
+                key={sector.sector}
+                className="rounded-xl border p-4"
+                style={{ borderColor: 'var(--border)' }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-bold" style={{ color: 'var(--text-main)' }}>
+                    {sector.sector}
+                  </span>
+                  <span className="text-sm font-bold capitalize" style={{ color: 'var(--text-muted)' }}>
+                    {sector.sentiment}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+                  {sector.summary || 'No sector summary.'}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            Sector analysis is unavailable for this report.
+          </p>
+        )}
+      </div>
+      <div>
+        <h3 className="font-bold mb-3" style={{ color: 'var(--text-main)' }}>
+          Report citations
+        </h3>
+        <CitationList citations={report.evidence || []} />
+      </div>
+    </section>
+  );
+};
+
+const RuntimeChecklist = ({ status }) => {
+  const items = [
+    ['Query API enabled', status?.queryEnabled],
+    ['Review tools enabled locally', status?.reviewEnabled],
+    ['Local report generation allowed', status?.localReportGenerationAllowed],
+    ['Agent token configured', status?.agentTokenConfigured],
+    ['Latest snapshot available', Boolean(status?.latestSnapshotStatus)],
+    ['Latest report available', Boolean(status?.latestReportStatus)]
+  ];
+  return (
+    <section className="premium-card p-6">
+      <h2 className="text-xl font-black mb-4" style={{ color: 'var(--text-main)' }}>
+        RAG runtime readiness
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {items.map(([label, ok]) => (
+          <div
+            key={label}
+            className="flex items-center gap-3 rounded-xl border p-4"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            {ok ? (
+              <CheckCircle className="w-5 h-5 text-emerald-600" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-amber-500" />
+            )}
+            <span className="font-semibold" style={{ color: 'var(--text-main)' }}>
+              {label}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+        Qdrant collection: <strong>{status?.qdrantCollection || 'unknown'}</strong>.
+        Runtime remains fail-closed when Qdrant, FastAPI, local generation, or citations are unavailable.
+      </div>
+    </section>
+  );
+};
+
 const MarketGyanDashboard = () => {
   const [overview, setOverview] = useState(null);
+  const [runtimeStatus, setRuntimeStatus] = useState(null);
+  const [latestReport, setLatestReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
+
+  const [question, setQuestion] = useState('');
+  const [queryFilters, setQueryFilters] = useState({});
+  const [queryLoading, setQueryLoading] = useState(false);
+  const [queryError, setQueryError] = useState('');
+  const [queryValidationErrors, setQueryValidationErrors] = useState([]);
+  const [queryResult, setQueryResult] = useState(null);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFilters, setSearchFilters] = useState({});
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+
+  const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [forceReport, setForceReport] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState('');
+  const [reportMessage, setReportMessage] = useState('');
 
   const loadOverview = useCallback(async (signal) => {
     setLoading(true);
@@ -48,13 +369,19 @@ const MarketGyanDashboard = () => {
 
     try {
       const response = await fetch(`${API_URL}/market-gyan/overview`, { signal });
-      const payload = await response.json();
-
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.error || 'Market Gyan overview is unavailable');
-      }
-
+      const payload = await readJson(response, 'Market Gyan overview is unavailable');
       setOverview(payload);
+      setLatestReport(payload.data?.report || null);
+
+      try {
+        const statusResponse = await fetch(`${API_URL}/market-gyan/runtime/status`, { signal });
+        const statusPayload = await readJson(statusResponse, 'Runtime status is unavailable');
+        setRuntimeStatus(statusPayload.data || null);
+      } catch (statusError) {
+        if (statusError.name !== 'AbortError') {
+          setRuntimeStatus(null);
+        }
+      }
     } catch (requestError) {
       if (requestError.name !== 'AbortError') {
         setError(requestError.message || 'Market Gyan overview is unavailable');
@@ -74,6 +401,105 @@ const MarketGyanDashboard = () => {
 
   const data = overview?.data;
   const disclaimer = overview?.disclaimer || FALLBACK_DISCLAIMER;
+  const queryEnabled = Boolean(runtimeStatus?.queryEnabled ?? data?.queryEnabled);
+  const reportGenerationAllowed = Boolean(runtimeStatus?.localReportGenerationAllowed);
+  const tabs = useMemo(() => ([
+    { id: 'overview', label: 'Overview' },
+    { id: 'ask', label: 'Ask MarketGyan' },
+    { id: 'search', label: 'Evidence Search' },
+    { id: 'reports', label: 'Reports' },
+    { id: 'system', label: 'System' },
+    ...(data?.reviewEnabled ? [{ id: 'review', label: 'Validate data' }] : [])
+  ]), [data?.reviewEnabled]);
+
+  const submitQuery = async (event) => {
+    event.preventDefault();
+    setQueryLoading(true);
+    setQueryError('');
+    setQueryValidationErrors([]);
+    setQueryResult(null);
+    try {
+      const response = await fetch(`${API_URL}/market-gyan/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question,
+          filters: cleanFilters(queryFilters)
+        })
+      });
+      const payload = await readJson(response, 'MarketGyan query failed');
+      setQueryResult(payload.data);
+    } catch (requestError) {
+      setQueryError(requestError.message || 'MarketGyan query failed');
+      setQueryValidationErrors(requestError.validationErrors || []);
+    } finally {
+      setQueryLoading(false);
+    }
+  };
+
+  const submitSearch = async (event) => {
+    event.preventDefault();
+    setSearchLoading(true);
+    setSearchError('');
+    setSearchResults([]);
+    try {
+      const params = new URLSearchParams({
+        q: searchQuery,
+        ...cleanFilters(searchFilters)
+      });
+      const response = await fetch(`${API_URL}/market-gyan/search?${params.toString()}`);
+      const payload = await readJson(response, 'MarketGyan evidence search failed');
+      setSearchResults(payload.data || []);
+    } catch (requestError) {
+      setSearchError(requestError.message || 'MarketGyan evidence search failed');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const refreshLatestReport = async () => {
+    setReportLoading(true);
+    setReportError('');
+    setReportMessage('');
+    try {
+      const response = await fetch(`${API_URL}/market-gyan/reports/latest`);
+      const payload = await readJson(response, 'Latest report could not be loaded');
+      setLatestReport(payload.data || null);
+      setReportMessage(payload.data ? 'Latest report refreshed.' : 'No published report is available yet.');
+    } catch (requestError) {
+      setReportError(requestError.message || 'Latest report could not be loaded');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const generateReport = async (event) => {
+    event.preventDefault();
+    setReportLoading(true);
+    setReportError('');
+    setReportMessage('');
+    try {
+      const response = await fetch(`${API_URL}/market-gyan/reports/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: reportDate,
+          force: forceReport
+        })
+      });
+      const payload = await readJson(response, 'MarketGyan report generation failed');
+      setLatestReport(payload.data?.report || null);
+      setReportMessage(payload.data?.reused ? 'Published report reused.' : 'Report generated and published.');
+      setReloadKey((value) => value + 1);
+    } catch (requestError) {
+      setReportError(requestError.message || 'MarketGyan report generation failed');
+      if (requestError.validationErrors?.length) {
+        setReportError(`${requestError.message}: ${requestError.validationErrors.join('; ')}`);
+      }
+    } finally {
+      setReportLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-8 pb-12 animate-fade-in">
@@ -81,7 +507,7 @@ const MarketGyanDashboard = () => {
         <div className="max-w-3xl">
           <div className="flex items-center gap-3 mb-4">
             <span className="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider">
-              Data pipeline
+              RAG demo
             </span>
             <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
               NEPSE intelligence
@@ -91,8 +517,8 @@ const MarketGyanDashboard = () => {
             Market Gyan
           </h1>
           <p className="mt-4 text-lg leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            A Nepal-focused market analysis workspace for daily NEPSE movement,
-            financial evidence, sector sentiment, and grounded reports.
+            A Nepal-focused market analysis workspace for evidence search,
+            grounded questions, daily reports, and citation-backed market context.
           </p>
         </div>
 
@@ -110,22 +536,18 @@ const MarketGyanDashboard = () => {
         </div>
       </div>
 
-      {!loading && !error && overview?.data?.reviewEnabled && (
-        <div className="flex gap-2 border-b" style={{ borderColor: 'var(--border)' }}>
-          <button
-            type="button"
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-3 font-bold border-b-2 ${activeTab === 'overview' ? 'text-blue-600 border-blue-600' : 'border-transparent'}`}
-          >
-            Overview
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('review')}
-            className={`px-4 py-3 font-bold border-b-2 ${activeTab === 'review' ? 'text-blue-600 border-blue-600' : 'border-transparent'}`}
-          >
-            Validate data
-          </button>
+      {!loading && !error && data && (
+        <div className="flex flex-wrap gap-2 border-b" style={{ borderColor: 'var(--border)' }}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-3 font-bold border-b-2 ${activeTab === tab.id ? 'text-blue-600 border-blue-600' : 'border-transparent'}`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       )}
 
@@ -214,7 +636,7 @@ const MarketGyanDashboard = () => {
                     Market data is not available yet.
                   </p>
                   <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-                    Run the deterministic market ingestion command to populate this area.
+                    Run deterministic market ingestion before generating a daily report.
                   </p>
                 </div>
               )}
@@ -222,11 +644,11 @@ const MarketGyanDashboard = () => {
 
             <EmptyPanel
               icon={FileText}
-              title="Daily market report"
+              title="Latest report"
               message={
-                data.report
-                  ? data.report.summary
-                  : 'No report has been generated. Report automation remains outside this milestone.'
+                latestReport
+                  ? latestReport.summary
+                  : 'No report has been generated yet. Local generation is available only when the runtime checklist passes.'
               }
             />
           </div>
@@ -242,8 +664,8 @@ const MarketGyanDashboard = () => {
               {data.sectors.length > 0 ? (
                 <div className="space-y-3">
                   {data.sectors.map((sector) => (
-                    <div key={sector.name} className="flex items-center justify-between border-b py-3 last:border-0" style={{ borderColor: 'var(--border)' }}>
-                      <span className="font-semibold" style={{ color: 'var(--text-main)' }}>{sector.name}</span>
+                    <div key={sector.name || sector.sector} className="flex items-center justify-between border-b py-3 last:border-0" style={{ borderColor: 'var(--border)' }}>
+                      <span className="font-semibold" style={{ color: 'var(--text-main)' }}>{sector.name || sector.sector}</span>
                       <span className="text-sm font-bold capitalize" style={{ color: 'var(--text-muted)' }}>{sector.sentiment}</span>
                     </div>
                   ))}
@@ -266,7 +688,7 @@ const MarketGyanDashboard = () => {
                 <div className="space-y-4">
                   {data.stories.map((story) => (
                     <a
-                      key={story.url}
+                      key={story.url || story.id}
                       href={story.url}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -279,29 +701,222 @@ const MarketGyanDashboard = () => {
                 </div>
               ) : (
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                  Source-backed financial stories and regulatory evidence will be listed here after ingestion is implemented.
+                  Source-backed financial stories and regulatory evidence will appear after ingestion and indexing.
                 </p>
               )}
             </section>
           </div>
+        </>
+      )}
 
-          <section className="premium-card p-6 flex flex-col md:flex-row md:items-center gap-5">
-            <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--background)', color: 'var(--text-muted)' }}>
-              <AlertCircle className="w-5 h-5" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-bold" style={{ color: 'var(--text-main)' }}>
-                Interactive market questions
-              </h2>
-              <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-                Grounded question answering will be enabled after the finance retrieval index and evidence workflow are ready.
+      {!loading && !error && data && activeTab === 'ask' && (
+        <section className="premium-card p-6 space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <MessageSquare className="w-5 h-5 text-blue-600" />
+                <h2 className="text-xl font-black" style={{ color: 'var(--text-main)' }}>
+                  Ask MarketGyan
+                </h2>
+              </div>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                Answers must come with citations and the MarketGyan disclaimer.
               </p>
             </div>
-            <span className="px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider" style={{ backgroundColor: 'var(--background)', color: 'var(--text-muted)' }}>
-              {data.queryEnabled ? 'Enabled' : 'Coming later'}
-            </span>
+            <StatusPill active={queryEnabled} label={queryEnabled ? 'Enabled' : 'Disabled'} />
+          </div>
+
+          {!queryEnabled && (
+            <div role="alert" className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+              MarketGyan query is disabled. Set `MARKET_GYAN_QUERY_ENABLED=true`, run Qdrant, and start the FastAPI agent service.
+            </div>
+          )}
+
+          <form onSubmit={submitQuery} className="space-y-4">
+            <Field label="Question">
+              <textarea
+                value={question}
+                onChange={(event) => setQuestion(event.target.value)}
+                className={`${inputClass} min-h-[120px]`}
+                style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+                placeholder="Why did banking stocks move today?"
+                required
+              />
+            </Field>
+            <MarketFilters filters={queryFilters} onChange={setQueryFilters} />
+            <button
+              type="submit"
+              disabled={!queryEnabled || queryLoading || !question.trim()}
+              className="btn-primary inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {queryLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
+              Ask with RAG
+            </button>
+          </form>
+
+          {queryError && (
+            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+              <p className="font-bold">{queryError}</p>
+              {queryValidationErrors.length > 0 && (
+                <ul className="mt-2 list-disc pl-5 text-sm">
+                  {queryValidationErrors.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {queryResult && (
+            <div className="space-y-5">
+              <div className="rounded-2xl border p-5" style={{ borderColor: 'var(--border)' }}>
+                <h3 className="font-bold mb-2" style={{ color: 'var(--text-main)' }}>
+                  Answer
+                </h3>
+                <p className="leading-relaxed" style={{ color: 'var(--text-main)' }}>
+                  {queryResult.answer}
+                </p>
+                <p className="mt-4 text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>
+                  {queryResult.disclaimer || disclaimer}
+                </p>
+              </div>
+              <CitationList citations={queryResult.citations || []} />
+            </div>
+          )}
+        </section>
+      )}
+
+      {!loading && !error && data && activeTab === 'search' && (
+        <section className="premium-card p-6 space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <Search className="w-5 h-5 text-blue-600" />
+                <h2 className="text-xl font-black" style={{ color: 'var(--text-main)' }}>
+                  Evidence Search
+                </h2>
+              </div>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                Search the MarketGyan Qdrant collection and inspect retrieved sentence anchors.
+              </p>
+            </div>
+            <StatusPill active={queryEnabled} label={queryEnabled ? 'Enabled' : 'Disabled'} />
+          </div>
+
+          <form onSubmit={submitSearch} className="space-y-4">
+            <Field label="Search query">
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className={inputClass}
+                style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+                placeholder="NRB liquidity policy"
+                required
+              />
+            </Field>
+            <MarketFilters filters={searchFilters} onChange={setSearchFilters} />
+            <button
+              type="submit"
+              disabled={!queryEnabled || searchLoading || !searchQuery.trim()}
+              className="btn-primary inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {searchLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+              Search evidence
+            </button>
+          </form>
+
+          {searchError && (
+            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+              {searchError}
+            </div>
+          )}
+
+          {searchResults.length > 0 ? (
+            <CitationList citations={searchResults} />
+          ) : (
+            !searchLoading && (
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                Search results will appear here after Qdrant returns evidence chunks.
+              </p>
+            )
+          )}
+        </section>
+      )}
+
+      {!loading && !error && data && activeTab === 'reports' && (
+        <div className="space-y-6">
+          <section className="premium-card p-6 space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black" style={{ color: 'var(--text-main)' }}>
+                  Report generation
+                </h2>
+                <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
+                  Local report generation is available only in non-production loopback review mode.
+                </p>
+              </div>
+              <StatusPill active={reportGenerationAllowed} label={reportGenerationAllowed ? 'Local enabled' : 'Locked'} />
+            </div>
+
+            {reportGenerationAllowed ? (
+              <form onSubmit={generateReport} className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3 md:items-end">
+                <Field label="Report date">
+                  <input
+                    type="date"
+                    value={reportDate}
+                    onChange={(event) => setReportDate(event.target.value)}
+                    className={inputClass}
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+                  />
+                </Field>
+                <label className="flex items-center gap-2 rounded-xl border px-4 py-3 font-semibold" style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}>
+                  <input
+                    type="checkbox"
+                    checked={forceReport}
+                    onChange={(event) => setForceReport(event.target.checked)}
+                  />
+                  Force regenerate
+                </label>
+                <button
+                  type="submit"
+                  disabled={reportLoading}
+                  className="btn-primary inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {reportLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                  Generate Report
+                </button>
+              </form>
+            ) : (
+              <div role="alert" className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                Report generation is hidden until local review mode, loopback access, and runtime inference are enabled.
+              </div>
+            )}
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={refreshLatestReport}
+                disabled={reportLoading}
+                className="px-4 py-2 rounded-xl border font-bold disabled:opacity-60"
+                style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+              >
+                Refresh latest report
+              </button>
+            </div>
+            {reportError && (
+              <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+                {reportError}
+              </div>
+            )}
+            {reportMessage && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
+                {reportMessage}
+              </div>
+            )}
           </section>
-        </>
+          <ReportPanel report={latestReport} />
+        </div>
+      )}
+
+      {!loading && !error && data && activeTab === 'system' && (
+        <RuntimeChecklist status={runtimeStatus} />
       )}
     </div>
   );

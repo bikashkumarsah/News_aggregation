@@ -8,9 +8,14 @@ const {
     isInternalRequestAllowed
 } = require('../middleware/internalAccess');
 const {
+    citationToEvidence,
     reportAsText,
     reportDay
 } = require('../services/reportService');
+const {
+    createRuntimeStatus,
+    isLocalReportGenerationAllowed
+} = require('../services/runtimeStatusService');
 const {
     runPostMarketWorkflow
 } = require('../scheduler/postMarketScheduler');
@@ -72,6 +77,48 @@ test('internal endpoints require loopback and the configured token', () => {
     }, { token: 'secret' }), false);
 });
 
+test('runtime status exposes booleans without leaking service tokens', () => {
+    const request = {
+        socket: { remoteAddress: '127.0.0.1' }
+    };
+    const status = createRuntimeStatus({
+        req: request,
+        latestReport: {
+            status: 'published',
+            reportDate: new Date('2026-06-13T00:00:00.000Z')
+        },
+        latestSnapshot: {
+            status: 'partial',
+            marketDate: new Date('2026-06-13T00:00:00.000Z')
+        },
+        config: {
+            queryEnabled: true,
+            reviewEnabled: true,
+            agentServiceToken: 'secret-token',
+            qdrantCollection: 'market_test'
+        }
+    });
+
+    assert.equal(status.queryEnabled, true);
+    assert.equal(status.reviewEnabled, true);
+    assert.equal(status.localReportGenerationAllowed, true);
+    assert.equal(status.agentTokenConfigured, true);
+    assert.equal(status.qdrantCollection, 'market_test');
+    assert.equal(JSON.stringify(status).includes('secret-token'), false);
+});
+
+test('local report generation requires the local review boundary', () => {
+    const localRequest = { socket: { remoteAddress: '127.0.0.1' } };
+    const remoteRequest = { socket: { remoteAddress: '192.168.1.3' } };
+    assert.equal(isLocalReportGenerationAllowed(localRequest, { enabled: true }), true);
+    assert.equal(isLocalReportGenerationAllowed(remoteRequest, { enabled: true }), false);
+    assert.equal(isLocalReportGenerationAllowed(localRequest, { enabled: false }), false);
+    assert.equal(isLocalReportGenerationAllowed(localRequest, {
+        enabled: true,
+        nodeEnv: 'production'
+    }), false);
+});
+
 test('training gate requires all reviews, 300 approvals, and 50 per class', () => {
     const config = {
         reviewTarget: 452,
@@ -125,6 +172,24 @@ test('post-market workflow never sends digest after report failure', async () =>
 });
 
 test('report helpers normalize dates and preserve evidence text', () => {
+    const evidence = citationToEvidence({
+        documentId: 'not-an-object-id',
+        title: 'Source',
+        url: 'https://example.com/report',
+        excerpt: 'Grounded evidence.',
+        score: 0.9,
+        source: 'ShareSansar',
+        publishedAt: '2026-06-13T00:00:00.000Z',
+        chunkId: 'chunk-1',
+        contentHash: 'hash-1',
+        sentenceIds: ['S1'],
+        sentences: [{ id: 'S1', text: 'Grounded evidence.' }]
+    });
+
+    assert.equal(evidence.document, undefined);
+    assert.equal(evidence.source, 'ShareSansar');
+    assert.equal(evidence.chunkId, 'chunk-1');
+    assert.deepEqual(evidence.sentenceIds, ['S1']);
     assert.equal(
         reportDay('2026-06-13T15:00:00Z').toISOString(),
         '2026-06-13T00:00:00.000Z'
@@ -137,6 +202,12 @@ test('report helpers normalize dates and preserve evidence text', () => {
             sentiment: 'neutral',
             summary: 'Banking was mixed.'
         }],
-        evidence: [{ title: 'Source', excerpt: 'Grounded evidence.' }]
+        evidence: [evidence]
     }), /Grounded evidence/);
+    assert.match(reportAsText({
+        headline: 'Market closes mixed',
+        summary: 'Turnover increased.',
+        sectorAnalysis: [],
+        evidence: [evidence]
+    }), /https:\/\/example.com\/report/);
 });
