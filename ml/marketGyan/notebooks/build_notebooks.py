@@ -494,6 +494,7 @@ def prompt_for(row):
 """, ["gpu"]),
     markdown("## 3. Base-model zero-shot and three-shot evaluation"),
     code("""
+import copy
 from tqdm.auto import tqdm
 
 def chat_messages_for(row, demonstrations=None):
@@ -539,9 +540,13 @@ def generate_json(row, demonstrations=None):
     # bullets while keeping official scoring strict.
     text = text + "{"
     inputs = tokenize_generation_prompt(text)
+    generation_config = copy.deepcopy(model.generation_config)
+    generation_config.max_length = None
+    generation_config.max_new_tokens = None
     with torch.no_grad():
         output = model.generate(
             **inputs,
+            generation_config=generation_config,
             max_new_tokens=MAX_GENERATION_TOKENS,
             do_sample=False,
             temperature=None,
@@ -768,6 +773,13 @@ for checkpoint in output_dir.glob("checkpoint-*"):
     code("""
 from market_gyan.metrics import benchmark_predictions
 
+FastLanguageModel.for_inference(model)
+model.eval()
+ALLOW_FAILED_QWEN_SMOKE = (
+    os.getenv("MARKET_GYAN_ALLOW_FAILED_QWEN_SMOKE", "false").lower()
+    in {"1", "true", "yes"}
+)
+
 def smoke_rows_for_generation(rows, limit=10):
     selected = []
     for language in ("ne", "en"):
@@ -784,6 +796,7 @@ smoke_predictions = []
 for row in tqdm(smoke_rows, desc="Qwen adapter smoke generation", unit="doc"):
     smoke_predictions.append({"id": row["id"], "prediction": generate_json(row)})
 smoke_metrics = benchmark_predictions(smoke_rows, smoke_predictions)
+write_jsonl(output_dir / "smoke_predictions.jsonl", smoke_predictions)
 (output_dir / "smoke_metrics.json").write_text(
     json.dumps(smoke_metrics, indent=2), encoding="utf-8"
 )
@@ -792,7 +805,21 @@ print(json.dumps({
     "evidenceGrounding": smoke_metrics["evidenceGrounding"],
     "invalidOutputCount": smoke_metrics["invalidOutputCount"],
 }, indent=2))
-assert smoke_metrics["structuredOutputValidity"] >= 0.8, smoke_metrics["invalidOutputExamples"]
+if smoke_metrics["structuredOutputValidity"] < 0.8:
+    print(json.dumps(
+        smoke_metrics["invalidOutputExamples"],
+        indent=2,
+        ensure_ascii=False,
+    ))
+    message = (
+        "Qwen adapter failed the strict smoke gate. Treat this as a failed "
+        "structured-output run; do not claim deployment readiness. Set "
+        "MARKET_GYAN_ALLOW_FAILED_QWEN_SMOKE=true only if you need full-test "
+        "diagnostics for a negative experiment."
+    )
+    if not ALLOW_FAILED_QWEN_SMOKE:
+        raise RuntimeError(message)
+    print(message)
 """, ["gpu"]),
     markdown("## 7. Deterministic held-out generation with the adapter"),
     code("""
