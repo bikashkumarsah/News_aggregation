@@ -91,6 +91,8 @@ def validate_grounded_result(result, retrieved):
     for citation in result.citations:
         if citation_matches_sentence_anchors(citation, retrieved):
             continue
+        if citation.sentenceIds:
+            raise ValueError("Citation sentence evidence was not returned by retrieval")
         normalized = evidence_key(citation.url, citation.excerpt)
         matching_text = [
             text for url, text in available if url == normalized[0]

@@ -16,6 +16,7 @@ from .dataset import (
 from .metrics import (
     agreement_metrics,
     benchmark_predictions,
+    benchmark_predictions_with_repair,
     bootstrap_difference,
     candidate_review_metrics,
     reaction_analysis,
@@ -100,7 +101,10 @@ def command_evaluate(args):
 def command_benchmark(args):
     truth = read_jsonl(args.truth)
     predictions = read_jsonl(args.predictions)
-    report = benchmark_predictions(truth, predictions)
+    if args.repair_diagnostic:
+        report = benchmark_predictions_with_repair(truth, predictions)
+    else:
+        report = benchmark_predictions(truth, predictions)
     target = Path(args.output)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -299,6 +303,11 @@ def build_parser():
     benchmark.add_argument("truth")
     benchmark.add_argument("predictions")
     benchmark.add_argument("output")
+    benchmark.add_argument(
+        "--repair-diagnostic",
+        action="store_true",
+        help="Report tolerant repaired-output metrics for Qwen failure analysis only.",
+    )
     benchmark.set_defaults(func=command_benchmark)
 
     audit = subparsers.add_parser("audit-predictions")

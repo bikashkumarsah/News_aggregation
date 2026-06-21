@@ -38,6 +38,14 @@ saves only the final adapter, tokenizer, predictions, metrics, and plots.
 Intermediate `checkpoint-*` directories are intentionally removed to keep the
 downloadable artifact small.
 
+The Qwen notebook reports strict metrics as the official gate and a separate
+`unsloth_qlora_tolerant_diagnostic` block for failure analysis. The tolerant
+path repairs common near-JSON compact objects such as unquoted-key outputs, so
+it can show whether the adapter learned extraction behavior. It does not count
+toward deployment readiness. Runtime use still requires at least 95%
+structured-output validity and grounding under strict or schema-constrained
+decoding.
+
 The notebook can also evaluate a vLLM/OpenAI-compatible endpoint with JSON
 Schema constrained decoding. Start a Qwen or adapter-backed endpoint separately,
 then set these variables before running the Qwen notebook:

@@ -8,11 +8,13 @@ from market_gyan.dataset import compact_qwen_label, write_jsonl
 from market_gyan.metrics import (
     agreement_metrics,
     benchmark_predictions,
+    benchmark_predictions_with_repair,
     bootstrap_difference,
     candidate_review_metrics,
     classification_metrics,
     multilabel_micro_f1,
     reaction_analysis,
+    repair_compact_prediction,
 )
 from test_dataset import row
 
@@ -133,6 +135,73 @@ class MetricsTest(unittest.TestCase):
         errors = " ".join(metrics["invalidOutputExamples"][0]["errors"])
         self.assertIn("evidenceSentenceIds values must be strings", errors)
         self.assertIn("unknown evidence sentence IDs: 1", errors)
+
+    def test_diagnostic_repair_parses_unquoted_compact_object(self):
+        prediction = {
+            "raw": (
+                '{confidenceBand: "high", eventType: "earnings", '
+                'evidenceSentenceIds: ["S1"], impactDirection: "bullish", '
+                'impactHorizon: "short_term", impactMechanism: '
+                '"earnings_cash_flow", impactScope: "company", '
+                'relevance: "direct", sectors: ["Banking"], '
+                'symbols: ["NABIL"]}'
+            )
+        }
+
+        repaired = repair_compact_prediction(prediction)
+
+        self.assertEqual(repaired["relevance"], "direct")
+        self.assertEqual(repaired["eventType"], "earnings")
+        self.assertEqual(repaired["evidenceSentenceIds"], ["S1"])
+
+    def test_diagnostic_benchmark_keeps_strict_gate_separate(self):
+        truth = [row(1, "direct", "earnings", "bullish")]
+        prediction = {
+            "id": truth[0]["id"],
+            "prediction": {
+                "raw": (
+                    '{confidenceBand: "high", eventType: "earnings", '
+                    'evidenceSentenceIds: ["S1"], impactDirection: "bullish", '
+                    'impactHorizon: "short_term", impactMechanism: '
+                    '"earnings_cash_flow", impactScope: "company", '
+                    'relevance: "direct", sectors: ["Banking"], '
+                    'symbols: ["NABIL"]}'
+                )
+            },
+        }
+
+        strict = benchmark_predictions(truth, [prediction])
+        diagnostic = benchmark_predictions_with_repair(truth, [prediction])
+
+        self.assertEqual(strict["structuredOutputValidity"], 0.0)
+        self.assertEqual(diagnostic["structuredOutputValidity"], 1.0)
+        self.assertTrue(diagnostic["repairDiagnostic"])
+        self.assertFalse(diagnostic["officialGate"])
+        self.assertEqual(diagnostic["repairAppliedCount"], 1)
+
+    def test_diagnostic_repair_normalizes_not_relevant(self):
+        prediction = {
+            "raw": (
+                'relevance: not relevant\n'
+                'eventType: market_trading\n'
+                'impactScope: market\n'
+                'impactDirection: negative\n'
+                'impactHorizon: short term\n'
+                'impactMechanism: market flow\n'
+                'confidenceBand: medium\n'
+                'evidenceSentenceIds: [S1]\n'
+                'sectors: [Banking]\n'
+                'symbols: [NABIL]\n'
+            )
+        }
+
+        repaired = repair_compact_prediction(prediction)
+
+        self.assertEqual(repaired["relevance"], "not_relevant")
+        self.assertEqual(repaired["eventType"], "not_applicable")
+        self.assertEqual(repaired["impactDirection"], "not_applicable")
+        self.assertEqual(repaired["sectors"], [])
+        self.assertEqual(repaired["symbols"], [])
 
     def test_agreement_reports_kappa_and_multilabel_f1(self):
         first = label()

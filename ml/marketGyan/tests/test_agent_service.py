@@ -98,6 +98,41 @@ class AgentServiceTest(unittest.TestCase):
                 }],
             }])
 
+    def test_rejects_sentence_anchor_with_wrong_visible_text(self):
+        result = self.anchored_result("S1")
+        result.citations[0].sentences[0].text = "Invented sentence text."
+        with self.assertRaisesRegex(ValueError, "not returned"):
+            validate_grounded_result(result, [{
+                "documentId": "doc-1",
+                "url": "https://example.com/market",
+                "chunkId": "chunk-1",
+                "contentHash": "hash-1",
+                "text": "NEPSE closed higher after a mixed trading session.",
+                "sentences": [{
+                    "id": "S1",
+                    "text": "NEPSE closed higher after a mixed trading session.",
+                }],
+            }])
+
+    def test_rejects_report_without_citations(self):
+        value = {
+            "mode": "report",
+            "headline": "Daily report",
+            "summary": "The report lacks visible citations.",
+            "citations": [],
+            "disclaimer": DISCLAIMER,
+        }
+        result = (
+            AnalysisResult.model_validate(value)
+            if hasattr(AnalysisResult, "model_validate")
+            else AnalysisResult.parse_obj(value)
+        )
+        with self.assertRaisesRegex(ValueError, "At least one citation"):
+            validate_grounded_result(result, [{
+                "url": "https://example.com/market",
+                "text": "NEPSE closed higher after a mixed trading session.",
+            }])
+
     def test_rejects_unsupported_citation(self):
         with self.assertRaisesRegex(ValueError, "not returned"):
             validate_grounded_result(self.result("Invented evidence"), [{
