@@ -122,13 +122,12 @@ adjudicated gold records. The current NEPSE-Impact-500 gold corpus contains
 \VTwoNegativeSelectionCount{} hard negatives after targeted rebalance. It
 passes the composition, language, source, symbol, and event-coverage gates.
 The approved JSONL export and balanced duplicate-grouped split manifest are
-ready for training. Two model runs have now been audited. XLM-R is the
-current reliable supervised baseline, while the second compact-label Qwen
-QLoRA run still failed the strict JSON and evidence-grounding gates. A
-targeted taxonomy-consistency audit has imported
-\TaxonomyAuditFlagCount{} records into the existing validation workflow,
-mostly dividend decisions and capital-action records, before the third Qwen
-run.
+ready for training. Three model-output sets have now been audited. XLM-R is
+the current reliable supervised baseline, while the third compact-label Qwen
+QLoRA run still failed the official strict JSON and evidence-grounding gates.
+The v3 Qwen outputs do show partial extraction learning under tolerant
+diagnostic repair, but runtime use still requires schema-constrained decoding
+and remains disabled.
 
 The modeling plan now compares Gemma before edits, base Qwen3-8B zero-shot,
 base Qwen3-8B three-shot, XLM-R, English-only FinBERT, and MarketGyan
@@ -259,15 +258,15 @@ composition gates must be checked again after adjudication.
   Reviewer-specific annotations, explicit adjudication, pilot-only v1 export,
   and adjudicated-only v2 JSONL export. NEPSE-Impact-500 is exported and split. \\
   XLM-R and FinBERT baselines & \implemented &
-  Second-run outputs exist and have been audited. XLM-R relevance is currently
+  Third-run outputs exist and have been audited. XLM-R relevance is currently
   the strongest reliable classifier; direction remains weaker, especially for
   neutral cases. \\
   Qwen3-8B QLoRA & \implemented &
   A direct Colab/Kaggle notebook implements zero-shot, three-shot, four-bit
   QLoRA, checkpoint resumption, deterministic JSON generation, ablation
-  controls, plots, smoke testing, and metric export. The second compact-label
-  Qwen run still failed strict validity and grounding gates, so runtime use
-  remains disabled. \\
+  controls, plots, smoke testing, strict metrics, and tolerant diagnostic
+  metrics. The third compact-label Qwen run still failed strict validity and
+  grounding gates, so runtime use remains disabled. \\
   Qdrant retrieval & \implemented &
   Dedicated collection, deterministic chunking, content-hash idempotency,
   metadata filters, and citation reconstruction are implemented. No live
@@ -728,16 +727,15 @@ confusion matrices, and per-class metrics. It loads the best checkpoint and
 exports each model, tokenizer, plot, prediction file, and
 \texttt{metrics.json}.
 
-The second completed run produced the current baseline reference, but not the
-final benchmark claim because the taxonomy audit is still pending. XLM-R
+The third completed output set produced the current baseline reference. XLM-R
 relevance classification reached
 \XLMRRelevanceAccuracy{} accuracy and \XLMRRelevanceMacroFOne{} macro-F1,
 with \XLMRRelevanceErrors{} errors on 75 test rows. Direction classification
 on relevant rows reached \XLMRDirectionAccuracy{} accuracy and
 \XLMRDirectionMacroFOne{} macro-F1, with \XLMRDirectionErrors{} errors on
 the relevant test subset. The main weakness is still neutral direction and
-some indirect relevance cases, so the taxonomy-audited export should be used
-before final thesis metrics are claimed.
+some indirect relevance cases, so XLM-R remains the reliable baseline while
+Qwen structured-output behavior is still unresolved.
 
 \section{English-only FinBERT baseline}
 
@@ -833,7 +831,8 @@ grounding, and confusion-matrix results.
 Adapters, tokenizer files, predictions, plots, and metrics are archived for
 download.
 
-Both Qwen QLoRA runs are therefore treated as failure-analysis artifacts. The
+The three Qwen QLoRA output sets are therefore treated as failure-analysis
+artifacts. The
 first run used verbose targets and reached only \QwenStructuredValidity{}
 structured-output validity. The second compact-label run still failed the
 strict gate: relevance accuracy was \QwenSecondRunAccuracy{}, relevance
@@ -842,9 +841,25 @@ macro-F1 was \QwenSecondRunMacroFOne{}, direction macro-F1 was
 \QwenSecondRunStructuredValidity{}, evidence grounding was
 \QwenSecondRunGrounding{}, and \QwenSecondRunRawOutputCount{} of 75 adapter
 outputs were raw or unparsed text. Nepali relevance accuracy was
-\QwenSecondRunNepaliAccuracy{}, so the next run must fix generation control,
-language balancing, and taxonomy consistency before any adaptation claim is
-made.
+\QwenSecondRunNepaliAccuracy{}.
+
+The third run still failed the official strict gate: strict JSON validity was
+\QwenThirdRunStrictValidity{}, evidence grounding was
+\QwenThirdRunGrounding{}, relevance accuracy was
+\QwenThirdRunRelevanceAccuracy{}, relevance macro-F1 was
+\QwenThirdRunRelevanceMacroFOne{}, direction macro-F1 was
+\QwenThirdRunDirectionMacroFOne{}, and \QwenThirdRunRawOutputCount{} of 75
+adapter outputs were raw or unparsed text. Unlike the second run, many raw
+outputs were near-valid compact objects with unquoted keys. A tolerant
+diagnostic parser would raise validity and grounding to
+\QwenThirdRunTolerantValidity{}, relevance macro-F1 to
+\QwenThirdRunTolerantRelevanceMacroFOne{}, direction macro-F1 to
+\QwenThirdRunTolerantDirectionMacroFOne{}, symbol F1 to
+\QwenThirdRunTolerantSymbolFOne{}, and evidence F1 to
+\QwenThirdRunTolerantEvidenceFOne{}. These repaired metrics are diagnostic
+only. They show that the adapter learned part of the extraction task, but they
+do not satisfy the official gate and must not be used as deployment
+readiness.
 
 \section{RAG evidence and citation anchors}
 
@@ -1106,13 +1121,13 @@ versioned ontology, bilingual aliases, sentence-grounded Gemma proposals,
 independent annotations, explicit adjudication, duplicate-safe export,
 reaction records, and model notebooks covering XLM-R, FinBERT, base Qwen, and
 Qwen3-8B QLoRA. The methodology and quota-compliant 500-record adjudicated
-dataset are implemented and exported. Two XLM-R, FinBERT, and Qwen output
-sets have been audited, and the second run currently positions XLM-R as the
-reliable supervised baseline. Qwen remains a negative experiment until it can
-produce strict JSON and grounded evidence consistently. The latest taxonomy
-audit has flagged \TaxonomyAuditFlagCount{} records for UI review before the
-next export. Agreement results, the third Qwen rerun, retrieval benchmarks,
-agent benchmarks, and reaction analysis are not complete.
+dataset are implemented and exported. Three model-output sets have been
+audited, and the latest run keeps XLM-R as the reliable supervised baseline.
+Qwen remains a negative strict-output experiment until it can produce valid
+JSON and grounded evidence consistently, although tolerant diagnostics now
+show partial extraction learning. Agreement results, constrained-decoding
+serving, retrieval benchmarks, agent benchmarks, and reaction analysis are
+not complete.
 
 \chapter{Remaining Work}
 
@@ -1120,20 +1135,17 @@ The next work must complete the research evidence rather than expand the
 application interface:
 
 \begin{enumerate}[leftmargin=1.8em]
-  \item Review the \TaxonomyAuditFlagCount{} taxonomy audit flags in the UI.
-        Regenerate the JSONL export and balanced split only if labels change.
   \item Complete independent second annotation for
         \SecondReviewTarget{} stratified records and report agreement.
   \item Report kappa and multilabel agreement; revise guidelines and reannotate
         disagreement-heavy categories if relevance or direction kappa is
         below 0.70.
-  \item Rerun XLM-R relevance and direction baselines on the taxonomy-reviewed
-        balanced split.
-  \item Rerun English-only FinBERT on the taxonomy-reviewed English relevant
-        subset.
-  \item Run Gemma-before-edit, base-Qwen zero-shot, base-Qwen three-shot,
-        XLM-R, English FinBERT, and the third compact-label Qwen3-8B QLoRA on
-        identical test IDs.
+  \item If any new label fixes are made, regenerate the JSONL export,
+        balanced split, XLM-R baseline, and English-only FinBERT baseline.
+  \item Rerun base-Qwen zero-shot, base-Qwen three-shot, and compact-label
+        Qwen3-8B QLoRA with schema-constrained decoding where available.
+  \item Keep reporting strict Qwen metrics as the official gate and tolerant
+        repaired-output metrics only as failure-analysis diagnostics.
   \item Run QLoRA/base-Qwen, hard-negative, and RAG ablations; use paired
         bootstrap analysis for the adaptation claim.
   \item Compute first- and third-session market reactions with missing-data

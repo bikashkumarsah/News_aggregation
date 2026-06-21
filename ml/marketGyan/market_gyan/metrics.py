@@ -1,5 +1,7 @@
+import json
 import math
 import random
+import re
 from collections import Counter, defaultdict
 
 from .dataset import (
@@ -16,6 +18,34 @@ from .dataset import (
 
 RELEVANCE_LABELS = ("direct", "indirect", "not_relevant")
 DIRECTION_LABELS = ("bullish", "bearish", "neutral", "uncertain")
+_COMPACT_ENUMS = {
+    "relevance": RELEVANCE,
+    "eventType": EVENT_TYPES,
+    "impactScope": IMPACT_SCOPES,
+    "impactDirection": IMPACT_DIRECTIONS,
+    "impactHorizon": IMPACT_HORIZONS,
+    "impactMechanism": IMPACT_MECHANISMS,
+    "confidenceBand": CONFIDENCE_BANDS,
+}
+_COMPACT_ALIASES = {
+    "relevant": "direct",
+    "irrelevant": "not_relevant",
+    "not relevant": "not_relevant",
+    "not-relevant": "not_relevant",
+    "not applicable": "not_applicable",
+    "not-applicable": "not_applicable",
+    "positive": "bullish",
+    "negative": "bearish",
+    "mixed": "uncertain",
+    "short term": "short_term",
+    "short-term": "short_term",
+    "medium term": "medium_term",
+    "medium-term": "medium_term",
+    "ownership supply": "ownership_supply",
+    "earnings cash flow": "earnings_cash_flow",
+    "financing liquidity": "financing_liquidity",
+    "market flow": "market_flow",
+}
 
 
 def classification_metrics(y_true, y_pred, labels):
@@ -180,6 +210,156 @@ def _string_list(values):
     return [str(value) for value in values]
 
 
+def _normalize_compact_enum(value, allowed):
+    normalized = str(value).strip().strip('",.').lower()
+    normalized = _COMPACT_ALIASES.get(normalized, normalized)
+    normalized = normalized.replace("-", "_").replace(" ", "_")
+    return normalized if normalized in allowed else normalized
+
+
+def _parse_compact_list(value):
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    text = str(value).strip().rstrip(",")
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, list):
+            return [str(item).strip() for item in parsed if str(item).strip()]
+    except json.JSONDecodeError:
+        pass
+    bracket = re.search(r"\[(.*?)\]", text)
+    if bracket:
+        text = bracket.group(1)
+    return [
+        item.strip().strip('"\'')
+        for item in re.split(r"[,;]", text)
+        if item.strip().strip('"\'')
+    ]
+
+
+def _strip_json_fence(raw):
+    text = raw.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\s*```$", "", text)
+    return text.strip()
+
+
+def _quote_unquoted_json_keys(raw):
+    return re.sub(
+        r'([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:',
+        r'\1"\2":',
+        raw,
+    )
+
+
+def _compact_json_candidates(raw):
+    text = _strip_json_fence(raw)
+    candidates = [text]
+    if "{" in text and "}" in text:
+        candidates.append(text[text.find("{"):text.rfind("}") + 1])
+    expanded = []
+    for candidate in candidates:
+        expanded.append(candidate)
+        expanded.append(_quote_unquoted_json_keys(candidate))
+    if "'" in text:
+        for candidate in list(expanded):
+            expanded.append(candidate.replace("'", '"'))
+            expanded.append(_quote_unquoted_json_keys(candidate.replace("'", '"')))
+    seen = set()
+    for candidate in expanded:
+        candidate = candidate.strip()
+        if candidate and candidate not in seen:
+            seen.add(candidate)
+            yield candidate
+
+
+def _normalize_compact_prediction(prediction):
+    if not isinstance(prediction, dict):
+        return prediction
+    normalized = dict(prediction)
+    for field in ("sectors", "symbols", "evidenceSentenceIds"):
+        if field in normalized:
+            normalized[field] = _parse_compact_list(normalized[field])
+    for field, allowed in _COMPACT_ENUMS.items():
+        if field in normalized:
+            normalized[field] = _normalize_compact_enum(
+                normalized[field],
+                allowed,
+            )
+    if normalized.get("relevance") == "not_relevant":
+        normalized.update(NOT_RELEVANT_COMPACT_VALUES)
+    return normalized
+
+
+def repair_compact_prediction(prediction):
+    """Best-effort diagnostic repair for raw compact Qwen outputs.
+
+    This is intentionally not part of the official strict gate. It exists to
+    diagnose whether a failed generation contains latent compact-label content
+    such as JavaScript-style objects with unquoted keys.
+    """
+    if isinstance(prediction, dict) and "raw" not in prediction:
+        return _normalize_compact_prediction(prediction)
+    raw = prediction.get("raw", "") if isinstance(prediction, dict) else str(prediction)
+    for candidate in _compact_json_candidates(raw):
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return _normalize_compact_prediction(parsed)
+
+    repaired = {}
+    for line in raw.splitlines():
+        match = re.match(
+            r'\s*[-*]?\s*`?"?([A-Za-z][A-Za-z0-9 _-]+)`?"?\s*[:=]\s*(.+?)\s*$',
+            line,
+        )
+        if not match:
+            continue
+        key = match.group(1).replace(" ", "").replace("-", "")
+        field = next(
+            (
+                candidate for candidate in COMPACT_QWEN_FIELDS
+                if key.lower() == candidate.lower()
+            ),
+            None,
+        )
+        if not field:
+            continue
+        value = match.group(2)
+        if field in {"sectors", "symbols", "evidenceSentenceIds"}:
+            repaired[field] = _parse_compact_list(value)
+        elif field in _COMPACT_ENUMS:
+            repaired[field] = _normalize_compact_enum(value, _COMPACT_ENUMS[field])
+    if repaired:
+        return _normalize_compact_prediction(repaired)
+    return prediction
+
+
+def repair_prediction_rows(prediction_rows):
+    repaired_rows = []
+    applied = 0
+    for row in prediction_rows:
+        original = row.get("prediction", row.get("candidate", {}))
+        repaired = repair_compact_prediction(original)
+        if repaired != original:
+            applied += 1
+        repaired_row = dict(row)
+        repaired_row["prediction"] = repaired
+        repaired_rows.append(repaired_row)
+    return repaired_rows, {
+        "repairAppliedCount": applied,
+        "repairDiagnostic": True,
+        "officialGate": False,
+        "note": (
+            "Tolerant repair is diagnostic only. Official structured-output "
+            "validity must use strict benchmark_predictions."
+        ),
+    }
+
+
 def _prediction_validation_errors(prediction, sentence_ids):
     if not isinstance(prediction, dict):
         return ["prediction must be an object"]
@@ -325,6 +505,13 @@ def benchmark_predictions(truth_rows, prediction_rows):
     }
     result["perLanguage"] = _grouped_benchmark(matched, "language")
     result["perEvent"] = _grouped_benchmark(relevant, "eventType")
+    return result
+
+
+def benchmark_predictions_with_repair(truth_rows, prediction_rows):
+    repaired_rows, repair_report = repair_prediction_rows(prediction_rows)
+    result = benchmark_predictions(truth_rows, repaired_rows)
+    result.update(repair_report)
     return result
 
 

@@ -62,6 +62,23 @@ class SystemEvaluationTest(unittest.TestCase):
             evidence_grounding=0.97,
         )["eligible"])
 
+    def test_deployment_gate_rejects_tolerant_diagnostic_quality(self):
+        result = deployment_gate(
+            xlmr_macro_f1=0.72,
+            qwen_macro_f1=0.63,
+            qwen_per_class_f1={
+                "bullish": 0.65,
+                "bearish": 0.65,
+                "neutral": 0.50,
+                "uncertain": 0.55,
+            },
+            structured_validity=0.68,
+            evidence_grounding=0.68,
+        )
+        self.assertFalse(result["eligible"])
+        self.assertFalse(result["checks"]["structuredValidity"])
+        self.assertFalse(result["checks"]["evidenceGrounding"])
+
 
 if __name__ == "__main__":
     unittest.main()

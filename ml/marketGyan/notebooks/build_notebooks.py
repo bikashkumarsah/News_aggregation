@@ -832,101 +832,12 @@ write_jsonl(output_dir / "test_predictions.jsonl", adapter_predictions)
     markdown("## 8. Score and plot all Qwen conditions"),
     code("""
 import matplotlib.pyplot as plt
-import re
 import seaborn as sns
-from market_gyan.dataset import (
-    COMPACT_QWEN_FIELDS,
-    CONFIDENCE_BANDS,
-    EVENT_TYPES,
-    IMPACT_DIRECTIONS,
-    IMPACT_HORIZONS,
-    IMPACT_MECHANISMS,
-    IMPACT_SCOPES,
-    NOT_RELEVANT_COMPACT_VALUES,
-    RELEVANCE,
+from market_gyan.metrics import (
+    benchmark_predictions,
+    benchmark_predictions_with_repair,
+    repair_prediction_rows,
 )
-from market_gyan.metrics import benchmark_predictions
-
-ENUMS = {
-    "relevance": RELEVANCE,
-    "eventType": EVENT_TYPES,
-    "impactScope": IMPACT_SCOPES,
-    "impactDirection": IMPACT_DIRECTIONS,
-    "impactHorizon": IMPACT_HORIZONS,
-    "impactMechanism": IMPACT_MECHANISMS,
-    "confidenceBand": CONFIDENCE_BANDS,
-}
-
-ALIASES = {
-    "relevant": "direct",
-    "irrelevant": "not_relevant",
-    "not relevant": "not_relevant",
-    "not-relevant": "not_relevant",
-    "positive": "bullish",
-    "negative": "bearish",
-    "mixed": "uncertain",
-    "not applicable": "not_applicable",
-    "not-applicable": "not_applicable",
-    "short term": "short_term",
-    "short-term": "short_term",
-    "medium term": "medium_term",
-    "medium-term": "medium_term",
-    "ownership supply": "ownership_supply",
-    "earnings cash flow": "earnings_cash_flow",
-    "financing liquidity": "financing_liquidity",
-    "market flow": "market_flow",
-}
-
-def normalize_enum(value, allowed):
-    value = str(value).strip().strip('",.').lower()
-    value = ALIASES.get(value, value)
-    value = value.replace("-", "_").replace(" ", "_")
-    return value if value in allowed else value
-
-def parse_list_value(value):
-    value = str(value).strip().rstrip(",")
-    try:
-        parsed = json.loads(value)
-        if isinstance(parsed, list):
-            return [str(item).strip() for item in parsed if str(item).strip()]
-    except json.JSONDecodeError:
-        pass
-    bracket = re.search(r"\\[(.*?)\\]", value)
-    if bracket:
-        value = bracket.group(1)
-    return [
-        item.strip().strip('"\\'')
-        for item in re.split(r"[,;]", value)
-        if item.strip().strip('"\\'')
-    ]
-
-def repair_compact_prediction(prediction):
-    if isinstance(prediction, dict) and "raw" not in prediction:
-        return prediction
-    raw = prediction.get("raw", "") if isinstance(prediction, dict) else str(prediction)
-    repaired = {}
-    for line in raw.splitlines():
-        match = re.match(r'\\s*[-*]?\\s*`?"?([A-Za-z][A-Za-z0-9 _-]+)`?"?\\s*[:=]\\s*(.+?)\\s*$', line)
-        if not match:
-            continue
-        key = match.group(1).replace(" ", "").replace("-", "")
-        field = next(
-            (
-                candidate for candidate in COMPACT_QWEN_FIELDS
-                if key.lower() == candidate.lower()
-            ),
-            None,
-        )
-        if not field:
-            continue
-        value = match.group(2)
-        if field in {"sectors", "symbols", "evidenceSentenceIds"}:
-            repaired[field] = parse_list_value(value)
-        elif field in ENUMS:
-            repaired[field] = normalize_enum(value, ENUMS[field])
-    if repaired.get("relevance") == "not_relevant":
-        repaired.update(NOT_RELEVANT_COMPACT_VALUES)
-    return repaired if repaired else prediction
 
 benchmarks = {
     "zero_shot": benchmark_predictions(test_rows, zero_shot),
@@ -943,21 +854,32 @@ if constrained_three_shot:
         test_rows,
         constrained_three_shot,
     )
-repaired_adapter_predictions = [
-    {"id": row["id"], "prediction": repair_compact_prediction(row["prediction"])}
-    for row in adapter_predictions
-]
-benchmarks["unsloth_qlora_repaired_diagnostic"] = benchmark_predictions(
+repaired_adapter_predictions, repair_report = repair_prediction_rows(adapter_predictions)
+benchmarks["unsloth_qlora_tolerant_diagnostic"] = benchmark_predictions_with_repair(
     test_rows,
-    repaired_adapter_predictions,
+    adapter_predictions,
 )
 write_jsonl(
-    output_dir / "qwen_repaired_diagnostic.jsonl",
+    output_dir / "qwen_tolerant_diagnostic.jsonl",
     repaired_adapter_predictions,
 )
 (output_dir / "metrics.json").write_text(
     json.dumps(benchmarks, indent=2), encoding="utf-8"
 )
+print(json.dumps({
+    "strictValidity": benchmarks["unsloth_qlora"]["structuredOutputValidity"],
+    "strictGrounding": benchmarks["unsloth_qlora"]["evidenceGrounding"],
+    "tolerantDiagnosticValidity": benchmarks[
+        "unsloth_qlora_tolerant_diagnostic"
+    ]["structuredOutputValidity"],
+    "tolerantDiagnosticGrounding": benchmarks[
+        "unsloth_qlora_tolerant_diagnostic"
+    ]["evidenceGrounding"],
+    "repairAppliedCount": repair_report["repairAppliedCount"],
+    "officialGate": benchmarks[
+        "unsloth_qlora_tolerant_diagnostic"
+    ]["officialGate"],
+}, indent=2))
 
 labels = ["direct", "indirect", "not_relevant"]
 matrix = [

@@ -3,9 +3,9 @@
 % \MarketGyanMilestoneHistory. Keep implementation details in main.tex stable.
 
 \newcommand{\SnapshotDate}{June 21, 2026}
-\newcommand{\SnapshotTimestamp}{the dataset, second training-run, taxonomy-audit, constrained-decoding, and RAG evidence-anchor status after the June 21, 2026 Qwen analysis}
-\newcommand{\CurrentMilestone}{Qwen constrained-output and RAG evidence-anchor hardening}
-\newcommand{\CurrentMilestoneState}{XLM-R is the current reliable baseline; Qwen run 2 remains a failed strict-output experiment, and the next Qwen run now has optional vLLM JSON Schema constrained decoding plus sentence-level RAG citation anchors}
+\newcommand{\SnapshotTimestamp}{the dataset, third training-run, tolerant diagnostic parsing, constrained-decoding, and RAG evidence-anchor status after the June 21, 2026 Qwen analysis}
+\newcommand{\CurrentMilestone}{Qwen v3 evaluation and RAG readiness hardening}
+\newcommand{\CurrentMilestoneState}{XLM-R remains the current reliable baseline; Qwen run 3 failed the official strict-output gate, but tolerant diagnostic repair shows partial extraction learning and confirms that runtime use requires schema-constrained decoding}
 
 \newcommand{\SnapshotCount}{224}
 \newcommand{\SnapshotStartDate}{June 11, 2025}
@@ -78,12 +78,12 @@
 \newcommand{\RevalidationAuditCount}{57}
 \newcommand{\RevalidationMaxPriority}{8}
 
-\newcommand{\XLMRRelevanceAccuracy}{0.800}
-\newcommand{\XLMRRelevanceMacroFOne}{0.722}
-\newcommand{\XLMRRelevanceErrors}{15}
-\newcommand{\XLMRDirectionAccuracy}{0.650}
-\newcommand{\XLMRDirectionMacroFOne}{0.536}
-\newcommand{\XLMRDirectionErrors}{21}
+\newcommand{\XLMRRelevanceAccuracy}{0.787}
+\newcommand{\XLMRRelevanceMacroFOne}{0.723}
+\newcommand{\XLMRRelevanceErrors}{16}
+\newcommand{\XLMRDirectionAccuracy}{0.683}
+\newcommand{\XLMRDirectionMacroFOne}{0.549}
+\newcommand{\XLMRDirectionErrors}{19}
 \newcommand{\FinBERTAccuracy}{0.889}
 \newcommand{\FinBERTMacroFOne}{0.616}
 \newcommand{\FinBERTErrors}{3}
@@ -100,6 +100,20 @@
 \newcommand{\QwenSecondRunGrounding}{34.7\%}
 \newcommand{\QwenSecondRunRawOutputCount}{49}
 \newcommand{\QwenSecondRunNepaliAccuracy}{0.000}
+\newcommand{\QwenThirdRunStrictValidity}{36.0\%}
+\newcommand{\QwenThirdRunGrounding}{36.0\%}
+\newcommand{\QwenThirdRunRawOutputCount}{37}
+\newcommand{\QwenThirdRunRelevanceAccuracy}{0.333}
+\newcommand{\QwenThirdRunRelevanceMacroFOne}{0.384}
+\newcommand{\QwenThirdRunDirectionMacroFOne}{0.413}
+\newcommand{\QwenThirdRunNepaliAccuracy}{0.182}
+\newcommand{\QwenThirdRunTolerantValidity}{68.0\%}
+\newcommand{\QwenThirdRunTolerantGrounding}{68.0\%}
+\newcommand{\QwenThirdRunTolerantRelevanceAccuracy}{0.613}
+\newcommand{\QwenThirdRunTolerantRelevanceMacroFOne}{0.555}
+\newcommand{\QwenThirdRunTolerantDirectionMacroFOne}{0.629}
+\newcommand{\QwenThirdRunTolerantSymbolFOne}{0.790}
+\newcommand{\QwenThirdRunTolerantEvidenceFOne}{0.633}
 \newcommand{\TaxonomyAuditFlagCount}{57}
 \newcommand{\TaxonomyDividendFlagCount}{26}
 \newcommand{\TaxonomyIpoFlagCount}{23}
@@ -111,7 +125,7 @@
 \newcommand{\VTwoGemmaTokenCount}{3,642}
 \newcommand{\GemmaAverageTokenCount}{2,895}
 
-\newcommand{\FineTuningState}{Second XLM-R, FinBERT, and Qwen run analyzed; Qwen remains below strict validity and grounding gates; the third Qwen run should use compact labels plus optional vLLM JSON Schema constrained decoding after any taxonomy changes are exported}
+\newcommand{\FineTuningState}{Third XLM-R, FinBERT, and Qwen run analyzed; XLM-R remains the reliable baseline, Qwen remains below strict validity and grounding gates, and tolerant repair is diagnostic only}
 \newcommand{\RuntimeInferenceState}{Implemented but disabled pending evaluation}
 
 \newcommand{\MarketGyanMilestoneHistory}{%
@@ -265,5 +279,22 @@
     chunk IDs, source metadata, dates, and content hashes. Sentence IDs are
     therefore internal anchors only; user-facing reports must show source URLs
     and quoted evidence text.
+    \item[June 21, 2026, v3 output audit] The third training output was
+    analyzed. XLM-R relevance remained the dependable baseline at
+    \XLMRRelevanceAccuracy{} accuracy and \XLMRRelevanceMacroFOne{}
+    macro-F1; XLM-R direction reached \XLMRDirectionAccuracy{} accuracy and
+    \XLMRDirectionMacroFOne{} macro-F1. Qwen3-8B QLoRA still failed the
+    official strict gate, with \QwenThirdRunStrictValidity{} strict validity
+    and \QwenThirdRunGrounding{} evidence grounding. However,
+    \QwenThirdRunRawOutputCount{} of 75 adapter outputs were raw, and many
+    were near-valid compact objects with unquoted keys. A tolerant diagnostic
+    parser would raise validity and grounding to
+    \QwenThirdRunTolerantValidity{}, relevance macro-F1 to
+    \QwenThirdRunTolerantRelevanceMacroFOne{}, direction macro-F1 to
+    \QwenThirdRunTolerantDirectionMacroFOne{}, symbol F1 to
+    \QwenThirdRunTolerantSymbolFOne{}, and evidence F1 to
+    \QwenThirdRunTolerantEvidenceFOne{}. These tolerant numbers are
+    failure-analysis diagnostics only and do not count toward deployment
+    readiness.
   \end{description}
 }

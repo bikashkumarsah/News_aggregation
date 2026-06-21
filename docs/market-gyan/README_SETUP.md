@@ -489,7 +489,9 @@ failure-analysis run rather than a deployment candidate.
 After training, run the built-in 10-example smoke generation cell before the
 full test generation cell. Continue only if at least 8 of the 10 validation
 outputs are strict valid compact JSON. The official metrics remain strict; the
-optional repaired-output metric is diagnostic only.
+optional tolerant repaired-output metric is diagnostic only. It can parse
+failure-analysis cases such as compact objects with unquoted keys, but it does
+not count toward deployment readiness.
 
 For Colab or Kaggle:
 
@@ -528,6 +530,19 @@ PYTHONPATH=. python3 -m market_gyan.cli benchmark \
   outputs/qwen-test-predictions.jsonl \
   outputs/qwen-test-metrics.json
 ```
+
+For Qwen failure analysis only, write a tolerant diagnostic report:
+
+```bash
+PYTHONPATH=. python3 -m market_gyan.cli benchmark \
+  data/processed/splits/test.jsonl \
+  outputs/qwen-test-predictions.jsonl \
+  outputs/qwen-test-tolerant-diagnostic.json \
+  --repair-diagnostic
+```
+
+Use the first command for the official gate. Use the second command only to
+understand whether invalid raw text contains recoverable compact-label content.
 
 Audit baseline prediction errors against gold labels:
 
