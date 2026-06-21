@@ -394,7 +394,8 @@ type, direction, sector, symbol, and evidence selection.
     code("""
 !pip install -q --upgrade --force-reinstall --no-cache-dir unsloth unsloth_zoo
 !pip install -q 'datasets>=3.2,<4' 'trl>=0.15,<1' \
-  'matplotlib>=3.9,<4' 'seaborn>=0.13,<1' 'tqdm>=4.66,<5'
+  'matplotlib>=3.9,<4' 'seaborn>=0.13,<1' 'tqdm>=4.66,<5' \
+  'openai>=1.50,<2'
 """, ["setup"]),
     code("""
 !pip install -q --upgrade --force-reinstall "numpy>=1.26.4,<1.28" "urllib3<=2.5.0"
@@ -417,6 +418,7 @@ print(len(train_rows), len(validation_rows), len(test_rows))
     markdown("## 2. Load Qwen3 through Unsloth and define the structured prompt"),
     code("""
 from unsloth import FastLanguageModel
+from market_gyan.structured_output import compact_qwen_response_format
 
 MODEL_NAME = "unsloth/Qwen3-8B"
 MAX_SEQ_LENGTH = 1536
@@ -432,6 +434,13 @@ model, tokenizer = FastLanguageModel.from_pretrained(
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.model_max_length = MAX_SEQ_LENGTH
 output_dir = OUTPUTS / "marketgyan-qwen3-8b-unsloth-qlora"
+USE_VLLM_CONSTRAINED = (
+    os.getenv("MARKET_GYAN_USE_VLLM_CONSTRAINED", "false").lower()
+    in {"1", "true", "yes"}
+)
+VLLM_BASE_URL = os.getenv("MARKET_GYAN_VLLM_BASE_URL", "http://127.0.0.1:8000/v1")
+VLLM_API_KEY = os.getenv("MARKET_GYAN_VLLM_API_KEY", "local")
+VLLM_MODEL = os.getenv("MARKET_GYAN_VLLM_MODEL", "marketgyan-qwen3-8b")
 
 COMPACT_SCHEMA_INSTRUCTIONS = (
     "Return only valid compact JSON. Do not use markdown. Do not explain. "
@@ -468,6 +477,23 @@ def prompt_for(row):
     code("""
 from tqdm.auto import tqdm
 
+def chat_messages_for(row, demonstrations=None):
+    messages = []
+    for example in demonstrations or []:
+        messages += [
+            {"role": "user", "content": prompt_for(example)},
+            {
+                "role": "assistant",
+                "content": json.dumps(
+                    compact_qwen_label(example["gold"]),
+                    ensure_ascii=False,
+                    sort_keys=True,
+                ),
+            },
+        ]
+    messages.append({"role": "user", "content": prompt_for(row)})
+    return messages
+
 def tokenize_generation_prompt(text):
     previous_side = tokenizer.truncation_side
     tokenizer.truncation_side = "left"
@@ -483,20 +509,7 @@ def tokenize_generation_prompt(text):
     return encoded.to(model.device)
 
 def generate_json(row, demonstrations=None):
-    messages = []
-    for example in demonstrations or []:
-        messages += [
-            {"role": "user", "content": prompt_for(example)},
-            {
-                "role": "assistant",
-                "content": json.dumps(
-                    compact_qwen_label(example["gold"]),
-                    ensure_ascii=False,
-                    sort_keys=True,
-                ),
-            },
-        ]
-    messages.append({"role": "user", "content": prompt_for(row)})
+    messages = chat_messages_for(row, demonstrations)
     text = tokenizer.apply_chat_template(
         messages,
         tokenize=False,
@@ -536,6 +549,23 @@ def generate_json(row, demonstrations=None):
                 pass
         return {"raw": raw}
 
+def generate_json_constrained(row, demonstrations=None):
+    from openai import OpenAI
+
+    client = OpenAI(base_url=VLLM_BASE_URL, api_key=VLLM_API_KEY)
+    response = client.chat.completions.create(
+        model=VLLM_MODEL,
+        messages=chat_messages_for(row, demonstrations),
+        temperature=0,
+        max_tokens=MAX_GENERATION_TOKENS,
+        response_format=compact_qwen_response_format(row.get("sentences", [])),
+    )
+    raw = response.choices[0].message.content or ""
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {"raw": raw}
+
 three_shot_examples = [
     next(row for row in train_rows if row["gold"]["relevance"] == value)
     for value in ("direct", "indirect", "not_relevant")
@@ -553,6 +583,35 @@ for row in tqdm(test_rows, desc="Qwen three-shot", unit="doc"):
 output_dir.mkdir(parents=True, exist_ok=True)
 write_jsonl(output_dir / "qwen_base_zero_shot.jsonl", zero_shot)
 write_jsonl(output_dir / "qwen_base_three_shot.jsonl", three_shot)
+
+constrained_zero_shot = []
+constrained_three_shot = []
+if USE_VLLM_CONSTRAINED:
+    print(f"Running constrained Qwen through {VLLM_BASE_URL} model={VLLM_MODEL}")
+    for row in tqdm(test_rows, desc="Qwen constrained zero-shot", unit="doc"):
+        constrained_zero_shot.append({
+            "id": row["id"],
+            "prediction": generate_json_constrained(row),
+        })
+    for row in tqdm(test_rows, desc="Qwen constrained three-shot", unit="doc"):
+        constrained_three_shot.append({
+            "id": row["id"],
+            "prediction": generate_json_constrained(row, three_shot_examples),
+        })
+    write_jsonl(
+        output_dir / "qwen_vllm_constrained_zero_shot.jsonl",
+        constrained_zero_shot,
+    )
+    write_jsonl(
+        output_dir / "qwen_vllm_constrained_three_shot.jsonl",
+        constrained_three_shot,
+    )
+else:
+    print(
+        "Skipping vLLM constrained decoding. Set "
+        "MARKET_GYAN_USE_VLLM_CONSTRAINED=true after serving Qwen through "
+        "an OpenAI-compatible vLLM endpoint."
+    )
 """, ["gpu"]),
     markdown("## 4. Format compact gold JSON for supervised fine-tuning"),
     code("""
@@ -828,6 +887,16 @@ benchmarks = {
     "three_shot": benchmark_predictions(test_rows, three_shot),
     "unsloth_qlora": benchmark_predictions(test_rows, adapter_predictions),
 }
+if constrained_zero_shot:
+    benchmarks["vllm_constrained_zero_shot"] = benchmark_predictions(
+        test_rows,
+        constrained_zero_shot,
+    )
+if constrained_three_shot:
+    benchmarks["vllm_constrained_three_shot"] = benchmark_predictions(
+        test_rows,
+        constrained_three_shot,
+    )
 repaired_adapter_predictions = [
     {"id": row["id"], "prediction": repair_compact_prediction(row["prediction"])}
     for row in adapter_predictions
@@ -866,7 +935,16 @@ sns.heatmap(
     xticklabels=labels, yticklabels=labels
 )
 axes[0].set_title("Relevance confusion matrix")
-benchmark_names = ["zero_shot", "three_shot", "unsloth_qlora"]
+benchmark_names = [
+    name for name in (
+        "zero_shot",
+        "three_shot",
+        "vllm_constrained_zero_shot",
+        "vllm_constrained_three_shot",
+        "unsloth_qlora",
+    )
+    if name in benchmarks
+]
 bars = axes[1].bar(
     benchmark_names,
     [benchmarks[name]["relevance"]["macroF1"] for name in benchmark_names],

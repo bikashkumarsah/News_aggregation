@@ -16,6 +16,23 @@ const validateAgentResult = (result, { mode } = {}) => {
         if (!citation?.documentId || !citation?.title || !citation?.url || !citation?.excerpt) {
             errors.push(`Citation ${index} requires documentId, title, url, and excerpt`);
         }
+        if (citation?.sentenceIds !== undefined && !Array.isArray(citation.sentenceIds)) {
+            errors.push(`Citation ${index} sentenceIds must be an array`);
+        }
+        if (Array.isArray(citation?.sentenceIds) && citation.sentenceIds.length) {
+            if (!citation.chunkId || !citation.contentHash) {
+                errors.push(`Citation ${index} with sentenceIds requires chunkId and contentHash`);
+            }
+            if (!Array.isArray(citation.sentences) || !citation.sentences.length) {
+                errors.push(`Citation ${index} with sentenceIds requires expanded sentences`);
+            } else {
+                for (const sentence of citation.sentences) {
+                    if (!sentence?.id || !sentence?.text) {
+                        errors.push(`Citation ${index} sentence anchors require id and text`);
+                    }
+                }
+            }
+        }
     }
     if (mode === 'query' && !String(result.answer || '').trim()) {
         errors.push('Query result requires an answer');

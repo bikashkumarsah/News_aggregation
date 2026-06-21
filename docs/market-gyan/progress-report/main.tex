@@ -810,6 +810,16 @@ the assistant answer with an opening JSON brace, limits generation to 192 new
 tokens, and applies a small repetition penalty to reduce looping evidence
 lists.
 
+The second run showed that these prompt-level controls are still not enough
+for reliable machine output. The notebook therefore now includes an optional
+OpenAI-compatible vLLM path that passes a JSON Schema response format for the
+compact label object \cite{vllmStructuredOutputs}. The unconstrained
+\texttt{transformers.generate} path remains in the notebook as a diagnostic
+measure, but the intended runtime path for Qwen structured output is
+schema-constrained decoding. This distinction is important: fine-tuning makes
+the desired fields more likely, whereas constrained decoding prevents invalid
+syntax, Markdown bullets, and unsupported enum strings from being sampled.
+
 The minimum planned environment is an NVIDIA T4 with 16 GB VRAM in Kaggle,
 Colab, or Lightning AI. Actual fit, throughput, and maximum sequence length
 must be confirmed during reruns. Before generating the full test set, the
@@ -836,6 +846,27 @@ outputs were raw or unparsed text. Nepali relevance accuracy was
 language balancing, and taxonomy consistency before any adaptation claim is
 made.
 
+\section{RAG evidence and citation anchors}
+
+MarketGyan keeps changing facts in retrieval memory rather than model weights,
+following the RAG pattern of combining parametric model behavior with explicit
+non-parametric evidence \cite{ragOriginal}. For the demonstration, sentence
+IDs are treated only as internal anchors. Each indexed chunk can now carry the
+document ID, chunk ID, source title, source URL, source name, publication date,
+content hash, sentence IDs, and expanded sentence text. Agent citations must
+surface a source URL and quoted evidence excerpt for users; an answer that
+only cites \texttt{S3} is not considered a complete public citation.
+
+This design follows citation-oriented evaluation work, where grounded answers
+are judged not only by fluent prose but by whether cited evidence supports the
+claims \cite{alce,longcite}. The system validator accepts exact retrieved
+excerpt matches for backward compatibility, but prefers sentence-anchored
+citations when the retriever returns sentence metadata. The planned report
+workflow is therefore: retrieve finance chunks from Qdrant, classify/extract
+compact impact labels, expand selected sentence IDs to source text and URLs,
+generate cautious report prose from retrieved evidence and deterministic NEPSE
+data, then reject uncited claims or investment advice.
+
 \section{Evaluation plan}
 
 The research report will combine dataset, model, retrieval, and end-to-end
@@ -856,6 +887,8 @@ measures:
         for failure analysis and not as official strict metrics;
   \item retrieval Precision@5 and citation correctness over at least 30
         manually judged finance queries; and
+  \item sentence-anchor correctness for citations that include sentence IDs;
+        and
   \item report schema validity, freshness, generation latency, and
         end-to-end latency over at least 20 report or query scenarios.
 \end{itemize}

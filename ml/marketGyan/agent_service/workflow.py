@@ -29,6 +29,58 @@ def evidence_key(url, excerpt):
     )
 
 
+def retrieved_sentence_map(row):
+    return {
+        str(sentence.get("id")): " ".join(str(sentence.get("text", "")).split())
+        for sentence in row.get("sentences", [])
+        if isinstance(sentence, dict) and sentence.get("id")
+    }
+
+
+def citation_matches_sentence_anchors(citation, retrieved):
+    if not citation.sentenceIds:
+        return False
+    candidates = [
+        row for row in retrieved
+        if (
+            str(row.get("documentId")) == citation.documentId
+            or str(row.get("url")) == citation.url
+        )
+    ]
+    if citation.chunkId:
+        candidates = [
+            row for row in candidates
+            if str(row.get("chunkId", row.get("pointId", ""))) == citation.chunkId
+        ]
+    if citation.contentHash:
+        candidates = [
+            row for row in candidates
+            if not row.get("contentHash") or row.get("contentHash") == citation.contentHash
+        ]
+    for row in candidates:
+        sentence_map = retrieved_sentence_map(row)
+        if not sentence_map:
+            continue
+        if not all(sentence_id in sentence_map for sentence_id in citation.sentenceIds):
+            continue
+        supplied = {
+            str(sentence.id): " ".join(sentence.text.split())
+            for sentence in citation.sentences
+        }
+        if supplied and any(
+            sentence_map.get(sentence_id) != text
+            for sentence_id, text in supplied.items()
+        ):
+            continue
+        excerpt = " ".join(citation.excerpt.lower().split())
+        if excerpt and not any(
+            excerpt in text.lower() for text in sentence_map.values()
+        ):
+            continue
+        return True
+    return False
+
+
 def validate_grounded_result(result, retrieved):
     if not result.citations:
         raise ValueError("At least one citation is required")
@@ -37,6 +89,8 @@ def validate_grounded_result(result, retrieved):
         for row in retrieved
     }
     for citation in result.citations:
+        if citation_matches_sentence_anchors(citation, retrieved):
+            continue
         normalized = evidence_key(citation.url, citation.excerpt)
         matching_text = [
             text for url, text in available if url == normalized[0]
@@ -162,6 +216,9 @@ def run_crew(request: AnalysisRequest, settings: Settings):
         description=(
             "Publish the requested {mode} as the required structured object. "
             "Citations must copy exact excerpts and URLs returned by retrieval. "
+            "When retrieval returns sentenceIds, sentences, chunkId, source, "
+            "publishedAt, and contentHash, include those fields so sentence IDs "
+            "remain internal anchors backed by visible citation text. "
             f"The disclaimer must be exactly: {DISCLAIMER}"
         ),
         expected_output="A valid MarketGyan AnalysisResult object.",

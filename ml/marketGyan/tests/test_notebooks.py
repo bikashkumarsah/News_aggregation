@@ -25,8 +25,10 @@ class NotebookTest(unittest.TestCase):
                 "enable_thinking=False",
                 "three_shot",
                 "compact_qwen_label",
+                "compact_qwen_response_format",
                 "oversample_training_rows",
                 "qwen_base_zero_shot.jsonl",
+                "qwen_vllm_constrained_zero_shot.jsonl",
             ],
         }
         for name, markers in expected.items():

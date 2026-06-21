@@ -16,6 +16,10 @@ from market_gyan.dataset import (
     validate_dataset,
     write_jsonl,
 )
+from market_gyan.structured_output import (
+    compact_qwen_json_schema,
+    compact_qwen_response_format,
+)
 
 
 def row(index, relevance="direct", event_type="earnings", direction="bullish"):
@@ -161,6 +165,22 @@ class DatasetTest(unittest.TestCase):
         self.assertEqual(negative["impactMechanism"], "none")
         self.assertEqual(negative["sectors"], [])
         self.assertEqual(negative["symbols"], [])
+
+    def test_compact_qwen_json_schema_limits_evidence_ids_when_available(self):
+        value = row(1)
+        schema = compact_qwen_json_schema(value["sentences"])
+        self.assertEqual(schema["additionalProperties"], False)
+        self.assertEqual(
+            set(schema["required"]),
+            set(COMPACT_QWEN_FIELDS),
+        )
+        self.assertEqual(
+            schema["properties"]["evidenceSentenceIds"]["items"]["enum"],
+            ["S1"],
+        )
+        response_format = compact_qwen_response_format(value["sentences"])
+        self.assertEqual(response_format["type"], "json_schema")
+        self.assertTrue(response_format["json_schema"]["strict"])
 
     def test_jsonl_round_trip_and_coverage(self):
         rows = [row(1), row(2, "indirect", "regulation", "neutral")]

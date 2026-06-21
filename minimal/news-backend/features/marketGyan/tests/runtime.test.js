@@ -29,7 +29,13 @@ const groundedResult = {
         title: 'Market report',
         url: 'https://example.com/report',
         excerpt: 'mixed market conditions',
-        score: 0.9
+        score: 0.9,
+        source: 'ShareSansar',
+        publishedAt: '2026-06-13T00:00:00.000Z',
+        chunkId: 'chunk-1',
+        contentHash: 'hash-1',
+        sentenceIds: ['S1'],
+        sentences: [{ id: 'S1', text: 'mixed market conditions' }]
     }],
     disclaimer: MARKET_GYAN_DISCLAIMER
 };
@@ -43,6 +49,13 @@ test('agent results require citations, disclaimer, and no investment advice', ()
     assert.equal(validateAgentResult({
         ...groundedResult,
         answer: 'This is a guaranteed profit and buy signal.'
+    }, { mode: 'query' }).valid, false);
+    assert.equal(validateAgentResult({
+        ...groundedResult,
+        citations: [{
+            ...groundedResult.citations[0],
+            sentences: []
+        }]
     }, { mode: 'query' }).valid, false);
 });
 

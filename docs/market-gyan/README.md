@@ -11,6 +11,13 @@ The schema-v1 labels are frozen as a pilot audit. Schema v2 uses
 numbered sentence evidence. Current facts remain in RAG rather than model
 weights.
 
+Qwen is treated as a compact classifier/extractor, not a report writer. The
+next Qwen run supports optional vLLM/OpenAI-compatible JSON Schema constrained
+decoding because fine-tuning alone did not reliably prevent Markdown/prose
+outputs. Sentence IDs are internal evidence anchors; user-facing RAG citations
+must expand them into source title, URL, date, quoted sentence text, chunk ID,
+and content hash.
+
 ## Project Documentation
 
 - [Progress report](progress-report/README.md): updateable LaTeX engineering

@@ -37,6 +37,22 @@ response-only training, oversamples indirect and hard-negative examples, and
 saves only the final adapter, tokenizer, predictions, metrics, and plots.
 Intermediate `checkpoint-*` directories are intentionally removed to keep the
 downloadable artifact small.
+
+The notebook can also evaluate a vLLM/OpenAI-compatible endpoint with JSON
+Schema constrained decoding. Start a Qwen or adapter-backed endpoint separately,
+then set these variables before running the Qwen notebook:
+
+```bash
+export MARKET_GYAN_USE_VLLM_CONSTRAINED=true
+export MARKET_GYAN_VLLM_BASE_URL=http://127.0.0.1:8000/v1
+export MARKET_GYAN_VLLM_API_KEY=local
+export MARKET_GYAN_VLLM_MODEL=marketgyan-qwen3-8b
+```
+
+This writes `qwen_vllm_constrained_zero_shot.jsonl` and
+`qwen_vllm_constrained_three_shot.jsonl`. The unconstrained notebook metrics
+remain useful as failure diagnostics, but the deployment path should use
+schema-constrained decoding if Qwen is used for structured output.
 Model artifacts and datasets are intentionally ignored by Git.
 
 System benchmark specifications are in `evaluation/`. After recording actual
