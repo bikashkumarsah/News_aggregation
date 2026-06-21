@@ -23,6 +23,13 @@ const cleanFilters = (filters) => Object.fromEntries(
   Object.entries(filters).filter(([, value]) => String(value || '').trim())
 );
 
+const formatDateInput = (value = new Date()) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+  return localDate.toISOString().slice(0, 10);
+};
+
 const formatDate = (value) => {
   if (!value) return 'N/A';
   const date = new Date(value);
@@ -54,6 +61,22 @@ const StatusPill = ({ active, label }) => (
   >
     {label}
   </span>
+);
+
+const RuntimeNotice = ({ title, children }) => (
+  <div
+    role="alert"
+    className="rounded-xl border p-4 flex gap-3"
+    style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+  >
+    <AlertCircle className="w-5 h-5 shrink-0 text-amber-500" />
+    <div>
+      <p className="font-bold" style={{ color: 'var(--text-main)' }}>
+        {title}
+      </p>
+      <p className="mt-1 text-sm leading-relaxed">{children}</p>
+    </div>
+  </div>
 );
 
 const EmptyPanel = ({ icon: Icon, title, message }) => (
@@ -329,7 +352,8 @@ const RuntimeChecklist = ({ status }) => {
       </div>
       <div className="mt-5 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
         Qdrant collection: <strong>{status?.qdrantCollection || 'unknown'}</strong>.
-        Runtime remains fail-closed when Qdrant, FastAPI, local generation, or citations are unavailable.
+        This checklist reports safe configuration state only. Runtime still fails closed when Qdrant,
+        FastAPI, local generation, or citations are unavailable during an action.
       </div>
     </section>
   );
@@ -356,8 +380,9 @@ const MarketGyanDashboard = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [searchSubmitted, setSearchSubmitted] = useState(false);
 
-  const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [reportDate, setReportDate] = useState(() => formatDateInput());
   const [forceReport, setForceReport] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState('');
@@ -376,7 +401,11 @@ const MarketGyanDashboard = () => {
       try {
         const statusResponse = await fetch(`${API_URL}/market-gyan/runtime/status`, { signal });
         const statusPayload = await readJson(statusResponse, 'Runtime status is unavailable');
-        setRuntimeStatus(statusPayload.data || null);
+        setRuntimeStatus(
+          statusPayload.data && typeof statusPayload.data === 'object' && !Array.isArray(statusPayload.data)
+            ? statusPayload.data
+            : null
+        );
       } catch (statusError) {
         if (statusError.name !== 'AbortError') {
           setRuntimeStatus(null);
@@ -401,19 +430,32 @@ const MarketGyanDashboard = () => {
 
   const data = overview?.data;
   const disclaimer = overview?.disclaimer || FALLBACK_DISCLAIMER;
-  const queryEnabled = Boolean(runtimeStatus?.queryEnabled ?? data?.queryEnabled);
+  const queryEnabled = Boolean(runtimeStatus?.queryEnabled);
+  const reviewEnabled = Boolean(runtimeStatus?.reviewEnabled);
   const reportGenerationAllowed = Boolean(runtimeStatus?.localReportGenerationAllowed);
+  const todayInputDate = formatDateInput();
+  const reportDateInvalid = !reportDate || reportDate > todayInputDate;
   const tabs = useMemo(() => ([
     { id: 'overview', label: 'Overview' },
     { id: 'ask', label: 'Ask MarketGyan' },
     { id: 'search', label: 'Evidence Search' },
     { id: 'reports', label: 'Reports' },
     { id: 'system', label: 'System' },
-    ...(data?.reviewEnabled ? [{ id: 'review', label: 'Validate data' }] : [])
-  ]), [data?.reviewEnabled]);
+    ...(reviewEnabled ? [{ id: 'review', label: 'Validate data' }] : [])
+  ]), [reviewEnabled]);
+
+  useEffect(() => {
+    if (!tabs.some((tab) => tab.id === activeTab)) {
+      setActiveTab('overview');
+    }
+  }, [activeTab, tabs]);
 
   const submitQuery = async (event) => {
     event.preventDefault();
+    if (!queryEnabled) {
+      setQueryError('MarketGyan query is disabled by runtime configuration');
+      return;
+    }
     setQueryLoading(true);
     setQueryError('');
     setQueryValidationErrors([]);
@@ -439,9 +481,14 @@ const MarketGyanDashboard = () => {
 
   const submitSearch = async (event) => {
     event.preventDefault();
+    if (!queryEnabled) {
+      setSearchError('MarketGyan evidence search is disabled by runtime configuration');
+      return;
+    }
     setSearchLoading(true);
     setSearchError('');
     setSearchResults([]);
+    setSearchSubmitted(true);
     try {
       const params = new URLSearchParams({
         q: searchQuery,
@@ -475,6 +522,10 @@ const MarketGyanDashboard = () => {
 
   const generateReport = async (event) => {
     event.preventDefault();
+    if (reportDateInvalid) {
+      setReportError('Choose today or an earlier market date before generating a report.');
+      return;
+    }
     setReportLoading(true);
     setReportError('');
     setReportMessage('');
@@ -502,7 +553,7 @@ const MarketGyanDashboard = () => {
   };
 
   return (
-    <div className="space-y-8 pb-12 animate-fade-in">
+    <div className="market-gyan-dashboard space-y-8 pb-12 animate-fade-in">
       <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
         <div className="max-w-3xl">
           <div className="flex items-center gap-3 mb-4">
@@ -537,10 +588,19 @@ const MarketGyanDashboard = () => {
       </div>
 
       {!loading && !error && data && (
-        <div className="flex flex-wrap gap-2 border-b" style={{ borderColor: 'var(--border)' }}>
+        <div
+          role="tablist"
+          aria-label="MarketGyan workspace"
+          className="flex flex-wrap gap-2 border-b"
+          style={{ borderColor: 'var(--border)' }}
+        >
           {tabs.map((tab) => (
             <button
               key={tab.id}
+              id={`market-gyan-tab-${tab.id}`}
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              aria-controls={`market-gyan-panel-${tab.id}`}
               type="button"
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-3 font-bold border-b-2 ${activeTab === tab.id ? 'text-blue-600 border-blue-600' : 'border-transparent'}`}
@@ -589,12 +649,23 @@ const MarketGyanDashboard = () => {
         </div>
       )}
 
-      {!loading && !error && data && activeTab === 'review' && data.reviewEnabled && (
-        <MarketGyanReviewPanel />
+      {!loading && !error && data && activeTab === 'review' && reviewEnabled && (
+        <div
+          id="market-gyan-panel-review"
+          role="tabpanel"
+          aria-labelledby="market-gyan-tab-review"
+        >
+          <MarketGyanReviewPanel />
+        </div>
       )}
 
       {!loading && !error && data && activeTab === 'overview' && (
-        <>
+        <div
+          id="market-gyan-panel-overview"
+          role="tabpanel"
+          aria-labelledby="market-gyan-tab-overview"
+          className="space-y-6"
+        >
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <section className="premium-card p-6 xl:col-span-2">
               <div className="flex items-center gap-3 mb-6">
@@ -706,11 +777,16 @@ const MarketGyanDashboard = () => {
               )}
             </section>
           </div>
-        </>
+        </div>
       )}
 
       {!loading && !error && data && activeTab === 'ask' && (
-        <section className="premium-card p-6 space-y-6">
+        <section
+          id="market-gyan-panel-ask"
+          role="tabpanel"
+          aria-labelledby="market-gyan-tab-ask"
+          className="premium-card p-6 space-y-6"
+        >
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
@@ -727,31 +803,38 @@ const MarketGyanDashboard = () => {
           </div>
 
           {!queryEnabled && (
-            <div role="alert" className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-              MarketGyan query is disabled. Set `MARKET_GYAN_QUERY_ENABLED=true`, run Qdrant, and start the FastAPI agent service.
-            </div>
+            <RuntimeNotice title="Grounded Q&A is locked">
+              Set <code>MARKET_GYAN_QUERY_ENABLED=true</code>, run Qdrant, index MarketGyan evidence,
+              and start the FastAPI agent service. Until then this form is disabled instead of
+              sending a request that could invent an uncited answer.
+            </RuntimeNotice>
           )}
 
           <form onSubmit={submitQuery} className="space-y-4">
-            <Field label="Question">
-              <textarea
-                value={question}
-                onChange={(event) => setQuestion(event.target.value)}
-                className={`${inputClass} min-h-[120px]`}
-                style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
-                placeholder="Why did banking stocks move today?"
-                required
-              />
-            </Field>
-            <MarketFilters filters={queryFilters} onChange={setQueryFilters} />
-            <button
-              type="submit"
-              disabled={!queryEnabled || queryLoading || !question.trim()}
-              className="btn-primary inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {queryLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
-              Ask with RAG
-            </button>
+            <fieldset disabled={!queryEnabled || queryLoading} className="space-y-4 disabled:opacity-60">
+              <Field label="Question">
+                <textarea
+                  value={question}
+                  onChange={(event) => setQuestion(event.target.value)}
+                  className={`${inputClass} min-h-[120px]`}
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+                  placeholder="Why did banking stocks move today?"
+                  required
+                />
+              </Field>
+              <MarketFilters filters={queryFilters} onChange={setQueryFilters} />
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                Ask factual questions only. MarketGyan will return citations or reject the response.
+              </p>
+              <button
+                type="submit"
+                disabled={!queryEnabled || queryLoading || !question.trim()}
+                className="btn-primary inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {queryLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
+                Ask with RAG
+              </button>
+            </fieldset>
           </form>
 
           {queryError && (
@@ -778,6 +861,9 @@ const MarketGyanDashboard = () => {
                   {queryResult.disclaimer || disclaimer}
                 </p>
               </div>
+              <h3 className="font-bold" style={{ color: 'var(--text-main)' }}>
+                Citations used
+              </h3>
               <CitationList citations={queryResult.citations || []} />
             </div>
           )}
@@ -785,7 +871,12 @@ const MarketGyanDashboard = () => {
       )}
 
       {!loading && !error && data && activeTab === 'search' && (
-        <section className="premium-card p-6 space-y-6">
+        <section
+          id="market-gyan-panel-search"
+          role="tabpanel"
+          aria-labelledby="market-gyan-tab-search"
+          className="premium-card p-6 space-y-6"
+        >
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
@@ -801,26 +892,39 @@ const MarketGyanDashboard = () => {
             <StatusPill active={queryEnabled} label={queryEnabled ? 'Enabled' : 'Disabled'} />
           </div>
 
+          {!queryEnabled && (
+            <RuntimeNotice title="Evidence search is locked">
+              Start Qdrant, index MarketGyan documents, and enable <code>MARKET_GYAN_QUERY_ENABLED</code>.
+              The search form remains disabled because retrieved evidence is the only acceptable source for
+              downstream answers and reports.
+            </RuntimeNotice>
+          )}
+
           <form onSubmit={submitSearch} className="space-y-4">
-            <Field label="Search query">
-              <input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                className={inputClass}
-                style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
-                placeholder="NRB liquidity policy"
-                required
-              />
-            </Field>
-            <MarketFilters filters={searchFilters} onChange={setSearchFilters} />
-            <button
-              type="submit"
-              disabled={!queryEnabled || searchLoading || !searchQuery.trim()}
-              className="btn-primary inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {searchLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
-              Search evidence
-            </button>
+            <fieldset disabled={!queryEnabled || searchLoading} className="space-y-4 disabled:opacity-60">
+              <Field label="Search query">
+                <input
+                  value={searchQuery}
+                  onChange={(event) => {
+                    setSearchQuery(event.target.value);
+                    setSearchSubmitted(false);
+                  }}
+                  className={inputClass}
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+                  placeholder="NRB liquidity policy"
+                  required
+                />
+              </Field>
+              <MarketFilters filters={searchFilters} onChange={setSearchFilters} />
+              <button
+                type="submit"
+                disabled={!queryEnabled || searchLoading || !searchQuery.trim()}
+                className="btn-primary inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {searchLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+                Search evidence
+              </button>
+            </fieldset>
           </form>
 
           {searchError && (
@@ -834,7 +938,9 @@ const MarketGyanDashboard = () => {
           ) : (
             !searchLoading && (
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                Search results will appear here after Qdrant returns evidence chunks.
+                {searchSubmitted
+                  ? 'No evidence chunks matched this query and filter set.'
+                  : 'Search results will appear here after Qdrant returns evidence chunks.'}
               </p>
             )
           )}
@@ -842,7 +948,12 @@ const MarketGyanDashboard = () => {
       )}
 
       {!loading && !error && data && activeTab === 'reports' && (
-        <div className="space-y-6">
+        <div
+          id="market-gyan-panel-reports"
+          role="tabpanel"
+          aria-labelledby="market-gyan-tab-reports"
+          className="space-y-6"
+        >
           <section className="premium-card p-6 space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
               <div>
@@ -862,6 +973,7 @@ const MarketGyanDashboard = () => {
                   <input
                     type="date"
                     value={reportDate}
+                    max={todayInputDate}
                     onChange={(event) => setReportDate(event.target.value)}
                     className={inputClass}
                     style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
@@ -877,17 +989,23 @@ const MarketGyanDashboard = () => {
                 </label>
                 <button
                   type="submit"
-                  disabled={reportLoading}
+                  disabled={reportLoading || reportDateInvalid}
                   className="btn-primary inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {reportLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
                   Generate Report
                 </button>
+                {reportDateInvalid && (
+                  <p className="md:col-span-3 text-sm text-red-600">
+                    Reports can only be generated for today or an earlier date.
+                  </p>
+                )}
               </form>
             ) : (
-              <div role="alert" className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-                Report generation is hidden until local review mode, loopback access, and runtime inference are enabled.
-              </div>
+              <RuntimeNotice title="Report generation is locked">
+                Enable local review mode from loopback and keep runtime inference enabled. The public dashboard
+                can view reports, but report creation remains local-only to prevent accidental publication.
+              </RuntimeNotice>
             )}
             <div className="flex flex-wrap gap-3">
               <button
@@ -916,7 +1034,13 @@ const MarketGyanDashboard = () => {
       )}
 
       {!loading && !error && data && activeTab === 'system' && (
-        <RuntimeChecklist status={runtimeStatus} />
+        <div
+          id="market-gyan-panel-system"
+          role="tabpanel"
+          aria-labelledby="market-gyan-tab-system"
+        >
+          <RuntimeChecklist status={runtimeStatus} />
+        </div>
       )}
     </div>
   );

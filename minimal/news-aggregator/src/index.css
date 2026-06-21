@@ -103,6 +103,10 @@
   .dark .sidebar-item.active {
     @apply bg-blue-900/30 text-blue-400;
   }
+
+  .market-gyan-dashboard .premium-card:hover {
+    transform: none;
+  }
 }
 
 /* Custom Scrollbar */
