@@ -140,6 +140,30 @@ test('shows loading, empty overview panels, and the investment disclaimer', asyn
   expect(screen.getByRole('note')).toHaveTextContent('not investment advice');
 });
 
+test('renders daily snapshot turnover and status in separate bounded metric cells', async () => {
+  setupFetch({
+    overview: {
+      ...overviewPayload,
+      data: {
+        ...overviewPayload.data,
+        snapshot: {
+          index: { close: 2750.12, changePercent: -0.42 },
+          turnover: { amount: 'Rs. 12,345,678,901.45' },
+          status: 'partial',
+          sectors: []
+        }
+      }
+    }
+  });
+
+  render(<MarketGyanDashboard />);
+
+  expect(await screen.findByText('Turnover')).toBeInTheDocument();
+  expect(screen.getByText('Rs. 12,345,678,901.45')).toBeInTheDocument();
+  expect(screen.getByText('Status')).toBeInTheDocument();
+  expect(screen.getByText('partial')).toBeInTheDocument();
+});
+
 test('shows an actionable error state when the overview request fails', async () => {
   global.fetch = jest.fn((url) => {
     if (String(url).includes('/market-gyan/overview')) {
