@@ -469,6 +469,23 @@ Nepali indirect and Nepali hard-negative records. Generation uses
 and `repetition_penalty=1.05` to discourage Markdown bullets and looping
 evidence lists.
 
+For the third Qwen run, prefer a vLLM/OpenAI-compatible endpoint with JSON
+Schema constrained decoding. The notebook still runs the local
+`transformers.generate` path as a strict diagnostic, but constrained decoding
+is the expected runtime path for valid compact JSON:
+
+```bash
+export MARKET_GYAN_USE_VLLM_CONSTRAINED=true
+export MARKET_GYAN_VLLM_BASE_URL=http://127.0.0.1:8000/v1
+export MARKET_GYAN_VLLM_API_KEY=local
+export MARKET_GYAN_VLLM_MODEL=marketgyan-qwen3-8b
+```
+
+The constrained cells save `qwen_vllm_constrained_zero_shot.jsonl` and
+`qwen_vllm_constrained_three_shot.jsonl`. If the endpoint is not running, leave
+`MARKET_GYAN_USE_VLLM_CONSTRAINED=false` and treat unconstrained Qwen as a
+failure-analysis run rather than a deployment candidate.
+
 After training, run the built-in 10-example smoke generation cell before the
 full test generation cell. Continue only if at least 8 of the 10 validation
 outputs are strict valid compact JSON. The official metrics remain strict; the
@@ -580,6 +597,12 @@ PYTHONPATH=. python3 -m market_gyan.cli system-evaluate \
 Runtime requires at least 95% structured validity and evidence grounding,
 usable performance for every relevance and direction class, and a successful
 adaptation comparison.
+
+For the RAG demo, sentence IDs are internal anchors only. Qdrant payloads and
+agent citations should carry `documentId`, `chunkId`, `title`, `url`, `source`,
+`publishedAt`, `contentHash`, `sentenceIds`, expanded sentence text, and the
+retrieved excerpt. The user-facing report should show the source title, URL,
+date, and quoted evidence text, not only labels such as `S3`.
 
 ## Troubleshooting
 

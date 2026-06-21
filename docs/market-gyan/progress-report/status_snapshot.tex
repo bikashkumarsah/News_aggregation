@@ -2,10 +2,10 @@
 % Update the macros below after each milestone, then append one dated entry to
 % \MarketGyanMilestoneHistory. Keep implementation details in main.tex stable.
 
-\newcommand{\SnapshotDate}{June 20, 2026}
-\newcommand{\SnapshotTimestamp}{the dataset, second training-run, and taxonomy-audit status after the June 20, 2026 Qwen analysis}
-\newcommand{\CurrentMilestone}{Second training-run audit and taxonomy-consistency revalidation}
-\newcommand{\CurrentMilestoneState}{XLM-R is the current reliable baseline; Qwen run 2 failed strict output and grounding gates, and 57 taxonomy-consistency records are flagged for UI review before the next export and rerun}
+\newcommand{\SnapshotDate}{June 21, 2026}
+\newcommand{\SnapshotTimestamp}{the dataset, second training-run, taxonomy-audit, constrained-decoding, and RAG evidence-anchor status after the June 21, 2026 Qwen analysis}
+\newcommand{\CurrentMilestone}{Qwen constrained-output and RAG evidence-anchor hardening}
+\newcommand{\CurrentMilestoneState}{XLM-R is the current reliable baseline; Qwen run 2 remains a failed strict-output experiment, and the next Qwen run now has optional vLLM JSON Schema constrained decoding plus sentence-level RAG citation anchors}
 
 \newcommand{\SnapshotCount}{224}
 \newcommand{\SnapshotStartDate}{June 11, 2025}
@@ -111,7 +111,7 @@
 \newcommand{\VTwoGemmaTokenCount}{3,642}
 \newcommand{\GemmaAverageTokenCount}{2,895}
 
-\newcommand{\FineTuningState}{Second XLM-R, FinBERT, and Qwen run analyzed; Qwen remains below strict validity and grounding gates; taxonomy-consistency review is pending before the third Qwen run}
+\newcommand{\FineTuningState}{Second XLM-R, FinBERT, and Qwen run analyzed; Qwen remains below strict validity and grounding gates; the third Qwen run should use compact labels plus optional vLLM JSON Schema constrained decoding after any taxonomy changes are exported}
 \newcommand{\RuntimeInferenceState}{Implemented but disabled pending evaluation}
 
 \newcommand{\MarketGyanMilestoneHistory}{%
@@ -256,5 +256,14 @@
     \TaxonomyDebtFlagCount{} debenture record. These flags must be reviewed in
     the existing validation workflow before regenerating the export and running
     the third Qwen experiment.
+    \item[June 21, 2026] The Qwen failure analysis was incorporated into the
+    implementation plan. Fine-tuning remains treated as a compact
+    classifier/extractor experiment, but the next Qwen notebook now supports an
+    optional vLLM/OpenAI-compatible JSON Schema constrained-decoding path for
+    zero-shot and three-shot evaluation. The RAG path was hardened so retrieved
+    chunks and agent citations can carry sentence IDs, expanded sentence text,
+    chunk IDs, source metadata, dates, and content hashes. Sentence IDs are
+    therefore internal anchors only; user-facing reports must show source URLs
+    and quoted evidence text.
   \end{description}
 }

@@ -38,6 +38,7 @@ def retrieval_metrics(rows, k=5):
 def scenario_metrics(rows):
     schema = []
     citations = []
+    sentence_citations = []
     grounding = []
     freshness = []
     latency = []
@@ -47,6 +48,8 @@ def scenario_metrics(rows):
             schema.append(bool(result["schemaValid"]))
         if "citationsCorrect" in result:
             citations.append(bool(result["citationsCorrect"]))
+        if "sentenceCitationsCorrect" in result:
+            sentence_citations.append(bool(result["sentenceCitationsCorrect"]))
         if "grounded" in result:
             grounding.append(bool(result["grounded"]))
         if result.get("freshnessSeconds") is not None:
@@ -57,6 +60,7 @@ def scenario_metrics(rows):
         "scenarios": len(rows),
         "schemaAdherence": mean(schema),
         "citationCorrectness": mean(citations),
+        "sentenceCitationCorrectness": mean(sentence_citations),
         "grounding": mean(grounding),
         "averageFreshnessSeconds": mean(freshness),
         "averageLatencySeconds": mean(latency),

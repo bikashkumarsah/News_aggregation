@@ -14,12 +14,24 @@ class AnalysisRequest(BaseModel):
     filters: Dict[str, Any] = Field(default_factory=dict)
 
 
+class CitationSentence(BaseModel):
+    id: str
+    text: str
+
+
 class Citation(BaseModel):
     documentId: str
     title: str
     url: str
     excerpt: str
     score: float = Field(ge=0, le=1)
+    source: Optional[str] = None
+    publishedAt: Optional[Any] = None
+    chunkId: Optional[str] = None
+    chunkIndex: Optional[int] = None
+    contentHash: Optional[str] = None
+    sentenceIds: List[str] = Field(default_factory=list)
+    sentences: List[CitationSentence] = Field(default_factory=list)
 
 
 class SectorAnalysis(BaseModel):

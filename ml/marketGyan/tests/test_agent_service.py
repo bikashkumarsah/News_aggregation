@@ -37,12 +37,66 @@ class AgentServiceTest(unittest.TestCase):
             return AnalysisResult.model_validate(value)
         return AnalysisResult.parse_obj(value)
 
+    def anchored_result(self, sentence_id="S1"):
+        value = {
+            "mode": "query",
+            "answer": "The retrieved report describes a mixed session.",
+            "citations": [{
+                "documentId": "doc-1",
+                "title": "Daily market",
+                "url": "https://example.com/market",
+                "excerpt": "NEPSE closed higher after a mixed trading session.",
+                "score": 0.9,
+                "source": "ShareSansar",
+                "publishedAt": "2026-06-13T00:00:00.000Z",
+                "chunkId": "chunk-1",
+                "contentHash": "hash-1",
+                "sentenceIds": [sentence_id],
+                "sentences": [{
+                    "id": sentence_id,
+                    "text": "NEPSE closed higher after a mixed trading session.",
+                }],
+            }],
+            "disclaimer": DISCLAIMER,
+        }
+        if hasattr(AnalysisResult, "model_validate"):
+            return AnalysisResult.model_validate(value)
+        return AnalysisResult.parse_obj(value)
+
     def test_accepts_exact_retrieved_citation(self):
         result = validate_grounded_result(self.result(), [{
             "url": "https://example.com/market",
             "text": "NEPSE closed higher after a mixed trading session.",
         }])
         self.assertEqual(result.mode, "query")
+
+    def test_accepts_sentence_anchored_citation(self):
+        result = validate_grounded_result(self.anchored_result(), [{
+            "documentId": "doc-1",
+            "url": "https://example.com/market",
+            "chunkId": "chunk-1",
+            "contentHash": "hash-1",
+            "text": "NEPSE closed higher after a mixed trading session.",
+            "sentences": [{
+                "id": "S1",
+                "text": "NEPSE closed higher after a mixed trading session.",
+            }],
+        }])
+        self.assertEqual(result.citations[0].sentenceIds, ["S1"])
+
+    def test_rejects_unknown_sentence_anchor(self):
+        with self.assertRaisesRegex(ValueError, "not returned"):
+            validate_grounded_result(self.anchored_result("S99"), [{
+                "documentId": "doc-1",
+                "url": "https://example.com/market",
+                "chunkId": "chunk-1",
+                "contentHash": "hash-1",
+                "text": "NEPSE closed higher after a mixed trading session.",
+                "sentences": [{
+                    "id": "S1",
+                    "text": "NEPSE closed higher after a mixed trading session.",
+                }],
+            }])
 
     def test_rejects_unsupported_citation(self):
         with self.assertRaisesRegex(ValueError, "not returned"):

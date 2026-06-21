@@ -4,6 +4,7 @@ const MarketDocument = require('../models/MarketDocument');
 const { marketGyanConfig } = require('../config');
 const { embedText } = require('../../../services/embeddingService');
 const { cleanText } = require('./textService');
+const { splitNumberedSentences } = require('./sentenceService');
 
 const DEFAULT_LIMIT = 8;
 
@@ -51,30 +52,56 @@ const documentText = (document) => cleanText(
     || document.article?.description
 );
 
-const buildChunkPayloads = (document, options) => {
-    const chunks = chunkText(documentText(document), options);
-    const documentId = document._id.toString();
-    return chunks.map((text, chunkIndex) => ({
-        id: stablePointId(documentId, chunkIndex),
-        text,
-        payload: {
-            documentId,
-            chunkIndex,
-            text,
-            title: document.title,
-            url: document.source?.url,
-            source: document.source?.name,
-            publishedAt: document.source?.publishedAt
-                ? Math.floor(new Date(document.source.publishedAt).getTime() / 1000)
-                : null,
-            language: document.language,
-            documentType: document.documentType,
-            sectors: document.metadata?.sectors || [],
-            symbols: document.metadata?.companies || [],
-            tags: document.metadata?.tags || [],
-            contentHash: document.text?.contentHash || ''
-        }
+const sentencesForChunk = (chunk, sentences, chunkIndex = 0) => {
+    const normalizedChunk = cleanText(chunk);
+    const matches = (sentences || []).filter((sentence) => {
+        const sentenceText = cleanText(sentence.text);
+        return sentenceText && normalizedChunk.includes(sentenceText);
+    });
+    if (matches.length) return matches;
+    return splitNumberedSentences(normalizedChunk, { limit: 20 }).map((sentence) => ({
+        ...sentence,
+        id: `C${chunkIndex + 1}${sentence.id}`
     }));
+};
+
+const buildChunkPayloads = (document, options) => {
+    const text = documentText(document);
+    const chunks = chunkText(text, options);
+    const documentId = document._id.toString();
+    const sourcePublishedAt = document.source?.publishedAt
+        ? new Date(document.source.publishedAt)
+        : null;
+    const sentences = splitNumberedSentences(text, { limit: 120 });
+    return chunks.map((text, chunkIndex) => {
+        const chunkSentences = sentencesForChunk(text, sentences, chunkIndex);
+        const chunkId = stablePointId(documentId, chunkIndex);
+        return {
+            id: chunkId,
+            text,
+            payload: {
+                documentId,
+                chunkId,
+                chunkIndex,
+                text,
+                title: document.title,
+                url: document.source?.url,
+                source: document.source?.name,
+                publishedAt: sourcePublishedAt
+                    ? Math.floor(sourcePublishedAt.getTime() / 1000)
+                    : null,
+                publishedAtIso: sourcePublishedAt ? sourcePublishedAt.toISOString() : null,
+                language: document.language,
+                documentType: document.documentType,
+                sectors: document.metadata?.sectors || [],
+                symbols: document.metadata?.companies || [],
+                tags: document.metadata?.tags || [],
+                contentHash: document.text?.contentHash || '',
+                sentenceIds: chunkSentences.map((sentence) => sentence.id),
+                sentences: chunkSentences
+            }
+        };
+    });
 };
 
 const parseDateSeconds = (value) => {

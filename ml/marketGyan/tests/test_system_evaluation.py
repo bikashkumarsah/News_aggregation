@@ -25,12 +25,14 @@ class SystemEvaluationTest(unittest.TestCase):
             "result": {
                 "schemaValid": True,
                 "citationsCorrect": True,
+                "sentenceCitationsCorrect": True,
                 "grounded": True,
                 "freshnessSeconds": 600,
                 "latencySeconds": 3,
             }
         }])
         self.assertEqual(metrics["schemaAdherence"], 1.0)
+        self.assertEqual(metrics["sentenceCitationCorrectness"], 1.0)
         self.assertEqual(metrics["averageLatencySeconds"], 3.0)
 
     def test_deployment_gate_enforces_model_and_grounding_thresholds(self):
