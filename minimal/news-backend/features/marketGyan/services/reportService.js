@@ -6,7 +6,35 @@ const { createAgentClient } = require('./agentClientService');
 const { contentHash } = require('./textService');
 const mongoose = require('mongoose');
 
-const reportDay = (value) => new Date(`${new Date(value).toISOString().slice(0, 10)}T00:00:00.000Z`);
+const localDateString = (value, timezone = marketGyanConfig.timezone) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        const error = new Error('Invalid report date');
+        error.status = 400;
+        throw error;
+    }
+    const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(date).reduce((acc, part) => ({
+        ...acc,
+        [part.type]: part.value
+    }), {});
+    return `${parts.year}-${parts.month}-${parts.day}`;
+};
+
+const reportDay = (value) => new Date(`${localDateString(value)}T00:00:00.000Z`);
+
+const assertReportDateAllowed = (normalizedDate, now = new Date()) => {
+    const today = reportDay(now);
+    if (normalizedDate > today) {
+        const error = new Error('Cannot generate a MarketGyan report for a future date');
+        error.status = 400;
+        throw error;
+    }
+};
 
 const reportAsText = (report) => [
     report.headline,
@@ -93,6 +121,7 @@ const generateDailyReport = async ({
     agentClient = createAgentClient()
 } = {}) => {
     const normalizedDate = reportDay(date);
+    assertReportDateAllowed(normalizedDate);
     const existing = await MarketReport.findOne({ reportDate: normalizedDate });
     if (existing?.status === 'published' && !force) {
         return { report: existing, reused: true };
@@ -167,6 +196,7 @@ const answerMarketQuery = async ({
 };
 
 module.exports = {
+    assertReportDateAllowed,
     answerMarketQuery,
     archivePublishedReport,
     citationToEvidence,

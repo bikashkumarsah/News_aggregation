@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import MarketGyanDashboard from './MarketGyanDashboard';
 
@@ -119,12 +119,12 @@ test('shows all demo tabs and the validation tab only when local review is enabl
 
   render(<MarketGyanDashboard />);
 
-  expect(await screen.findByRole('button', { name: 'Overview' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Ask MarketGyan' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Evidence Search' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Reports' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'System' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Validate data' })).toBeInTheDocument();
+  expect(await screen.findByRole('tab', { name: 'Overview' })).toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: 'Ask MarketGyan' })).toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: 'Evidence Search' })).toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: 'Reports' })).toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: 'System' })).toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: 'Validate data' })).toBeInTheDocument();
 });
 
 test('shows loading, empty overview panels, and the investment disclaimer', async () => {
@@ -170,7 +170,7 @@ test('runs a grounded query and renders citations', async () => {
 
   render(<MarketGyanDashboard />);
 
-  await userEvent.click(await screen.findByRole('button', { name: 'Ask MarketGyan' }));
+  await userEvent.click(await screen.findByRole('tab', { name: 'Ask MarketGyan' }));
   await userEvent.type(screen.getByLabelText('Question'), 'Why did NEPSE move?');
   await userEvent.click(screen.getByRole('button', { name: 'Ask with RAG' }));
 
@@ -199,12 +199,36 @@ test('shows query validation errors from the backend', async () => {
 
   render(<MarketGyanDashboard />);
 
-  await userEvent.click(await screen.findByRole('button', { name: 'Ask MarketGyan' }));
+  await userEvent.click(await screen.findByRole('tab', { name: 'Ask MarketGyan' }));
   await userEvent.type(screen.getByLabelText('Question'), 'Should I buy this?');
   await userEvent.click(screen.getByRole('button', { name: 'Ask with RAG' }));
 
   expect(await screen.findByRole('alert')).toHaveTextContent('unsafe or invalid');
   expect(screen.getByText('At least one evidence citation is required')).toBeInTheDocument();
+});
+
+test('fails closed when runtime status is unavailable even if overview is stale-enabled', async () => {
+  global.fetch = jest.fn((url) => {
+    const value = String(url);
+    if (value.includes('/market-gyan/overview')) {
+      return ok({
+        ...overviewPayload,
+        data: { ...overviewPayload.data, queryEnabled: true }
+      });
+    }
+    if (value.includes('/market-gyan/runtime/status')) {
+      return failed({ success: false, error: 'Runtime status unavailable' });
+    }
+    return ok({ success: true, data: null });
+  });
+
+  render(<MarketGyanDashboard />);
+
+  await userEvent.click(await screen.findByRole('tab', { name: 'Ask MarketGyan' }));
+
+  expect(screen.getByRole('alert')).toHaveTextContent('Grounded Q&A is locked');
+  expect(screen.getByLabelText('Question')).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Ask with RAG' })).toBeDisabled();
 });
 
 test('searches the evidence index and renders sentence anchors', async () => {
@@ -221,12 +245,47 @@ test('searches the evidence index and renders sentence anchors', async () => {
 
   render(<MarketGyanDashboard />);
 
-  await userEvent.click(await screen.findByRole('button', { name: 'Evidence Search' }));
+  await userEvent.click(await screen.findByRole('tab', { name: 'Evidence Search' }));
   await userEvent.type(screen.getByLabelText('Search query'), 'market close');
   await userEvent.click(screen.getByRole('button', { name: 'Search evidence' }));
 
   expect(await screen.findByText('Daily market')).toBeInTheDocument();
   expect(screen.getByText(/Sentence anchors: S1/)).toBeInTheDocument();
+});
+
+test('shows a true no-results message after an empty evidence search', async () => {
+  setupFetch({
+    overview: {
+      ...overviewPayload,
+      data: { ...overviewPayload.data, queryEnabled: true }
+    },
+    runtime: {
+      ...runtimePayload,
+      data: { ...runtimePayload.data, queryEnabled: true }
+    },
+    search: { success: true, data: [] }
+  });
+
+  render(<MarketGyanDashboard />);
+
+  await userEvent.click(await screen.findByRole('tab', { name: 'Evidence Search' }));
+  expect(screen.getByText('Search results will appear here after Qdrant returns evidence chunks.')).toBeInTheDocument();
+  await userEvent.type(screen.getByLabelText('Search query'), 'unmatched topic');
+  await userEvent.click(screen.getByRole('button', { name: 'Search evidence' }));
+
+  expect(await screen.findByText('No evidence chunks matched this query and filter set.')).toBeInTheDocument();
+});
+
+test('keeps evidence search disabled when runtime search is locked', async () => {
+  setupFetch();
+
+  render(<MarketGyanDashboard />);
+
+  await userEvent.click(await screen.findByRole('tab', { name: 'Evidence Search' }));
+
+  expect(screen.getByRole('alert')).toHaveTextContent('Evidence search is locked');
+  expect(screen.getByLabelText('Search query')).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Search evidence' })).toBeDisabled();
 });
 
 test('renders latest report with sector analysis and citations', async () => {
@@ -240,7 +299,7 @@ test('renders latest report with sector analysis and citations', async () => {
 
   render(<MarketGyanDashboard />);
 
-  await userEvent.click(await screen.findByRole('button', { name: 'Reports' }));
+  await userEvent.click(await screen.findByRole('tab', { name: 'Reports' }));
 
   expect(screen.getByText('Market closes mixed')).toBeInTheDocument();
   expect(screen.getByText('Banking evidence was mixed.')).toBeInTheDocument();
@@ -264,10 +323,35 @@ test('generates a local report only when runtime status allows it', async () => 
 
   render(<MarketGyanDashboard />);
 
-  await userEvent.click(await screen.findByRole('button', { name: 'Reports' }));
+  await userEvent.click(await screen.findByRole('tab', { name: 'Reports' }));
   expect(screen.getByRole('button', { name: 'Generate Report' })).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Generate Report' }));
 
   expect(await screen.findByText('Report generated and published.')).toBeInTheDocument();
   expect(screen.getByText('Market closes mixed')).toBeInTheDocument();
+});
+
+test('blocks future report dates before calling the generation endpoint', async () => {
+  setupFetch({
+    runtime: {
+      ...runtimePayload,
+      data: {
+        ...runtimePayload.data,
+        queryEnabled: true,
+        reviewEnabled: true,
+        localReportGenerationAllowed: true,
+        agentTokenConfigured: true
+      }
+    }
+  });
+
+  render(<MarketGyanDashboard />);
+
+  await userEvent.click(await screen.findByRole('tab', { name: 'Reports' }));
+  fireEvent.change(screen.getByLabelText('Report date'), {
+    target: { value: '2999-01-01' }
+  });
+
+  expect(screen.getByRole('button', { name: 'Generate Report' })).toBeDisabled();
+  expect(screen.getByText('Reports can only be generated for today or an earlier date.')).toBeInTheDocument();
 });

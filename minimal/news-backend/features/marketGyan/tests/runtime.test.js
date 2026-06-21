@@ -8,6 +8,7 @@ const {
     isInternalRequestAllowed
 } = require('../middleware/internalAccess');
 const {
+    assertReportDateAllowed,
     citationToEvidence,
     reportAsText,
     reportDay
@@ -210,4 +211,15 @@ test('report helpers normalize dates and preserve evidence text', () => {
         sectorAnalysis: [],
         evidence: [evidence]
     }), /https:\/\/example.com\/report/);
+});
+
+test('report generation rejects future report dates', () => {
+    assert.doesNotThrow(() => assertReportDateAllowed(
+        reportDay('2026-06-13'),
+        new Date('2026-06-13T12:00:00.000Z')
+    ));
+    assert.throws(() => assertReportDateAllowed(
+        reportDay('2026-06-14'),
+        new Date('2026-06-13T12:00:00.000Z')
+    ), /future date/);
 });
