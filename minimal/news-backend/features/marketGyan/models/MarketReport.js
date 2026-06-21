@@ -20,6 +20,38 @@ const evidenceSchema = new mongoose.Schema({
         type: Number,
         min: 0,
         max: 1
+    },
+    source: {
+        type: String,
+        trim: true
+    },
+    publishedAt: Date,
+    chunkId: {
+        type: String,
+        trim: true
+    },
+    contentHash: {
+        type: String,
+        trim: true
+    },
+    sentenceIds: {
+        type: [String],
+        default: []
+    },
+    sentences: {
+        type: [{
+            id: {
+                type: String,
+                required: true,
+                trim: true
+            },
+            text: {
+                type: String,
+                required: true,
+                trim: true
+            }
+        }],
+        default: []
     }
 }, { _id: false });
 

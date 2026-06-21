@@ -33,13 +33,15 @@ kept outside the repository and is not committed as a binary.
 
 Market Gyan reuses the existing Khabar AI platform:
 
-- React provides the dashboard and future question-answering interface.
+- React provides the dashboard, evidence search, grounded question-answering
+  view, report viewer, local report-generation control, and runtime checklist.
 - Express exposes Market Gyan APIs under `/api/market-gyan`.
 - MongoDB remains the operational system of record.
 - Qdrant uses a dedicated Market Gyan collection for financial, regulatory,
   and published-report chunks.
-- A separate FastAPI CrewAI service coordinates evidence retrieval, analysis,
-  and validated publication through a disabled-by-default local Qwen endpoint.
+- A separate FastAPI service coordinates evidence retrieval, analysis, and
+  validated publication through a disabled-by-default local endpoint. Local
+  demos can use deterministic mock mode before Qwen is deployment-ready.
 - Existing scheduler and newsletter patterns support idempotent post-market
   processing and report delivery.
 

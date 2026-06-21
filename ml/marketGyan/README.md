@@ -84,6 +84,19 @@ python -m pip install -r requirements-agent.txt
 PYTHONPATH=. uvicorn agent_service.app:app --host 127.0.0.1 --port 8100
 ```
 
+For local RAG/report demos before Qwen is deployment-ready, enable deterministic
+mock mode:
+
+```bash
+export MARKET_GYAN_QUERY_ENABLED=true
+export MARKET_GYAN_AGENT_MOCK_ENABLED=true
+export MARKET_GYAN_AGENT_SERVICE_TOKEN=local-dev-token
+export MARKET_GYAN_NODE_BASE_URL=http://127.0.0.1:5001
+```
+
+Mock mode still retrieves evidence from the Node/Qdrant path and runs citation
+validation; it only replaces free-form model generation.
+
 This is a research workflow. The retrieval, agent, and report paths are
 implemented but disabled until reviewed data, trained artifacts, and deployment
 thresholds are available.
