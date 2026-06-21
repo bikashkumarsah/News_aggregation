@@ -371,11 +371,30 @@ for name, run in {
     markdown("## 8. Archive the three baselines"),
     code("""
 import shutil
-archive = shutil.make_archive(
-    str(OUTPUTS / "nepse-impact-baselines"),
-    "zip",
-    OUTPUTS,
-)
+import tempfile
+from pathlib import Path
+
+archive_base = PROJECT / "nepse-impact-baselines"
+archive_path = archive_base.with_suffix(".zip")
+if archive_path.exists():
+    archive_path.unlink()
+
+with tempfile.TemporaryDirectory() as directory:
+    staging = Path(directory) / "nepse-impact-baselines"
+    staging.mkdir(parents=True, exist_ok=True)
+    for name in ("xlmr-relevance", "xlmr-direction", "finbert-direction"):
+        source = OUTPUTS / name
+        if not source.exists():
+            continue
+        target = staging / name
+        shutil.copytree(source, target)
+        for checkpoint in target.glob("checkpoint-*"):
+            shutil.rmtree(checkpoint, ignore_errors=True)
+    archive = shutil.make_archive(
+        str(archive_base),
+        "zip",
+        staging,
+    )
 print(archive)
 # Colab: from google.colab import files; files.download(archive)
 """, ["artifact"]),
