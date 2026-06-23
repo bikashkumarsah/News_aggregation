@@ -1,7 +1,13 @@
 import unittest
+import json
+import tempfile
+import zipfile
+from pathlib import Path
 
+from market_gyan.cli import command_qwen_model_gate
 from market_gyan.system_evaluation import (
     deployment_gate,
+    qwen_model_gate,
     retrieval_metrics,
     scenario_metrics,
 )
@@ -78,6 +84,105 @@ class SystemEvaluationTest(unittest.TestCase):
         self.assertFalse(result["eligible"])
         self.assertFalse(result["checks"]["structuredValidity"])
         self.assertFalse(result["checks"]["evidenceGrounding"])
+
+    def test_qwen_model_gate_prefers_constrained_condition(self):
+        candidate = {
+            "unsloth_qlora": {
+                "structuredOutputValidity": 0.44,
+                "evidenceGrounding": 0.44,
+                "relevance": {"macroF1": 0.40, "accuracy": 0.42},
+            },
+            "vllm_constrained_three_shot": {
+                "structuredOutputValidity": 0.96,
+                "evidenceGrounding": 0.97,
+                "relevance": {"macroF1": 0.60, "accuracy": 0.64},
+                "direction": {"macroF1": 0.62, "accuracy": 0.61},
+            },
+            "unsloth_qlora_tolerant_diagnostic": {
+                "structuredOutputValidity": 0.65,
+                "evidenceGrounding": 0.68,
+                "repairAppliedCount": 18,
+                "officialGate": False,
+            },
+        }
+        baseline = {
+            "unsloth_qlora": {
+                "structuredOutputValidity": 0.44,
+                "evidenceGrounding": 0.44,
+                "relevance": {"macroF1": 0.41, "accuracy": 0.43},
+            }
+        }
+
+        report = qwen_model_gate(candidate, baseline_metrics=baseline)
+
+        self.assertTrue(report["eligible"])
+        self.assertEqual(report["gateCondition"], "vllm_constrained_three_shot")
+        self.assertAlmostEqual(
+            report["baseline"]["delta"]["structuredOutputValidity"],
+            0.52,
+        )
+        self.assertFalse(report["tolerantDiagnostic"]["officialGate"])
+
+    def test_qwen_model_gate_rejects_tolerant_condition_as_official(self):
+        candidate = {
+            "unsloth_qlora_tolerant_diagnostic": {
+                "structuredOutputValidity": 1.0,
+                "evidenceGrounding": 1.0,
+                "repairDiagnostic": True,
+                "officialGate": False,
+            }
+        }
+
+        report = qwen_model_gate(
+            candidate,
+            gate_condition="unsloth_qlora_tolerant_diagnostic",
+        )
+
+        self.assertFalse(report["eligible"])
+        self.assertFalse(report["checks"]["officialGate"])
+
+    def test_qwen_model_gate_cli_reads_baseline_metrics_from_zip(self):
+        candidate = {
+            "unsloth_qlora": {
+                "structuredOutputValidity": 0.96,
+                "evidenceGrounding": 0.95,
+                "relevance": {"macroF1": 0.50, "accuracy": 0.60},
+            }
+        }
+        baseline = {
+            "unsloth_qlora": {
+                "structuredOutputValidity": 0.44,
+                "evidenceGrounding": 0.44,
+                "relevance": {"macroF1": 0.40, "accuracy": 0.50},
+            }
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidate_path = root / "metrics.json"
+            baseline_path = root / "previous.zip"
+            output_path = root / "gate.json"
+            candidate_path.write_text(json.dumps(candidate), encoding="utf-8")
+            with zipfile.ZipFile(baseline_path, "w") as archive:
+                archive.writestr("metrics.json", json.dumps(baseline))
+            args = type("Args", (), {
+                "candidate_metrics": str(candidate_path),
+                "output": str(output_path),
+                "baseline_metrics": str(baseline_path),
+                "gate_condition": None,
+                "baseline_condition": "unsloth_qlora",
+                "min_validity": 0.95,
+                "min_grounding": 0.95,
+                "allow_fail": False,
+            })()
+
+            command_qwen_model_gate(args)
+
+            report = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertTrue(report["eligible"])
+            self.assertEqual(
+                report["sources"]["baselineMetrics"],
+                str(baseline_path),
+            )
 
 
 if __name__ == "__main__":

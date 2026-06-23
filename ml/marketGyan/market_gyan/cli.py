@@ -1,5 +1,6 @@
 import argparse
 import json
+import zipfile
 from collections import Counter
 from pathlib import Path
 
@@ -23,6 +24,7 @@ from .metrics import (
 )
 from .system_evaluation import (
     deployment_gate,
+    qwen_model_gate,
     retrieval_metrics,
     scenario_metrics,
 )
@@ -271,6 +273,53 @@ def command_deployment_gate(args):
         raise SystemExit(1)
 
 
+def _load_metrics_document(path):
+    source = Path(path)
+    if source.is_dir():
+        source = source / "metrics.json"
+    if source.suffix.lower() == ".zip":
+        with zipfile.ZipFile(source) as archive:
+            matches = [
+                name for name in archive.namelist()
+                if Path(name).name == "metrics.json"
+            ]
+            if not matches:
+                raise ValueError("zip archive does not contain metrics.json")
+            matches.sort(key=lambda name: (name.count("/"), name))
+            with archive.open(matches[0]) as handle:
+                return json.loads(handle.read().decode("utf-8"))
+    return json.loads(source.read_text(encoding="utf-8"))
+
+
+def command_qwen_model_gate(args):
+    candidate = _load_metrics_document(args.candidate_metrics)
+    baseline = (
+        _load_metrics_document(args.baseline_metrics)
+        if args.baseline_metrics else None
+    )
+    report = qwen_model_gate(
+        candidate,
+        baseline_metrics=baseline,
+        gate_condition=args.gate_condition,
+        baseline_condition=args.baseline_condition,
+        min_validity=args.min_validity,
+        min_grounding=args.min_grounding,
+    )
+    report["sources"] = {
+        "candidateMetrics": args.candidate_metrics,
+        "baselineMetrics": args.baseline_metrics,
+    }
+    target = Path(args.output)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(report, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    print(str(target))
+    if not report["eligible"] and not args.allow_fail:
+        raise SystemExit(1)
+
+
 def build_parser():
     parser = argparse.ArgumentParser(description="Market Gyan modeling utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -349,6 +398,31 @@ def build_parser():
     gate.add_argument("output")
     gate.add_argument("--min-per-class-f1", type=float, default=0.40)
     gate.set_defaults(func=command_deployment_gate)
+
+    qwen_gate = subparsers.add_parser("qwen-model-gate")
+    qwen_gate.add_argument("candidate_metrics")
+    qwen_gate.add_argument("output")
+    qwen_gate.add_argument("--baseline-metrics")
+    qwen_gate.add_argument(
+        "--gate-condition",
+        help=(
+            "Metrics condition to gate. Defaults to constrained three-shot, "
+            "then constrained zero-shot, then the adapter strict condition."
+        ),
+    )
+    qwen_gate.add_argument(
+        "--baseline-condition",
+        default="unsloth_qlora",
+        help="Condition from the baseline metrics document or zip.",
+    )
+    qwen_gate.add_argument("--min-validity", type=float, default=0.95)
+    qwen_gate.add_argument("--min-grounding", type=float, default=0.95)
+    qwen_gate.add_argument(
+        "--allow-fail",
+        action="store_true",
+        help="Write the report without returning a non-zero exit for failures.",
+    )
+    qwen_gate.set_defaults(func=command_qwen_model_gate)
     return parser
 
 

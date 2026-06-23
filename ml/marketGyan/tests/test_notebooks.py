@@ -19,16 +19,20 @@ class NotebookTest(unittest.TestCase):
                 "early_stopping_patience=2",
             ],
             "qwen3_8b_qlora.ipynb": [
-                "unsloth/Qwen3-8B",
+                "Qwen/Qwen3.5-9B",
                 "FastLanguageModel.get_peft_model",
-                "load_in_4bit=True",
+                "MARKET_GYAN_LOAD_IN_4BIT",
+                "load_in_4bit=LOAD_IN_4BIT",
                 "enable_thinking=False",
                 "three_shot",
                 "compact_qwen_label",
                 "compact_qwen_response_format",
                 "oversample_training_rows",
+                "marketgyan-qwen35-9b-l4-bf16-lora",
                 "qwen_base_zero_shot.jsonl",
                 "qwen_vllm_constrained_zero_shot.jsonl",
+                "qwen_model_gate",
+                "model_gate.json",
             ],
         }
         for name, markers in expected.items():

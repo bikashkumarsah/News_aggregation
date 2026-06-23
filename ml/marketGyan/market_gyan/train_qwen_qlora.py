@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -51,7 +52,52 @@ def main():
     parser.add_argument("--train", required=True)
     parser.add_argument("--validation", required=True)
     parser.add_argument("--output", required=True)
-    parser.add_argument("--model", default="Qwen/Qwen3-8B")
+    parser.add_argument(
+        "--model",
+        default=os.getenv("MARKET_GYAN_QWEN_MODEL", "Qwen/Qwen3.5-9B"),
+    )
+    parser.add_argument(
+        "--load-in-4bit",
+        action="store_true",
+        default=os.getenv("MARKET_GYAN_LOAD_IN_4BIT", "false").lower()
+        in {"1", "true", "yes"},
+        help="Use 4-bit QLoRA for low-memory diagnostic runs.",
+    )
+    parser.add_argument(
+        "--max-seq-length",
+        type=int,
+        default=int(os.getenv("MARKET_GYAN_MAX_SEQ_LENGTH", "1536")),
+    )
+    parser.add_argument(
+        "--epochs",
+        type=float,
+        default=float(os.getenv("MARKET_GYAN_EPOCHS", "3")),
+    )
+    parser.add_argument(
+        "--learning-rate",
+        type=float,
+        default=None,
+    )
+    parser.add_argument(
+        "--gradient-accumulation-steps",
+        type=int,
+        default=int(os.getenv("MARKET_GYAN_GRADIENT_ACCUMULATION_STEPS", "16")),
+    )
+    parser.add_argument(
+        "--lora-r",
+        type=int,
+        default=int(os.getenv("MARKET_GYAN_LORA_R", "16")),
+    )
+    parser.add_argument(
+        "--lora-alpha",
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
+        "--lora-dropout",
+        type=float,
+        default=float(os.getenv("MARKET_GYAN_LORA_DROPOUT", "0.05")),
+    )
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
@@ -87,29 +133,31 @@ def main():
             return tokenizer(
                 batch["text"],
                 truncation=True,
-                max_length=1536,
+                max_length=args.max_seq_length,
                 padding=False,
             )
 
         return dataset.map(tokenize, batched=True, remove_columns=["text"])
 
-    quantization = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=compute_dtype,
-        bnb_4bit_use_double_quant=True,
-    )
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model,
-        quantization_config=quantization,
-        device_map="auto",
-    )
-    model = prepare_model_for_kbit_training(model)
+    model_kwargs = {"device_map": "auto"}
+    if args.load_in_4bit:
+        model_kwargs["quantization_config"] = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=compute_dtype,
+            bnb_4bit_use_double_quant=True,
+        )
+    else:
+        model_kwargs["torch_dtype"] = compute_dtype
+    model = AutoModelForCausalLM.from_pretrained(args.model, **model_kwargs)
+    if args.load_in_4bit:
+        model = prepare_model_for_kbit_training(model)
     model.gradient_checkpointing_enable()
+    lora_alpha = args.lora_alpha or args.lora_r * 2
     model = get_peft_model(model, LoraConfig(
-        r=16,
-        lora_alpha=32,
-        lora_dropout=0.05,
+        r=args.lora_r,
+        lora_alpha=lora_alpha,
+        lora_dropout=args.lora_dropout,
         bias="none",
         task_type="CAUSAL_LM",
         target_modules=[
@@ -124,13 +172,16 @@ def main():
     ))
 
     output = Path(args.output)
+    learning_rate = args.learning_rate
+    if learning_rate is None:
+        learning_rate = 1e-4 if args.load_in_4bit else 5e-5
     training_args = TrainingArguments(
         output_dir=str(output),
         per_device_train_batch_size=1,
         per_device_eval_batch_size=1,
-        gradient_accumulation_steps=16,
-        learning_rate=1e-4,
-        num_train_epochs=5,
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        learning_rate=learning_rate,
+        num_train_epochs=args.epochs,
         warmup_ratio=0.05,
         logging_steps=5,
         eval_strategy="steps",
