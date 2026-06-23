@@ -403,12 +403,16 @@ print(archive)
 
 QWEN_CELLS = [
     markdown("""
-# NEPSE-Impact-500: Qwen3-8B Unsloth QLoRA
+# NEPSE-Impact-500: Configurable Qwen Unsloth LoRA
 
-This notebook evaluates base Qwen3-8B zero-shot and three-shot, then trains a
-QLoRA adapter with Unsloth on the same frozen balanced manifest used by
-XLM-R. It produces compact deterministic JSON and evaluates relevance, event
-type, direction, sector, symbol, and evidence selection.
+This notebook evaluates a base Qwen zero-shot and three-shot, then trains a
+LoRA adapter with Unsloth on the same frozen balanced manifest used by XLM-R.
+The default next experiment is Qwen3.5-9B with bf16 LoRA when the runtime has
+enough VRAM. Set `MARKET_GYAN_LOAD_IN_4BIT=true` only for low-memory diagnostic
+runs because Qwen3.5 4-bit training is less reliable than bf16 LoRA.
+
+It produces compact deterministic JSON and evaluates relevance, event type,
+direction, sector, symbol, and evidence selection.
 """),
     code("""
 !pip install -q --upgrade --force-reinstall --no-cache-dir unsloth unsloth_zoo
@@ -434,32 +438,62 @@ test_rows = read_jsonl(SPLITS / "test.jsonl")
 print(len(train_rows), len(validation_rows), len(test_rows))
 """, ["data"]),
     code(DISTRIBUTION_PLOTS, ["plot"]),
-    markdown("## 2. Load Qwen3 through Unsloth and define the structured prompt"),
+    markdown("## 2. Load Qwen through Unsloth and define the structured prompt"),
     code("""
+import re
 from unsloth import FastLanguageModel
 from market_gyan.structured_output import compact_qwen_response_format
 
-MODEL_NAME = "unsloth/Qwen3-8B"
-MAX_SEQ_LENGTH = 1536
-MAX_GENERATION_TOKENS = 192
+MODEL_NAME = os.getenv("MARKET_GYAN_QWEN_MODEL", "Qwen/Qwen3.5-9B")
+MAX_SEQ_LENGTH = int(os.getenv("MARKET_GYAN_MAX_SEQ_LENGTH", "1536"))
+MAX_GENERATION_TOKENS = int(os.getenv("MARKET_GYAN_MAX_GENERATION_TOKENS", "192"))
 MAX_PROMPT_TOKENS = MAX_SEQ_LENGTH - MAX_GENERATION_TOKENS
+LOAD_IN_4BIT = (
+    os.getenv("MARKET_GYAN_LOAD_IN_4BIT", "false").lower()
+    in {"1", "true", "yes"}
+)
 use_bf16 = torch.cuda.is_bf16_supported()
+
+def slugify_model_name(value):
+    base = value.split("/")[-1].lower()
+    return re.sub(r"[^a-z0-9]+", "-", base).strip("-")
+
+def default_output_run_name(model_name, model_tag, load_in_4bit):
+    if model_name == "Qwen/Qwen3.5-9B" and not load_in_4bit:
+        return "marketgyan-qwen35-9b-l4-bf16-lora"
+    suffix = "unsloth-qlora" if load_in_4bit else "unsloth-lora"
+    return f"marketgyan-{model_tag}-{suffix}"
+
+MODEL_TAG = os.getenv("MARKET_GYAN_MODEL_TAG", slugify_model_name(MODEL_NAME))
+OUTPUT_RUN_NAME = os.getenv(
+    "MARKET_GYAN_OUTPUT_NAME",
+    default_output_run_name(MODEL_NAME, MODEL_TAG, LOAD_IN_4BIT),
+)
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name=MODEL_NAME,
     max_seq_length=MAX_SEQ_LENGTH,
     dtype=None,
-    load_in_4bit=True,
+    load_in_4bit=LOAD_IN_4BIT,
+    load_in_16bit=not LOAD_IN_4BIT,
 )
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.model_max_length = MAX_SEQ_LENGTH
-output_dir = OUTPUTS / "marketgyan-qwen3-8b-unsloth-qlora"
+output_dir = OUTPUTS / OUTPUT_RUN_NAME
 USE_VLLM_CONSTRAINED = (
     os.getenv("MARKET_GYAN_USE_VLLM_CONSTRAINED", "false").lower()
     in {"1", "true", "yes"}
 )
 VLLM_BASE_URL = os.getenv("MARKET_GYAN_VLLM_BASE_URL", "http://127.0.0.1:8000/v1")
 VLLM_API_KEY = os.getenv("MARKET_GYAN_VLLM_API_KEY", "local")
-VLLM_MODEL = os.getenv("MARKET_GYAN_VLLM_MODEL", "marketgyan-qwen3-8b")
+VLLM_MODEL = os.getenv("MARKET_GYAN_VLLM_MODEL", OUTPUT_RUN_NAME)
+print(json.dumps({
+    "model": MODEL_NAME,
+    "output": str(output_dir),
+    "maxSeqLength": MAX_SEQ_LENGTH,
+    "maxGenerationTokens": MAX_GENERATION_TOKENS,
+    "loadIn4bit": LOAD_IN_4BIT,
+    "bf16": use_bf16,
+}, indent=2))
 
 COMPACT_SCHEMA_INSTRUCTIONS = (
     "Return only valid compact JSON. Do not use markdown. Do not explain. "
@@ -703,25 +737,47 @@ from transformers import set_seed
 from trl import SFTConfig, SFTTrainer
 from unsloth.chat_templates import train_on_responses_only
 
+LORA_R = int(os.getenv("MARKET_GYAN_LORA_R", "16"))
+LORA_ALPHA = int(os.getenv("MARKET_GYAN_LORA_ALPHA", str(LORA_R * 2)))
+LORA_DROPOUT = float(os.getenv("MARKET_GYAN_LORA_DROPOUT", "0.05"))
+GRADIENT_ACCUMULATION_STEPS = int(
+    os.getenv("MARKET_GYAN_GRADIENT_ACCUMULATION_STEPS", "16")
+)
+LEARNING_RATE = float(
+    os.getenv(
+        "MARKET_GYAN_LEARNING_RATE",
+        "1e-4" if LOAD_IN_4BIT else "5e-5",
+    )
+)
+NUM_TRAIN_EPOCHS = float(os.getenv("MARKET_GYAN_EPOCHS", "3"))
+EVAL_STEPS = int(os.getenv("MARKET_GYAN_EVAL_STEPS", "25"))
+
 model = FastLanguageModel.get_peft_model(
     model,
-    r=16,
+    r=LORA_R,
     target_modules=[
         "q_proj", "k_proj", "v_proj", "o_proj",
         "gate_proj", "up_proj", "down_proj",
     ],
-    lora_alpha=32,
-    lora_dropout=0.05,
+    lora_alpha=LORA_ALPHA,
+    lora_dropout=LORA_DROPOUT,
     bias="none",
     use_gradient_checkpointing="unsloth",
     random_state=42,
+    max_seq_length=MAX_SEQ_LENGTH,
 )
 set_seed(42)
-output_dir = OUTPUTS / "marketgyan-qwen3-8b-unsloth-qlora"
-updates_per_epoch = max(1, (len(train_data) + 15) // 16)
+output_dir = OUTPUTS / OUTPUT_RUN_NAME
+updates_per_epoch = max(
+    1,
+    (len(train_data) + GRADIENT_ACCUMULATION_STEPS - 1)
+    // GRADIENT_ACCUMULATION_STEPS,
+)
 print(
-    f"Training Unsloth QLoRA: train={len(train_data)}, "
-    f"validation={len(validation_data)}, approx_steps={updates_per_epoch * 5}"
+    f"Training Unsloth LoRA: model={MODEL_NAME}, train={len(train_data)}, "
+    f"validation={len(validation_data)}, "
+    f"approx_steps={int(updates_per_epoch * NUM_TRAIN_EPOCHS)}, "
+    f"lr={LEARNING_RATE}, load_in_4bit={LOAD_IN_4BIT}"
 )
 arguments = SFTConfig(
     output_dir=str(output_dir),
@@ -730,13 +786,13 @@ arguments = SFTConfig(
     packing=False,
     per_device_train_batch_size=1,
     per_device_eval_batch_size=1,
-    gradient_accumulation_steps=16,
-    learning_rate=1e-4,
-    num_train_epochs=5,
+    gradient_accumulation_steps=GRADIENT_ACCUMULATION_STEPS,
+    learning_rate=LEARNING_RATE,
+    num_train_epochs=NUM_TRAIN_EPOCHS,
     warmup_ratio=0.05,
     logging_steps=5,
     eval_strategy="steps",
-    eval_steps=25,
+    eval_steps=EVAL_STEPS,
     save_strategy="no",
     bf16=use_bf16,
     fp16=not use_bf16,
@@ -838,6 +894,7 @@ from market_gyan.metrics import (
     benchmark_predictions_with_repair,
     repair_prediction_rows,
 )
+from market_gyan.system_evaluation import qwen_model_gate
 
 benchmarks = {
     "zero_shot": benchmark_predictions(test_rows, zero_shot),
@@ -866,6 +923,11 @@ write_jsonl(
 (output_dir / "metrics.json").write_text(
     json.dumps(benchmarks, indent=2), encoding="utf-8"
 )
+GATE_CONDITION = os.getenv("MARKET_GYAN_QWEN_GATE_CONDITION", "").strip() or None
+gate_report = qwen_model_gate(benchmarks, gate_condition=GATE_CONDITION)
+(output_dir / "model_gate.json").write_text(
+    json.dumps(gate_report, indent=2), encoding="utf-8"
+)
 print(json.dumps({
     "strictValidity": benchmarks["unsloth_qlora"]["structuredOutputValidity"],
     "strictGrounding": benchmarks["unsloth_qlora"]["evidenceGrounding"],
@@ -879,6 +941,8 @@ print(json.dumps({
     "officialGate": benchmarks[
         "unsloth_qlora_tolerant_diagnostic"
     ]["officialGate"],
+    "gateEligible": gate_report["eligible"],
+    "gateCondition": gate_report["gateCondition"],
 }, indent=2))
 
 labels = ["direct", "indirect", "not_relevant"]
@@ -948,7 +1012,7 @@ if train_steps:
     axis.plot(train_steps, train_loss, label="train")
 if eval_steps:
     axis.plot(eval_steps, eval_loss, label="validation")
-axis.set_title("Qwen3-8B Unsloth QLoRA loss")
+axis.set_title(f"{MODEL_TAG} Unsloth LoRA loss")
 axis.legend()
 plt.savefig(output_dir / "loss.png", dpi=160, bbox_inches="tight")
 plt.show()

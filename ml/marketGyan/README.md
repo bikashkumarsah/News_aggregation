@@ -28,15 +28,53 @@ Run `notebooks/xlmr_baseline.ipynb` for XLM-R relevance, XLM-R direction, and
 the English-only FinBERT baseline. Run
 `notebooks/qwen3_8b_qlora.ipynb` in Colab or Kaggle. Both use the same frozen
 balanced `data/processed/splits/manifest.json`. The Qwen notebook evaluates
-zero-shot, three-shot, and Unsloth QLoRA against a compact classifier/extractor
-target: canonical labels, sectors, symbols, confidence, and evidence sentence
-IDs only. Evidence text, summaries, rationales, and report prose are rebuilt
-later from RAG evidence and deterministic market data. The notebook targets a
-T4 16 GB minimum, uses `unsloth/Qwen3-8B` in non-thinking mode with
-response-only training, oversamples indirect and hard-negative examples, and
-saves only the final adapter, tokenizer, predictions, metrics, and plots.
-Intermediate `checkpoint-*` directories are intentionally removed to keep the
-downloadable artifact small.
+zero-shot, three-shot, and an Unsloth LoRA adapter against a compact
+classifier/extractor target: canonical labels, sectors, symbols, confidence,
+and evidence sentence IDs only. Evidence text, summaries, rationales, and
+report prose are rebuilt later from RAG evidence and deterministic market data.
+
+The next recommended generator experiment is Qwen3.5-9B with bf16 LoRA on an
+L4 or larger runtime. Source the checked-in L4 config before running the Qwen
+notebook:
+
+```bash
+source config/qwen35_9b_l4_bf16.env
+```
+
+That config expands to:
+
+```bash
+export MARKET_GYAN_QWEN_MODEL=Qwen/Qwen3.5-9B
+export MARKET_GYAN_LOAD_IN_4BIT=false
+export MARKET_GYAN_OUTPUT_NAME=marketgyan-qwen35-9b-l4-bf16-lora
+export MARKET_GYAN_MAX_SEQ_LENGTH=1536
+export MARKET_GYAN_MAX_GENERATION_TOKENS=192
+export MARKET_GYAN_EPOCHS=3
+export MARKET_GYAN_LEARNING_RATE=5e-5
+```
+
+If the L4 run fails with memory pressure, first retry with:
+
+```bash
+export MARKET_GYAN_MAX_SEQ_LENGTH=1024
+```
+
+On a T4-class 16 GB runtime, use a smaller diagnostic candidate instead:
+
+```bash
+export MARKET_GYAN_QWEN_MODEL=Qwen/Qwen3.5-4B
+export MARKET_GYAN_LOAD_IN_4BIT=false
+export MARKET_GYAN_OUTPUT_NAME=marketgyan-qwen35-4b-unsloth-lora
+```
+
+Use `MARKET_GYAN_LOAD_IN_4BIT=true` only for low-memory experiments where the
+run is explicitly treated as diagnostic. The previous Qwen3-8B 4-bit run showed
+useful extraction behavior under tolerant repair, but strict JSON validity and
+grounding were too low for deployment. The notebook uses response-only training,
+oversamples Nepali, indirect, and hard-negative examples, and saves only the
+final adapter, tokenizer, predictions, metrics, and plots. Intermediate
+`checkpoint-*` directories are intentionally removed to keep the downloadable
+artifact small.
 
 The Qwen notebook reports strict metrics as the official gate and a separate
 `unsloth_qlora_tolerant_diagnostic` block for failure analysis. The tolerant
@@ -54,7 +92,7 @@ then set these variables before running the Qwen notebook:
 export MARKET_GYAN_USE_VLLM_CONSTRAINED=true
 export MARKET_GYAN_VLLM_BASE_URL=http://127.0.0.1:8000/v1
 export MARKET_GYAN_VLLM_API_KEY=local
-export MARKET_GYAN_VLLM_MODEL=marketgyan-qwen3-8b
+export MARKET_GYAN_VLLM_MODEL=marketgyan-qwen35-9b-l4-bf16-lora
 ```
 
 This writes `qwen_vllm_constrained_zero_shot.jsonl` and
@@ -62,6 +100,21 @@ This writes `qwen_vllm_constrained_zero_shot.jsonl` and
 remain useful as failure diagnostics, but the deployment path should use
 schema-constrained decoding if Qwen is used for structured output.
 Model artifacts and datasets are intentionally ignored by Git.
+
+The notebook also writes `model_gate.json` from the official strict metrics.
+To compare the new L4 run against the previous Qwen3-8B 4-bit output archive:
+
+```bash
+PYTHONPATH=. python3 -m market_gyan.cli qwen-model-gate \
+  outputs/marketgyan-qwen35-9b-l4-bf16-lora/metrics.json \
+  outputs/marketgyan-qwen35-9b-l4-bf16-lora/model-gate-with-baseline.json \
+  --baseline-metrics /path/to/News_aggregation_ml_marketGyan_outputs_marketgyan-qwen3-8b-unsloth-qlora.zip \
+  --allow-fail
+```
+
+Remove `--allow-fail` when this command is used as the deployment gate. Passing
+the gate requires at least 95% structured-output validity and 95% evidence
+grounding from an official strict or schema-constrained condition.
 
 System benchmark specifications are in `evaluation/`. After recording actual
 retrieval and scenario results:
@@ -100,3 +153,7 @@ validation; it only replaces free-form model generation.
 This is a research workflow. The retrieval, agent, and report paths are
 implemented but disabled until reviewed data, trained artifacts, and deployment
 thresholds are available.
+
+For RAG quality, do not rely on the generator fine-tune as the retriever. Run
+separate retrieval experiments with a dedicated multilingual embedding model
+and reranker, then feed retrieved sentence IDs into the compact generator schema.
