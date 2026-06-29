@@ -84,6 +84,40 @@ def main():
         default=int(os.getenv("MARKET_GYAN_GRADIENT_ACCUMULATION_STEPS", "16")),
     )
     parser.add_argument(
+        "--per-device-train-batch-size",
+        type=int,
+        default=int(os.getenv("MARKET_GYAN_PER_DEVICE_TRAIN_BATCH_SIZE", "1")),
+    )
+    parser.add_argument(
+        "--per-device-eval-batch-size",
+        type=int,
+        default=int(os.getenv("MARKET_GYAN_PER_DEVICE_EVAL_BATCH_SIZE", "1")),
+    )
+    parser.add_argument(
+        "--eval-steps",
+        type=int,
+        default=int(os.getenv("MARKET_GYAN_EVAL_STEPS", "25")),
+    )
+    parser.add_argument(
+        "--logging-steps",
+        type=int,
+        default=int(os.getenv("MARKET_GYAN_LOGGING_STEPS", "5")),
+    )
+    parser.add_argument(
+        "--dataloader-num-workers",
+        type=int,
+        default=int(os.getenv("MARKET_GYAN_DATALOADER_NUM_WORKERS", "0")),
+    )
+    parser.add_argument(
+        "--dataset-num-proc",
+        type=int,
+        default=int(os.getenv("MARKET_GYAN_DATASET_NUM_PROC", "1")),
+    )
+    parser.add_argument(
+        "--optim",
+        default=os.getenv("MARKET_GYAN_OPTIM", "paged_adamw_8bit"),
+    )
+    parser.add_argument(
         "--lora-r",
         type=int,
         default=int(os.getenv("MARKET_GYAN_LORA_R", "16")),
@@ -137,7 +171,13 @@ def main():
                 padding=False,
             )
 
-        return dataset.map(tokenize, batched=True, remove_columns=["text"])
+        num_proc = args.dataset_num_proc if args.dataset_num_proc > 1 else None
+        return dataset.map(
+            tokenize,
+            batched=True,
+            remove_columns=["text"],
+            num_proc=num_proc,
+        )
 
     model_kwargs = {"device_map": "auto"}
     if args.load_in_4bit:
@@ -177,19 +217,21 @@ def main():
         learning_rate = 1e-4 if args.load_in_4bit else 5e-5
     training_args = TrainingArguments(
         output_dir=str(output),
-        per_device_train_batch_size=1,
-        per_device_eval_batch_size=1,
+        per_device_train_batch_size=args.per_device_train_batch_size,
+        per_device_eval_batch_size=args.per_device_eval_batch_size,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         learning_rate=learning_rate,
         num_train_epochs=args.epochs,
         warmup_ratio=0.05,
-        logging_steps=5,
+        logging_steps=args.logging_steps,
         eval_strategy="steps",
-        eval_steps=25,
+        eval_steps=args.eval_steps,
         save_strategy="no",
         bf16=use_bf16,
         fp16=torch.cuda.is_available() and not use_bf16,
-        optim="paged_adamw_8bit",
+        optim=args.optim,
+        dataloader_num_workers=args.dataloader_num_workers,
+        dataloader_pin_memory=torch.cuda.is_available(),
         report_to=[],
         seed=args.seed,
     )
