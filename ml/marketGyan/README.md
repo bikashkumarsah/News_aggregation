@@ -34,35 +34,43 @@ and evidence sentence IDs only. Evidence text, summaries, rationales, and
 report prose are rebuilt later from RAG evidence and deterministic market data.
 
 The next recommended generator experiment is Qwen3.5-9B with bf16 LoRA. On an
-A100 40 GB runtime with about 30 CPU cores, source the checked-in A100 config
-before running the Qwen notebook:
+A100 runtime, the Qwen notebook auto-loads the checked-in 80 GB profile when it
+detects about 80 GB of VRAM, otherwise it falls back to the 40 GB profile. You
+can also source the profile explicitly before running the notebook:
 
 ```bash
+source config/qwen35_9b_a100_80gb_bf16.env
+# or, on a 40 GB A100:
 source config/qwen35_9b_a100_40gb_bf16.env
 ```
 
-That config expands to:
+The 80 GB A100 config expands to:
 
 ```bash
 export MARKET_GYAN_QWEN_MODEL=Qwen/Qwen3.5-9B
 export MARKET_GYAN_LOAD_IN_4BIT=false
-export MARKET_GYAN_OUTPUT_NAME=marketgyan-qwen35-9b-a100-40gb-bf16-lora
+export MARKET_GYAN_OUTPUT_NAME=marketgyan-qwen35-9b-a100-80gb-bf16-lora
 export MARKET_GYAN_EXPECT_A100=true
 export MARKET_GYAN_ENABLE_TF32=true
 export MARKET_GYAN_MAX_SEQ_LENGTH=2048
 export MARKET_GYAN_MAX_GENERATION_TOKENS=256
-export MARKET_GYAN_PER_DEVICE_TRAIN_BATCH_SIZE=2
-export MARKET_GYAN_PER_DEVICE_EVAL_BATCH_SIZE=2
-export MARKET_GYAN_GRADIENT_ACCUMULATION_STEPS=4
+export MARKET_GYAN_GENERATION_BATCH_SIZE=16
+export MARKET_GYAN_PER_DEVICE_TRAIN_BATCH_SIZE=4
+export MARKET_GYAN_PER_DEVICE_EVAL_BATCH_SIZE=4
+export MARKET_GYAN_GRADIENT_ACCUMULATION_STEPS=2
 export MARKET_GYAN_LORA_R=32
 export MARKET_GYAN_LORA_ALPHA=64
 export MARKET_GYAN_EPOCHS=3
 export MARKET_GYAN_LEARNING_RATE=3e-5
 export MARKET_GYAN_EVAL_STEPS=10
-export MARKET_GYAN_DATALOADER_NUM_WORKERS=8
-export MARKET_GYAN_DATASET_NUM_PROC=8
+export MARKET_GYAN_DATALOADER_NUM_WORKERS=12
+export MARKET_GYAN_DATASET_NUM_PROC=12
 export MARKET_GYAN_FAIL_ON_QWEN_SMOKE_GATE=false
 ```
+
+`MARKET_GYAN_GENERATION_BATCH_SIZE` controls local zero-shot, three-shot,
+smoke, and adapter generation batching. If A100 80 GB utilization is still low,
+try `24` or `32`; if you hit CUDA out-of-memory, reduce it to `8`.
 
 The smoke gate writes `smoke_metrics.json` and prints invalid examples when the
 adapter is not yet producing strict JSON. It does not stop the notebook by
