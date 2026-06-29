@@ -520,8 +520,10 @@ model, tokenizer = FastLanguageModel.from_pretrained(
     load_in_4bit=LOAD_IN_4BIT,
     load_in_16bit=not LOAD_IN_4BIT,
 )
-tokenizer.pad_token = tokenizer.eos_token
-tokenizer.model_max_length = MAX_SEQ_LENGTH
+text_tokenizer = getattr(tokenizer, "tokenizer", tokenizer)
+if getattr(text_tokenizer, "pad_token", None) is None:
+    text_tokenizer.pad_token = text_tokenizer.eos_token
+text_tokenizer.model_max_length = MAX_SEQ_LENGTH
 output_dir = OUTPUTS / OUTPUT_RUN_NAME
 USE_VLLM_CONSTRAINED = (
     os.getenv("MARKET_GYAN_USE_VLLM_CONSTRAINED", "false").lower()
@@ -592,28 +594,45 @@ def chat_messages_for(row, demonstrations=None):
     messages.append({"role": "user", "content": prompt_for(row)})
     return messages
 
+def render_chat_template(messages, add_generation_prompt):
+    template_source = (
+        tokenizer
+        if hasattr(tokenizer, "apply_chat_template")
+        else text_tokenizer
+    )
+    return template_source.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=add_generation_prompt,
+        enable_thinking=False,
+    )
+
+def generation_pad_token_id():
+    for candidate in (text_tokenizer, tokenizer):
+        token_id = getattr(candidate, "eos_token_id", None)
+        if token_id is not None:
+            return token_id
+    return getattr(model.config, "eos_token_id", None)
+
 def tokenize_generation_prompt(text):
-    previous_side = tokenizer.truncation_side
-    tokenizer.truncation_side = "left"
+    previous_side = getattr(text_tokenizer, "truncation_side", None)
+    if previous_side is not None:
+        text_tokenizer.truncation_side = "left"
     try:
-        encoded = tokenizer(
+        encoded = text_tokenizer(
             text,
             return_tensors="pt",
             truncation=True,
             max_length=MAX_PROMPT_TOKENS,
         )
     finally:
-        tokenizer.truncation_side = previous_side
+        if previous_side is not None:
+            text_tokenizer.truncation_side = previous_side
     return encoded.to(model.device)
 
 def generate_json(row, demonstrations=None):
     messages = chat_messages_for(row, demonstrations)
-    text = tokenizer.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True,
-        enable_thinking=False,
-    )
+    text = render_chat_template(messages, add_generation_prompt=True)
     # Prefixing the first JSON brace prevents Qwen from starting with Markdown
     # bullets while keeping official scoring strict.
     text = text + "{"
@@ -630,9 +649,9 @@ def generate_json(row, demonstrations=None):
             temperature=None,
             top_p=None,
             repetition_penalty=1.05,
-            pad_token_id=tokenizer.eos_token_id,
+            pad_token_id=generation_pad_token_id(),
         )
-    raw = tokenizer.decode(
+    raw = text_tokenizer.decode(
         output[0][inputs["input_ids"].shape[1]:],
         skip_special_tokens=True,
     ).strip()
@@ -733,11 +752,9 @@ def chat_messages(row):
     ]
 
 def format_training_text(row):
-    return tokenizer.apply_chat_template(
+    return render_chat_template(
         chat_messages(row),
-        tokenize=False,
         add_generation_prompt=False,
-        enable_thinking=False,
     )
 
 def oversample_training_rows(values):
@@ -875,7 +892,7 @@ for key, value in optional_sft_kwargs.items():
 arguments = SFTConfig(**sft_kwargs)
 trainer = SFTTrainer(
     model=model,
-    tokenizer=tokenizer,
+    tokenizer=text_tokenizer,
     args=arguments,
     train_dataset=train_data,
     eval_dataset=validation_data,
@@ -893,7 +910,10 @@ if output_dir.exists():
         shutil.rmtree(checkpoint, ignore_errors=True)
 trainer.train()
 trainer.save_model(output_dir)
-tokenizer.save_pretrained(output_dir)
+if hasattr(tokenizer, "save_pretrained"):
+    tokenizer.save_pretrained(output_dir)
+else:
+    text_tokenizer.save_pretrained(output_dir)
 for checkpoint in output_dir.glob("checkpoint-*"):
     shutil.rmtree(checkpoint, ignore_errors=True)
 """, ["gpu"]),
