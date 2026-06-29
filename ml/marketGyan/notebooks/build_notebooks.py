@@ -408,8 +408,11 @@ QWEN_CELLS = [
 This notebook evaluates a base Qwen zero-shot and three-shot, then trains a
 LoRA adapter with Unsloth on the same frozen balanced manifest used by XLM-R.
 The default next experiment is Qwen3.5-9B with bf16 LoRA when the runtime has
-enough VRAM. Set `MARKET_GYAN_LOAD_IN_4BIT=true` only for low-memory diagnostic
-runs because Qwen3.5 4-bit training is less reliable than bf16 LoRA.
+enough VRAM. On an A100 40 GB runtime, source
+`config/qwen35_9b_a100_40gb_bf16.env` before opening this notebook. Set
+`MARKET_GYAN_LOAD_IN_4BIT=true` only for low-memory diagnostic runs because
+Qwen3.5 4-bit training is less reliable than bf16 LoRA.
+The A100 profile writes to `marketgyan-qwen35-9b-a100-40gb-bf16-lora`.
 
 It produces compact deterministic JSON and evaluates relevance, event type,
 direction, sector, symbol, and evidence selection.
@@ -427,8 +430,49 @@ direction, sector, symbol, and evidence selection.
     markdown("## 1. Verify the GPU and load the frozen corpus"),
     code("""
 import torch
+import json
+import os
+from pathlib import Path
 assert torch.cuda.is_available(), "Use a Colab or Kaggle GPU runtime."
-print(torch.cuda.get_device_name(0))
+gpu = torch.cuda.get_device_properties(0)
+gpu_name = torch.cuda.get_device_name(0)
+
+def load_export_env(path):
+    path = Path(path)
+    if not path.exists():
+        print(f"Profile env file not found, skipping: {path}")
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export "):]
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+    print(f"Loaded MarketGyan profile: {path}")
+
+PROJECT_FOR_PROFILE = Path(os.getenv("MARKET_GYAN_PROJECT", "/content/marketGyan"))
+PROFILE_ENV = os.getenv("MARKET_GYAN_PROFILE_ENV", "").strip()
+if not PROFILE_ENV and "A100" in gpu_name:
+    candidate = PROJECT_FOR_PROFILE / "config/qwen35_9b_a100_40gb_bf16.env"
+    if candidate.exists():
+        PROFILE_ENV = str(candidate)
+if PROFILE_ENV:
+    load_export_env(PROFILE_ENV)
+if os.getenv("MARKET_GYAN_ENABLE_TF32", "true").lower() in {"1", "true", "yes"}:
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+print(json.dumps({
+    "gpu": gpu_name,
+    "totalMemoryGB": round(gpu.total_memory / 1024 ** 3, 2),
+    "bf16Supported": torch.cuda.is_bf16_supported(),
+    "tf32Enabled": torch.backends.cuda.matmul.allow_tf32,
+}, indent=2))
+if os.getenv("MARKET_GYAN_EXPECT_A100", "false").lower() in {"1", "true", "yes"}:
+    assert "A100" in gpu_name, f"Expected an A100 runtime, got {gpu_name}"
 """, ["gpu"]),
     code(LOAD_AND_FREEZE, ["data"]),
     code("""
@@ -740,6 +784,12 @@ from unsloth.chat_templates import train_on_responses_only
 LORA_R = int(os.getenv("MARKET_GYAN_LORA_R", "16"))
 LORA_ALPHA = int(os.getenv("MARKET_GYAN_LORA_ALPHA", str(LORA_R * 2)))
 LORA_DROPOUT = float(os.getenv("MARKET_GYAN_LORA_DROPOUT", "0.05"))
+PER_DEVICE_TRAIN_BATCH_SIZE = int(
+    os.getenv("MARKET_GYAN_PER_DEVICE_TRAIN_BATCH_SIZE", "1")
+)
+PER_DEVICE_EVAL_BATCH_SIZE = int(
+    os.getenv("MARKET_GYAN_PER_DEVICE_EVAL_BATCH_SIZE", "1")
+)
 GRADIENT_ACCUMULATION_STEPS = int(
     os.getenv("MARKET_GYAN_GRADIENT_ACCUMULATION_STEPS", "16")
 )
@@ -751,6 +801,10 @@ LEARNING_RATE = float(
 )
 NUM_TRAIN_EPOCHS = float(os.getenv("MARKET_GYAN_EPOCHS", "3"))
 EVAL_STEPS = int(os.getenv("MARKET_GYAN_EVAL_STEPS", "25"))
+LOGGING_STEPS = int(os.getenv("MARKET_GYAN_LOGGING_STEPS", "5"))
+DATALOADER_NUM_WORKERS = int(os.getenv("MARKET_GYAN_DATALOADER_NUM_WORKERS", "0"))
+DATASET_NUM_PROC = int(os.getenv("MARKET_GYAN_DATASET_NUM_PROC", "1"))
+OPTIM = os.getenv("MARKET_GYAN_OPTIM", "paged_adamw_8bit")
 
 model = FastLanguageModel.get_peft_model(
     model,
@@ -770,37 +824,55 @@ set_seed(42)
 output_dir = OUTPUTS / OUTPUT_RUN_NAME
 updates_per_epoch = max(
     1,
-    (len(train_data) + GRADIENT_ACCUMULATION_STEPS - 1)
-    // GRADIENT_ACCUMULATION_STEPS,
+    (
+        len(train_data)
+        + PER_DEVICE_TRAIN_BATCH_SIZE * GRADIENT_ACCUMULATION_STEPS
+        - 1
+    )
+    // (PER_DEVICE_TRAIN_BATCH_SIZE * GRADIENT_ACCUMULATION_STEPS),
 )
 print(
     f"Training Unsloth LoRA: model={MODEL_NAME}, train={len(train_data)}, "
     f"validation={len(validation_data)}, "
     f"approx_steps={int(updates_per_epoch * NUM_TRAIN_EPOCHS)}, "
-    f"lr={LEARNING_RATE}, load_in_4bit={LOAD_IN_4BIT}"
+    f"lr={LEARNING_RATE}, train_batch={PER_DEVICE_TRAIN_BATCH_SIZE}, "
+    f"grad_accum={GRADIENT_ACCUMULATION_STEPS}, load_in_4bit={LOAD_IN_4BIT}"
 )
-arguments = SFTConfig(
-    output_dir=str(output_dir),
-    dataset_text_field="text",
-    max_seq_length=MAX_SEQ_LENGTH,
-    packing=False,
-    per_device_train_batch_size=1,
-    per_device_eval_batch_size=1,
-    gradient_accumulation_steps=GRADIENT_ACCUMULATION_STEPS,
-    learning_rate=LEARNING_RATE,
-    num_train_epochs=NUM_TRAIN_EPOCHS,
-    warmup_ratio=0.05,
-    logging_steps=5,
-    eval_strategy="steps",
-    eval_steps=EVAL_STEPS,
-    save_strategy="no",
-    bf16=use_bf16,
-    fp16=not use_bf16,
-    optim="paged_adamw_8bit",
-    report_to=[],
-    seed=42,
-    disable_tqdm=False,
-)
+sft_kwargs = {
+    "output_dir": str(output_dir),
+    "dataset_text_field": "text",
+    "max_seq_length": MAX_SEQ_LENGTH,
+    "packing": False,
+    "per_device_train_batch_size": PER_DEVICE_TRAIN_BATCH_SIZE,
+    "per_device_eval_batch_size": PER_DEVICE_EVAL_BATCH_SIZE,
+    "gradient_accumulation_steps": GRADIENT_ACCUMULATION_STEPS,
+    "learning_rate": LEARNING_RATE,
+    "num_train_epochs": NUM_TRAIN_EPOCHS,
+    "warmup_ratio": 0.05,
+    "logging_steps": LOGGING_STEPS,
+    "eval_strategy": "steps",
+    "eval_steps": EVAL_STEPS,
+    "save_strategy": "no",
+    "bf16": use_bf16,
+    "fp16": not use_bf16,
+    "optim": OPTIM,
+    "report_to": [],
+    "seed": 42,
+    "disable_tqdm": False,
+}
+optional_sft_kwargs = {
+    "dataloader_num_workers": DATALOADER_NUM_WORKERS,
+    "dataloader_pin_memory": torch.cuda.is_available(),
+}
+if DATASET_NUM_PROC > 1:
+    optional_sft_kwargs["dataset_num_proc"] = DATASET_NUM_PROC
+supported_sft_fields = getattr(SFTConfig, "__dataclass_fields__", {})
+for key, value in optional_sft_kwargs.items():
+    if key in supported_sft_fields:
+        sft_kwargs[key] = value
+    else:
+        print(f"Skipping unsupported SFTConfig option: {key}")
+arguments = SFTConfig(**sft_kwargs)
 trainer = SFTTrainer(
     model=model,
     tokenizer=tokenizer,
@@ -831,8 +903,8 @@ from market_gyan.metrics import benchmark_predictions
 
 FastLanguageModel.for_inference(model)
 model.eval()
-ALLOW_FAILED_QWEN_SMOKE = (
-    os.getenv("MARKET_GYAN_ALLOW_FAILED_QWEN_SMOKE", "false").lower()
+FAIL_ON_QWEN_SMOKE_GATE = (
+    os.getenv("MARKET_GYAN_FAIL_ON_QWEN_SMOKE_GATE", "false").lower()
     in {"1", "true", "yes"}
 )
 
@@ -869,11 +941,12 @@ if smoke_metrics["structuredOutputValidity"] < 0.8:
     ))
     message = (
         "Qwen adapter failed the strict smoke gate. Treat this as a failed "
-        "structured-output run; do not claim deployment readiness. Set "
-        "MARKET_GYAN_ALLOW_FAILED_QWEN_SMOKE=true only if you need full-test "
-        "diagnostics for a negative experiment."
+        "structured-output run; do not claim deployment readiness. The notebook "
+        "will continue so the full diagnostic artifacts are still written. Set "
+        "MARKET_GYAN_FAIL_ON_QWEN_SMOKE_GATE=true only when you want this cell "
+        "to stop a failed experiment."
     )
-    if not ALLOW_FAILED_QWEN_SMOKE:
+    if FAIL_ON_QWEN_SMOKE_GATE:
         raise RuntimeError(message)
     print(message)
 """, ["gpu"]),
