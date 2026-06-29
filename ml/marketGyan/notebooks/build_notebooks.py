@@ -408,11 +408,14 @@ QWEN_CELLS = [
 This notebook evaluates a base Qwen zero-shot and three-shot, then trains a
 LoRA adapter with Unsloth on the same frozen balanced manifest used by XLM-R.
 The default next experiment is Qwen3.5-9B with bf16 LoRA when the runtime has
-enough VRAM. On an A100 40 GB runtime, source
+enough VRAM. On an A100 runtime, the notebook auto-loads the matching checked-in
+40 GB or 80 GB profile when the config file is available. You can also source
+`config/qwen35_9b_a100_80gb_bf16.env` or
 `config/qwen35_9b_a100_40gb_bf16.env` before opening this notebook. Set
 `MARKET_GYAN_LOAD_IN_4BIT=true` only for low-memory diagnostic runs because
 Qwen3.5 4-bit training is less reliable than bf16 LoRA.
-The A100 profile writes to `marketgyan-qwen35-9b-a100-40gb-bf16-lora`.
+The 80 GB A100 profile writes to `marketgyan-qwen35-9b-a100-80gb-bf16-lora`.
+The 40 GB A100 profile writes to `marketgyan-qwen35-9b-a100-40gb-bf16-lora`.
 
 It produces compact deterministic JSON and evaluates relevance, event type,
 direction, sector, symbol, and evidence selection.
@@ -457,7 +460,13 @@ def load_export_env(path):
 PROJECT_FOR_PROFILE = Path(os.getenv("MARKET_GYAN_PROJECT", "/content/marketGyan"))
 PROFILE_ENV = os.getenv("MARKET_GYAN_PROFILE_ENV", "").strip()
 if not PROFILE_ENV and "A100" in gpu_name:
-    candidate = PROJECT_FOR_PROFILE / "config/qwen35_9b_a100_40gb_bf16.env"
+    gpu_total_gb = gpu.total_memory / 1024 ** 3
+    profile_name = (
+        "qwen35_9b_a100_80gb_bf16.env"
+        if gpu_total_gb >= 70
+        else "qwen35_9b_a100_40gb_bf16.env"
+    )
+    candidate = PROJECT_FOR_PROFILE / "config" / profile_name
     if candidate.exists():
         PROFILE_ENV = str(candidate)
 if PROFILE_ENV:
@@ -491,6 +500,10 @@ from market_gyan.structured_output import compact_qwen_response_format
 MODEL_NAME = os.getenv("MARKET_GYAN_QWEN_MODEL", "Qwen/Qwen3.5-9B")
 MAX_SEQ_LENGTH = int(os.getenv("MARKET_GYAN_MAX_SEQ_LENGTH", "1536"))
 MAX_GENERATION_TOKENS = int(os.getenv("MARKET_GYAN_MAX_GENERATION_TOKENS", "192"))
+GENERATION_BATCH_SIZE = max(
+    1,
+    int(os.getenv("MARKET_GYAN_GENERATION_BATCH_SIZE", "4")),
+)
 MAX_PROMPT_TOKENS = MAX_SEQ_LENGTH - MAX_GENERATION_TOKENS
 LOAD_IN_4BIT = (
     os.getenv("MARKET_GYAN_LOAD_IN_4BIT", "false").lower()
@@ -537,6 +550,7 @@ print(json.dumps({
     "output": str(output_dir),
     "maxSeqLength": MAX_SEQ_LENGTH,
     "maxGenerationTokens": MAX_GENERATION_TOKENS,
+    "generationBatchSize": GENERATION_BATCH_SIZE,
     "loadIn4bit": LOAD_IN_4BIT,
     "bf16": use_bf16,
 }, indent=2))
@@ -614,48 +628,8 @@ def generation_pad_token_id():
             return token_id
     return getattr(model.config, "eos_token_id", None)
 
-def tokenize_generation_prompt(text):
-    previous_side = getattr(text_tokenizer, "truncation_side", None)
-    if previous_side is not None:
-        text_tokenizer.truncation_side = "left"
-    try:
-        encoded = text_tokenizer(
-            text,
-            return_tensors="pt",
-            truncation=True,
-            max_length=MAX_PROMPT_TOKENS,
-        )
-    finally:
-        if previous_side is not None:
-            text_tokenizer.truncation_side = previous_side
-    return encoded.to(model.device)
-
-def generate_json(row, demonstrations=None):
-    messages = chat_messages_for(row, demonstrations)
-    text = render_chat_template(messages, add_generation_prompt=True)
-    # Prefixing the first JSON brace prevents Qwen from starting with Markdown
-    # bullets while keeping official scoring strict.
-    text = text + "{"
-    inputs = tokenize_generation_prompt(text)
-    generation_config = copy.deepcopy(model.generation_config)
-    generation_config.max_length = None
-    generation_config.max_new_tokens = None
-    with torch.no_grad():
-        output = model.generate(
-            **inputs,
-            generation_config=generation_config,
-            max_new_tokens=MAX_GENERATION_TOKENS,
-            do_sample=False,
-            temperature=None,
-            top_p=None,
-            repetition_penalty=1.05,
-            pad_token_id=generation_pad_token_id(),
-        )
-    raw = text_tokenizer.decode(
-        output[0][inputs["input_ids"].shape[1]:],
-        skip_special_tokens=True,
-    ).strip()
-    raw = "{" + raw
+def parse_generated_json(raw):
+    raw = "{" + raw.strip()
     if raw.startswith("{{"):
         raw = raw[1:]
     try:
@@ -669,6 +643,71 @@ def generate_json(row, demonstrations=None):
             except json.JSONDecodeError:
                 pass
         return {"raw": raw}
+
+def tokenize_generation_prompts(texts):
+    previous_side = getattr(text_tokenizer, "truncation_side", None)
+    previous_padding_side = getattr(text_tokenizer, "padding_side", None)
+    if previous_side is not None:
+        text_tokenizer.truncation_side = "left"
+    if previous_padding_side is not None:
+        text_tokenizer.padding_side = "left"
+    try:
+        encoded = text_tokenizer(
+            texts,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=MAX_PROMPT_TOKENS,
+        )
+    finally:
+        if previous_side is not None:
+            text_tokenizer.truncation_side = previous_side
+        if previous_padding_side is not None:
+            text_tokenizer.padding_side = previous_padding_side
+    return encoded.to(model.device)
+
+def generate_json_batch(rows, demonstrations=None, desc=None):
+    generation_config = copy.deepcopy(model.generation_config)
+    generation_config.max_length = None
+    generation_config.max_new_tokens = None
+    predictions = []
+    batch_starts = range(0, len(rows), GENERATION_BATCH_SIZE)
+    for start in tqdm(
+        batch_starts,
+        desc=desc,
+        unit="batch",
+        disable=desc is None,
+    ):
+        batch = rows[start:start + GENERATION_BATCH_SIZE]
+        texts = []
+        for row in batch:
+            messages = chat_messages_for(row, demonstrations)
+            text = render_chat_template(messages, add_generation_prompt=True)
+            # Prefixing the first JSON brace prevents Qwen from starting with
+            # Markdown bullets while keeping official scoring strict.
+            texts.append(text + "{")
+        inputs = tokenize_generation_prompts(texts)
+        with torch.no_grad():
+            output = model.generate(
+                **inputs,
+                generation_config=generation_config,
+                max_new_tokens=MAX_GENERATION_TOKENS,
+                do_sample=False,
+                temperature=None,
+                top_p=None,
+                repetition_penalty=1.05,
+                pad_token_id=generation_pad_token_id(),
+            )
+        generated_tokens = output[:, inputs["input_ids"].shape[1]:]
+        raws = text_tokenizer.batch_decode(
+            generated_tokens,
+            skip_special_tokens=True,
+        )
+        predictions.extend(parse_generated_json(raw) for raw in raws)
+    return predictions
+
+def generate_json(row, demonstrations=None):
+    return generate_json_batch([row], demonstrations=demonstrations)[0]
 
 def generate_json_constrained(row, demonstrations=None):
     from openai import OpenAI
@@ -692,15 +731,18 @@ three_shot_examples = [
     for value in ("direct", "indirect", "not_relevant")
 ]
 zero_shot = []
-for row in tqdm(test_rows, desc="Qwen zero-shot", unit="doc"):
-    zero_shot.append({"id": row["id"], "prediction": generate_json(row)})
+zero_shot_predictions = generate_json_batch(test_rows, desc="Qwen zero-shot")
+for row, prediction in zip(test_rows, zero_shot_predictions):
+    zero_shot.append({"id": row["id"], "prediction": prediction})
 
 three_shot = []
-for row in tqdm(test_rows, desc="Qwen three-shot", unit="doc"):
-    three_shot.append({
-        "id": row["id"],
-        "prediction": generate_json(row, three_shot_examples),
-    })
+three_shot_predictions = generate_json_batch(
+    test_rows,
+    demonstrations=three_shot_examples,
+    desc="Qwen three-shot",
+)
+for row, prediction in zip(test_rows, three_shot_predictions):
+    three_shot.append({"id": row["id"], "prediction": prediction})
 output_dir.mkdir(parents=True, exist_ok=True)
 write_jsonl(output_dir / "qwen_base_zero_shot.jsonl", zero_shot)
 write_jsonl(output_dir / "qwen_base_three_shot.jsonl", three_shot)
@@ -941,8 +983,12 @@ def smoke_rows_for_generation(rows, limit=10):
 
 smoke_rows = smoke_rows_for_generation(validation_rows, limit=10)
 smoke_predictions = []
-for row in tqdm(smoke_rows, desc="Qwen adapter smoke generation", unit="doc"):
-    smoke_predictions.append({"id": row["id"], "prediction": generate_json(row)})
+smoke_generated = generate_json_batch(
+    smoke_rows,
+    desc="Qwen adapter smoke generation",
+)
+for row, prediction in zip(smoke_rows, smoke_generated):
+    smoke_predictions.append({"id": row["id"], "prediction": prediction})
 smoke_metrics = benchmark_predictions(smoke_rows, smoke_predictions)
 write_jsonl(output_dir / "smoke_predictions.jsonl", smoke_predictions)
 (output_dir / "smoke_metrics.json").write_text(
@@ -974,8 +1020,12 @@ if smoke_metrics["structuredOutputValidity"] < 0.8:
     code("""
 FastLanguageModel.for_inference(model)
 adapter_predictions = []
-for row in tqdm(test_rows, desc="Qwen adapter test generation", unit="doc"):
-    adapter_predictions.append({"id": row["id"], "prediction": generate_json(row)})
+adapter_generated = generate_json_batch(
+    test_rows,
+    desc="Qwen adapter test generation",
+)
+for row, prediction in zip(test_rows, adapter_generated):
+    adapter_predictions.append({"id": row["id"], "prediction": prediction})
 write_jsonl(output_dir / "test_predictions.jsonl", adapter_predictions)
 """, ["gpu"]),
     markdown("## 8. Score and plot all Qwen conditions"),
