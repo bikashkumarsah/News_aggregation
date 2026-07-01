@@ -410,11 +410,14 @@ LoRA adapter with Unsloth on the same frozen balanced manifest used by XLM-R.
 The default next experiment is Qwen3.5-9B with bf16 LoRA when the runtime has
 enough VRAM. On an A100 runtime, the notebook auto-loads the matching checked-in
 40 GB or 80 GB profile when the config file is available. You can also source
-`config/qwen35_9b_a100_80gb_bf16.env` or
+`config/qwen35_9b_a100_80gb_bf16.env`,
+`config/qwen35_9b_a100_80gb_targeted_v2.env`, or
 `config/qwen35_9b_a100_40gb_bf16.env` before opening this notebook. Set
 `MARKET_GYAN_LOAD_IN_4BIT=true` only for low-memory diagnostic runs because
 Qwen3.5 4-bit training is less reliable than bf16 LoRA.
 The 80 GB A100 profile writes to `marketgyan-qwen35-9b-a100-80gb-bf16-lora`.
+The targeted-v2 80 GB A100 profile writes to
+`marketgyan-qwen35-9b-a100-80gb-bf16-lora-targeted-v2`.
 The 40 GB A100 profile writes to `marketgyan-qwen35-9b-a100-40gb-bf16-lora`.
 
 It produces compact deterministic JSON and evaluates relevance, event type,
@@ -779,6 +782,12 @@ else:
     markdown("## 4. Format compact gold JSON for supervised fine-tuning"),
     code("""
 from datasets import Dataset
+from market_gyan.qwen_training import (
+    assert_targeted_v2_frozen_split,
+    oversample_training_rows,
+    oversampling_summary,
+    qwen_training_profile,
+)
 
 def chat_messages(row):
     return [
@@ -799,38 +808,23 @@ def format_training_text(row):
         add_generation_prompt=False,
     )
 
-def oversample_training_rows(values):
-    selected = list(values)
-    selected.extend(
-        row for row in values
-        if row["gold"]["language"] == "ne"
-    )
-    selected.extend(
-        row for row in values
-        if row["gold"]["relevance"] in {"indirect", "not_relevant"}
-    )
-    selected.extend(
-        row for row in values
-        if (
-            row["gold"]["relevance"] in {"indirect", "not_relevant"}
-            and row["gold"]["language"] == "ne"
-        )
-    )
-    return selected
+OVERSAMPLE_PROFILE = os.getenv("MARKET_GYAN_OVERSAMPLE_PROFILE", "legacy")
+train_oversampling = oversampling_summary(train_rows, OVERSAMPLE_PROFILE)
+assert_targeted_v2_frozen_split(train_oversampling, manifest.get("sha256"))
 
-def make_dataset(values, include_hard_negatives=True, oversample=False):
+def make_dataset(values, include_hard_negatives=True, oversample_profile="none"):
     selected = values if include_hard_negatives else [
         row for row in values if row["gold"]["relevance"] != "not_relevant"
     ]
-    if oversample:
-        selected = oversample_training_rows(selected)
+    selected = oversample_training_rows(selected, profile=oversample_profile)
     return Dataset.from_list([
         {"text": format_training_text(row)}
         for row in selected
     ])
 
-train_data = make_dataset(train_rows, oversample=True)
+train_data = make_dataset(train_rows, oversample_profile=OVERSAMPLE_PROFILE)
 validation_data = make_dataset(validation_rows)
+print(json.dumps(train_oversampling, indent=2))
 print(len(train_data), len(validation_data))
 print(train_data[0]["text"][:600])
 """, ["gpu"]),
@@ -864,6 +858,10 @@ LOGGING_STEPS = int(os.getenv("MARKET_GYAN_LOGGING_STEPS", "5"))
 DATALOADER_NUM_WORKERS = int(os.getenv("MARKET_GYAN_DATALOADER_NUM_WORKERS", "0"))
 DATASET_NUM_PROC = int(os.getenv("MARKET_GYAN_DATASET_NUM_PROC", "1"))
 OPTIM = os.getenv("MARKET_GYAN_OPTIM", "paged_adamw_8bit")
+SAVE_BEST_MODEL = (
+    os.getenv("MARKET_GYAN_SAVE_BEST_MODEL", "false").lower()
+    in {"1", "true", "yes"}
+)
 
 model = FastLanguageModel.get_peft_model(
     model,
@@ -911,7 +909,7 @@ sft_kwargs = {
     "logging_steps": LOGGING_STEPS,
     "eval_strategy": "steps",
     "eval_steps": EVAL_STEPS,
-    "save_strategy": "no",
+    "save_strategy": "steps" if SAVE_BEST_MODEL else "no",
     "bf16": use_bf16,
     "fp16": not use_bf16,
     "optim": OPTIM,
@@ -919,6 +917,14 @@ sft_kwargs = {
     "seed": 42,
     "disable_tqdm": False,
 }
+if SAVE_BEST_MODEL:
+    sft_kwargs.update({
+        "save_steps": EVAL_STEPS,
+        "save_total_limit": 2,
+        "load_best_model_at_end": True,
+        "metric_for_best_model": "eval_loss",
+        "greater_is_better": False,
+    })
 optional_sft_kwargs = {
     "dataloader_num_workers": DATALOADER_NUM_WORKERS,
     "dataloader_pin_memory": torch.cuda.is_available(),
@@ -950,12 +956,40 @@ import shutil
 if output_dir.exists():
     for checkpoint in output_dir.glob("checkpoint-*"):
         shutil.rmtree(checkpoint, ignore_errors=True)
+output_dir.mkdir(parents=True, exist_ok=True)
+training_profile = qwen_training_profile(
+    model_name=MODEL_NAME,
+    output_name=OUTPUT_RUN_NAME,
+    load_in_4bit=LOAD_IN_4BIT,
+    max_seq_length=MAX_SEQ_LENGTH,
+    oversampling=train_oversampling,
+    split_manifest_hash=manifest.get("sha256"),
+    extra={
+        "epochs": NUM_TRAIN_EPOCHS,
+        "learningRate": LEARNING_RATE,
+        "loraR": LORA_R,
+        "loraAlpha": LORA_ALPHA,
+        "loraDropout": LORA_DROPOUT,
+        "perDeviceTrainBatchSize": PER_DEVICE_TRAIN_BATCH_SIZE,
+        "perDeviceEvalBatchSize": PER_DEVICE_EVAL_BATCH_SIZE,
+        "gradientAccumulationSteps": GRADIENT_ACCUMULATION_STEPS,
+        "evalSteps": EVAL_STEPS,
+        "saveBestModel": SAVE_BEST_MODEL,
+        "optimizer": OPTIM,
+        "generationBatchSize": GENERATION_BATCH_SIZE,
+        "maxGenerationTokens": MAX_GENERATION_TOKENS,
+    },
+)
+(output_dir / "training_profile.json").write_text(
+    json.dumps(training_profile, indent=2, ensure_ascii=False),
+    encoding="utf-8",
+)
 trainer.train()
 trainer.save_model(output_dir)
-if hasattr(tokenizer, "save_pretrained"):
-    tokenizer.save_pretrained(output_dir)
-else:
-    text_tokenizer.save_pretrained(output_dir)
+text_tokenizer.save_pretrained(output_dir)
+processor_config = output_dir / "processor_config.json"
+if processor_config.exists():
+    processor_config.unlink()
 for checkpoint in output_dir.glob("checkpoint-*"):
     shutil.rmtree(checkpoint, ignore_errors=True)
 """, ["gpu"]),
@@ -1035,6 +1069,7 @@ import seaborn as sns
 from market_gyan.metrics import (
     benchmark_predictions,
     benchmark_predictions_with_repair,
+    deep_error_slices,
     repair_prediction_rows,
 )
 from market_gyan.system_evaluation import qwen_model_gate
@@ -1065,6 +1100,11 @@ write_jsonl(
 )
 (output_dir / "metrics.json").write_text(
     json.dumps(benchmarks, indent=2), encoding="utf-8"
+)
+deep_slices = deep_error_slices(test_rows, adapter_predictions)
+(output_dir / "deep_error_slices.json").write_text(
+    json.dumps(deep_slices, indent=2, ensure_ascii=False),
+    encoding="utf-8",
 )
 GATE_CONDITION = os.getenv("MARKET_GYAN_QWEN_GATE_CONDITION", "").strip() or None
 gate_report = qwen_model_gate(benchmarks, gate_condition=GATE_CONDITION)

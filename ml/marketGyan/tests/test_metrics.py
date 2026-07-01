@@ -12,6 +12,7 @@ from market_gyan.metrics import (
     bootstrap_difference,
     candidate_review_metrics,
     classification_metrics,
+    deep_error_slices,
     multilabel_micro_f1,
     reaction_analysis,
     repair_compact_prediction,
@@ -135,6 +136,37 @@ class MetricsTest(unittest.TestCase):
         errors = " ".join(metrics["invalidOutputExamples"][0]["errors"])
         self.assertIn("evidenceSentenceIds values must be strings", errors)
         self.assertIn("unknown evidence sentence IDs: 1", errors)
+
+    def test_deep_error_slices_report_confusions_and_set_errors(self):
+        truth = [
+            row(1, "direct", "earnings", "bullish"),
+            row(2, "indirect", "regulation", "neutral"),
+        ]
+        prediction = compact_qwen_label(truth[0]["gold"])
+        prediction["eventType"] = "regulation"
+        prediction["impactDirection"] = "neutral"
+        prediction["sectors"] = ["Hydropower"]
+        invalid = compact_qwen_label(truth[1]["gold"])
+        invalid["evidenceSentenceIds"] = [1]
+
+        slices = deep_error_slices(truth, [
+            {"id": truth[0]["id"], "prediction": prediction},
+            {"id": truth[1]["id"], "prediction": invalid},
+        ])
+
+        self.assertEqual(len(slices["invalidRows"]), 1)
+        self.assertIn("en", slices["relevanceByLanguage"])
+        self.assertEqual(
+            slices["eventConfusion"]["matrix"]["earnings"]["regulation"],
+            1,
+        )
+        self.assertEqual(
+            slices["directionConfusion"]["matrix"]["bullish"]["neutral"],
+            1,
+        )
+        self.assertIn("sectors", slices["setFields"])
+        self.assertIn("symbols", slices["setFields"])
+        self.assertIn("evidenceSentenceIds", slices["setFields"])
 
     def test_diagnostic_repair_parses_unquoted_compact_object(self):
         prediction = {
