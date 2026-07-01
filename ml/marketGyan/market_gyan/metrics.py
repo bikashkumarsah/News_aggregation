@@ -515,6 +515,142 @@ def benchmark_predictions_with_repair(truth_rows, prediction_rows):
     return result
 
 
+def _set_field_error_summary(truth_rows, predictions, field):
+    true_positive = false_positive = false_negative = 0
+    extra = Counter()
+    missing = Counter()
+    worst_rows = []
+    for row in truth_rows:
+        prediction = _prediction_dict(predictions.get(row.get("id"), {}))
+        truth = set(_string_list(row["gold"].get(field, [])))
+        predicted = set(_string_list(prediction.get(field, [])))
+        row_extra = predicted - truth
+        row_missing = truth - predicted
+        true_positive += len(truth & predicted)
+        false_positive += len(row_extra)
+        false_negative += len(row_missing)
+        extra.update(row_extra)
+        missing.update(row_missing)
+        if row_extra or row_missing:
+            worst_rows.append({
+                "id": row.get("id"),
+                "title": row.get("title"),
+                "extra": sorted(row_extra),
+                "missing": sorted(row_missing),
+                "errorCount": len(row_extra) + len(row_missing),
+            })
+    precision = (
+        true_positive / float(true_positive + false_positive)
+        if true_positive + false_positive else 1.0
+    )
+    recall = (
+        true_positive / float(true_positive + false_negative)
+        if true_positive + false_negative else 1.0
+    )
+    f1 = (
+        2 * precision * recall / (precision + recall)
+        if precision + recall else 0.0
+    )
+    return {
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "truePositive": true_positive,
+        "falsePositive": false_positive,
+        "falseNegative": false_negative,
+        "commonExtra": extra.most_common(10),
+        "commonMissing": missing.most_common(10),
+        "worstRows": sorted(
+            worst_rows,
+            key=lambda item: (-item["errorCount"], item["id"]),
+        )[:10],
+    }
+
+
+def _field_confusion(truth_rows, predictions, field, relevant_only=False):
+    pairs = []
+    labels = set()
+    for row in truth_rows:
+        if relevant_only and row["gold"].get("relevance") == "not_relevant":
+            continue
+        prediction = _prediction_dict(predictions.get(row.get("id"), {}))
+        truth = row["gold"].get(field, "missing")
+        predicted = prediction.get(field, "invalid")
+        labels.add(truth)
+        labels.add(predicted)
+        pairs.append((truth, predicted))
+    ordered = sorted(labels)
+    return {
+        "labels": ordered,
+        "total": len(pairs),
+        "matrix": {
+            truth: {
+                predicted: sum(
+                    observed_truth == truth
+                    and observed_prediction == predicted
+                    for observed_truth, observed_prediction in pairs
+                )
+                for predicted in ordered
+            }
+            for truth in ordered
+        },
+    }
+
+
+def deep_error_slices(truth_rows, prediction_rows):
+    predictions = {
+        row.get("id"): row.get("prediction", row.get("candidate", {}))
+        for row in prediction_rows
+    }
+    invalid_rows = []
+    relevance_by_language = defaultdict(lambda: {"correct": 0, "total": 0})
+    for row in truth_rows:
+        prediction = _prediction_dict(predictions.get(row.get("id"), {}))
+        sentence_ids = {item["id"] for item in row.get("sentences", [])}
+        errors = _prediction_validation_errors(prediction, sentence_ids)
+        if errors:
+            invalid_rows.append({
+                "id": row.get("id"),
+                "title": row.get("title"),
+                "language": row["gold"].get("language"),
+                "relevance": row["gold"].get("relevance"),
+                "eventType": row["gold"].get("eventType"),
+                "errors": errors,
+                "raw": str(prediction.get("raw", ""))[:500],
+            })
+        language = row["gold"].get("language", "missing")
+        relevance_by_language[language]["total"] += 1
+        relevance_by_language[language]["correct"] += (
+            row["gold"].get("relevance") == prediction.get("relevance")
+        )
+    return {
+        "invalidRows": invalid_rows,
+        "relevanceByLanguage": {
+            key: {
+                **value,
+                "accuracy": value["correct"] / float(value["total"]),
+            }
+            for key, value in sorted(relevance_by_language.items())
+        },
+        "eventConfusion": _field_confusion(
+            truth_rows,
+            predictions,
+            "eventType",
+            relevant_only=True,
+        ),
+        "directionConfusion": _field_confusion(
+            truth_rows,
+            predictions,
+            "impactDirection",
+            relevant_only=True,
+        ),
+        "setFields": {
+            field: _set_field_error_summary(truth_rows, predictions, field)
+            for field in ("sectors", "symbols", "evidenceSentenceIds")
+        },
+    }
+
+
 def _grouped_benchmark(matched, gold_field):
     groups = defaultdict(list)
     for row, prediction in matched:

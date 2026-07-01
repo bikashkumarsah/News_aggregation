@@ -27,27 +27,16 @@ def format_example(row, tokenizer, compact_label):
     )
 
 
-def oversample_training_rows(rows):
-    selected = list(rows)
-    selected.extend(
-        row for row in rows
-        if row["gold"]["language"] == "ne"
-    )
-    selected.extend(
-        row for row in rows
-        if row["gold"]["relevance"] in {"indirect", "not_relevant"}
-    )
-    selected.extend(
-        row for row in rows
-        if (
-            row["gold"]["relevance"] in {"indirect", "not_relevant"}
-            and row["gold"]["language"] == "ne"
-        )
-    )
-    return selected
-
-
 def main():
+    from .qwen_training import (
+        assert_targeted_v2_frozen_split,
+        env_bool,
+        load_split_manifest_hash,
+        oversample_training_rows,
+        oversampling_summary,
+        qwen_training_profile,
+    )
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--train", required=True)
     parser.add_argument("--validation", required=True)
@@ -118,6 +107,25 @@ def main():
         default=os.getenv("MARKET_GYAN_OPTIM", "paged_adamw_8bit"),
     )
     parser.add_argument(
+        "--oversample-profile",
+        choices=("none", "legacy", "targeted_v2"),
+        default=os.getenv("MARKET_GYAN_OVERSAMPLE_PROFILE", "legacy"),
+    )
+    parser.add_argument(
+        "--save-best-model",
+        action="store_true",
+        default=env_bool("MARKET_GYAN_SAVE_BEST_MODEL", False),
+    )
+    parser.add_argument(
+        "--no-save-best-model",
+        action="store_false",
+        dest="save_best_model",
+    )
+    parser.add_argument(
+        "--split-manifest",
+        default=os.getenv("MARKET_GYAN_SPLIT_MANIFEST", ""),
+    )
+    parser.add_argument(
         "--lora-r",
         type=int,
         default=int(os.getenv("MARKET_GYAN_LORA_R", "16")),
@@ -151,14 +159,27 @@ def main():
 
     set_seed(args.seed)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
-    tokenizer.pad_token = tokenizer.eos_token
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
     use_bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
     compute_dtype = torch.bfloat16 if use_bf16 else torch.float16
 
-    def prepare(path, oversample=False):
-        rows = read_jsonl(path)
-        if oversample:
-            rows = oversample_training_rows(rows)
+    train_rows = read_jsonl(args.train)
+    validation_rows = read_jsonl(args.validation)
+    weighted_train_rows = oversample_training_rows(
+        train_rows,
+        profile=args.oversample_profile,
+    )
+    oversampling = oversampling_summary(train_rows, args.oversample_profile)
+    split_manifest_path = (
+        Path(args.split_manifest)
+        if args.split_manifest
+        else Path(args.train).with_name("manifest.json")
+    )
+    split_manifest_hash = load_split_manifest_hash(split_manifest_path)
+    assert_targeted_v2_frozen_split(oversampling, split_manifest_hash)
+
+    def prepare_rows(rows):
         dataset = Dataset.from_list([{
             "text": format_example(row, tokenizer, compact_qwen_label)
         } for row in rows])
@@ -215,7 +236,7 @@ def main():
     learning_rate = args.learning_rate
     if learning_rate is None:
         learning_rate = 1e-4 if args.load_in_4bit else 5e-5
-    training_args = TrainingArguments(
+    training_args_kwargs = dict(
         output_dir=str(output),
         per_device_train_batch_size=args.per_device_train_batch_size,
         per_device_eval_batch_size=args.per_device_eval_batch_size,
@@ -226,7 +247,7 @@ def main():
         logging_steps=args.logging_steps,
         eval_strategy="steps",
         eval_steps=args.eval_steps,
-        save_strategy="no",
+        save_strategy="steps" if args.save_best_model else "no",
         bf16=use_bf16,
         fp16=torch.cuda.is_available() and not use_bf16,
         optim=args.optim,
@@ -235,19 +256,58 @@ def main():
         report_to=[],
         seed=args.seed,
     )
+    if args.save_best_model:
+        training_args_kwargs.update({
+            "save_steps": args.eval_steps,
+            "save_total_limit": 2,
+            "load_best_model_at_end": True,
+            "metric_for_best_model": "eval_loss",
+            "greater_is_better": False,
+        })
+    training_args = TrainingArguments(**training_args_kwargs)
+    output.mkdir(parents=True, exist_ok=True)
+    training_profile = qwen_training_profile(
+        model_name=args.model,
+        output_name=output.name,
+        load_in_4bit=args.load_in_4bit,
+        max_seq_length=args.max_seq_length,
+        oversampling=oversampling,
+        split_manifest_hash=split_manifest_hash,
+        extra={
+            "epochs": args.epochs,
+            "learningRate": learning_rate,
+            "loraR": args.lora_r,
+            "loraAlpha": lora_alpha,
+            "loraDropout": args.lora_dropout,
+            "perDeviceTrainBatchSize": args.per_device_train_batch_size,
+            "perDeviceEvalBatchSize": args.per_device_eval_batch_size,
+            "gradientAccumulationSteps": args.gradient_accumulation_steps,
+            "evalSteps": args.eval_steps,
+            "saveBestModel": args.save_best_model,
+            "optimizer": args.optim,
+            "seed": args.seed,
+        },
+    )
+    (output / "training_profile.json").write_text(
+        json.dumps(training_profile, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=prepare(args.train, oversample=True),
-        eval_dataset=prepare(args.validation),
+        train_dataset=prepare_rows(weighted_train_rows),
+        eval_dataset=prepare_rows(validation_rows),
         data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False),
     )
     if output.exists():
         for checkpoint in output.glob("checkpoint-*"):
             shutil.rmtree(checkpoint, ignore_errors=True)
     trainer.train()
-    trainer.save_model()
+    trainer.save_model(str(output))
     tokenizer.save_pretrained(output)
+    processor_config = output / "processor_config.json"
+    if processor_config.exists():
+        processor_config.unlink()
     for checkpoint in output.glob("checkpoint-*"):
         shutil.rmtree(checkpoint, ignore_errors=True)
 
