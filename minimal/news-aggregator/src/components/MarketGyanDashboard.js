@@ -1,17 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Activity,
   AlertCircle,
+  ArrowRight,
   BarChart3,
   BookOpen,
   CheckCircle,
   Database,
   ExternalLink,
   FileText,
+  Layers,
+  LineChart,
   MessageSquare,
   RefreshCw,
   Search,
-  ShieldAlert,
-  TrendingUp
+  ShieldAlert
 } from 'lucide-react';
 import { API_URL } from '../config';
 import MarketGyanReviewPanel from './MarketGyanReviewPanel';
@@ -34,6 +37,36 @@ const formatDate = (value) => {
   if (!value) return 'N/A';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString();
+};
+
+const formatNumber = (value, fallback = 'N/A') => (
+  value === undefined || value === null || value === ''
+    ? fallback
+    : new Intl.NumberFormat().format(Number(value)) === 'NaN'
+      ? String(value)
+      : new Intl.NumberFormat().format(Number(value))
+);
+
+const formatCompactNumber = (value, fallback = 'N/A') => {
+  if (value === undefined || value === null || value === '') return fallback;
+  const normalized = typeof value === 'string'
+    ? value.match(/-?\d[\d,]*(?:\.\d+)?/)?.[0]?.replace(/,/g, '')
+    : value;
+  const numericValue = Number(normalized);
+  return Number.isFinite(numericValue)
+    ? new Intl.NumberFormat(undefined, {
+      notation: 'compact',
+      maximumFractionDigits: 2
+    }).format(numericValue)
+    : formatNumber(value, fallback);
+};
+
+const sentimentClass = (sentiment = '') => {
+  const value = String(sentiment).toLowerCase();
+  if (['bullish', 'positive'].includes(value)) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+  if (['bearish', 'negative'].includes(value)) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+  if (value === 'neutral') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+  return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
 };
 
 const readJson = async (response, fallbackMessage) => {
@@ -61,35 +94,6 @@ const StatusPill = ({ active, label }) => (
   >
     {label}
   </span>
-);
-
-const SnapshotMetric = ({ label, value, variant = 'value' }) => (
-  <div
-    className="min-w-0 rounded-xl border p-4"
-    style={{ borderColor: 'var(--border)', backgroundColor: 'var(--background)' }}
-  >
-    <p
-      className="text-xs font-bold uppercase tracking-widest"
-      style={{ color: 'var(--text-muted)' }}
-    >
-      {label}
-    </p>
-    {variant === 'status' ? (
-      <span
-        className="mt-3 inline-flex max-w-full rounded-full px-3 py-1 text-sm font-bold capitalize"
-        style={{ backgroundColor: 'var(--card)', color: 'var(--text-main)' }}
-      >
-        {value ?? 'N/A'}
-      </span>
-    ) : (
-      <p
-        className="mt-2 min-w-0 break-words text-xl font-black leading-tight lg:text-2xl"
-        style={{ color: 'var(--text-main)' }}
-      >
-        {value ?? 'N/A'}
-      </p>
-    )}
-  </div>
 );
 
 const RuntimeNotice = ({ title, children }) => (
@@ -127,6 +131,38 @@ const EmptyPanel = ({ icon: Icon, title, message }) => (
       </div>
     </div>
   </section>
+);
+
+const OverviewMetric = ({ label, value, helper, tone = 'slate' }) => {
+  const toneClass = {
+    blue: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+    emerald: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+    red: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+    amber: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+    slate: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+  }[tone] || 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+
+  return (
+    <div className="min-w-0 rounded-xl border p-4" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--background)' }}>
+      <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+        {label}
+      </p>
+      <p className="mt-2 break-words text-xl font-black leading-tight 2xl:text-2xl" style={{ color: 'var(--text-main)' }}>
+        {value ?? 'N/A'}
+      </p>
+      {helper && (
+        <span className={`mt-3 inline-flex max-w-full rounded-full px-3 py-1 text-xs font-bold ${toneClass}`}>
+          {helper}
+        </span>
+      )}
+    </div>
+  );
+};
+
+const SentimentBadge = ({ sentiment }) => (
+  <span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${sentimentClass(sentiment)}`}>
+    {sentiment || 'unavailable'}
+  </span>
 );
 
 const Field = ({ label, children }) => (
@@ -462,6 +498,22 @@ const MarketGyanDashboard = () => {
   const queryEnabled = Boolean(runtimeStatus?.queryEnabled);
   const reviewEnabled = Boolean(runtimeStatus?.reviewEnabled);
   const reportGenerationAllowed = Boolean(runtimeStatus?.localReportGenerationAllowed);
+  const snapshot = data?.snapshot || null;
+  const overviewSectors = data?.sectors || [];
+  const overviewStories = data?.stories || [];
+  const latestReportEvidenceCount = latestReport?.evidence?.length || 0;
+  const latestReportSectorCount = latestReport?.sectorAnalysis?.length || 0;
+  const snapshotTone = snapshot?.index?.changePercent > 0
+    ? 'emerald'
+    : snapshot?.index?.changePercent < 0
+      ? 'red'
+      : 'slate';
+  const readinessItems = [
+    ['Qwen agent', runtimeStatus?.agentTokenConfigured],
+    ['Qdrant index', Boolean(runtimeStatus?.qdrantCollection)],
+    ['Grounded query', runtimeStatus?.queryEnabled],
+    ['Local reports', runtimeStatus?.localReportGenerationAllowed]
+  ];
   const todayInputDate = formatDateInput();
   const reportDateInvalid = !reportDate || reportDate > todayInputDate;
   const tabs = useMemo(() => ([
@@ -695,110 +747,302 @@ const MarketGyanDashboard = () => {
           aria-labelledby="market-gyan-tab-overview"
           className="space-y-6"
         >
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <section className="premium-card p-6 xl:col-span-2">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                  <TrendingUp className="w-5 h-5" />
+          <section className="premium-card overflow-hidden">
+            <div className="grid grid-cols-1 xl:grid-cols-[1.55fr_1fr]">
+              <div className="p-6 lg:p-7">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="max-w-2xl">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-xl bg-blue-50 p-3 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+                        <LineChart className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-black leading-tight" style={{ color: 'var(--text-main)' }}>
+                          Daily market snapshot
+                        </h2>
+                        <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
+                          NEPSE close, turnover, breadth, and report readiness in one view.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <StatusPill
+                    active={Boolean(snapshot)}
+                    label={snapshot ? `${snapshot.status || 'snapshot'} data` : 'No snapshot'}
+                  />
                 </div>
-                <div>
-                  <h2 className="text-lg font-bold" style={{ color: 'var(--text-main)' }}>
-                    Daily market snapshot
-                  </h2>
-                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                    NEPSE close, turnover, market breadth, and leaders
-                  </p>
-                </div>
+
+                {snapshot ? (
+                  <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+                    <OverviewMetric
+                      label="NEPSE close"
+                      value={formatNumber(snapshot.index?.close)}
+                      helper={snapshot.index?.change != null ? `${snapshot.index.change > 0 ? '+' : ''}${snapshot.index.change} pts` : 'index'}
+                      tone={snapshotTone}
+                    />
+                    <OverviewMetric
+                      label="Change"
+                      value={snapshot.index?.changePercent != null ? `${snapshot.index.changePercent}%` : 'N/A'}
+                      helper={snapshot.index?.changePercent > 0 ? 'up session' : snapshot.index?.changePercent < 0 ? 'down session' : 'flat'}
+                      tone={snapshotTone}
+                    />
+                    <OverviewMetric
+                      label="Turnover"
+                      value={formatCompactNumber(snapshot.turnover?.amount)}
+                      helper={snapshot.turnover?.transactions != null
+                        ? `${formatNumber(snapshot.turnover.transactions)} trades`
+                        : formatNumber(snapshot.turnover?.amount)}
+                      tone="blue"
+                    />
+                    <OverviewMetric
+                      label="Breadth"
+                      value={[
+                        snapshot.breadth?.advancers ?? '-',
+                        snapshot.breadth?.decliners ?? '-',
+                        snapshot.breadth?.unchanged ?? '-'
+                      ].join(' / ')}
+                      helper="adv / dec / flat"
+                      tone="amber"
+                    />
+                    <OverviewMetric
+                      label="Status"
+                      value={snapshot.status || 'N/A'}
+                      helper="snapshot"
+                      tone={snapshot.status === 'complete' ? 'emerald' : 'amber'}
+                    />
+                  </div>
+                ) : (
+                  <div className="mt-6 rounded-xl border border-dashed p-8 text-center" style={{ borderColor: 'var(--border)' }}>
+                    <p className="font-bold" style={{ color: 'var(--text-main)' }}>
+                      Market data is not available yet.
+                    </p>
+                    <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+                      Run deterministic market ingestion before generating a daily report.
+                    </p>
+                  </div>
+                )}
+
+                {snapshot?.leaders && (
+                  <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)' }}>
+                      <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                        Top gainers
+                      </p>
+                      <div className="mt-3 space-y-2">
+                        {(snapshot.leaders.gainers || []).slice(0, 3).map((item) => (
+                          <div key={item.symbol} className="flex items-center justify-between gap-3 text-sm">
+                            <span className="font-bold" style={{ color: 'var(--text-main)' }}>{item.symbol}</span>
+                            <span className="text-emerald-600 dark:text-emerald-300">{item.changePercent ?? 'N/A'}%</span>
+                          </div>
+                        ))}
+                        {!(snapshot.leaders.gainers || []).length && (
+                          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No gainer data available.</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)' }}>
+                      <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                        Top losers
+                      </p>
+                      <div className="mt-3 space-y-2">
+                        {(snapshot.leaders.losers || []).slice(0, 3).map((item) => (
+                          <div key={item.symbol} className="flex items-center justify-between gap-3 text-sm">
+                            <span className="font-bold" style={{ color: 'var(--text-main)' }}>{item.symbol}</span>
+                            <span className="text-red-600 dark:text-red-300">{item.changePercent ?? 'N/A'}%</span>
+                          </div>
+                        ))}
+                        {!(snapshot.leaders.losers || []).length && (
+                          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No loser data available.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {data.snapshot ? (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  <SnapshotMetric label="NEPSE close" value={data.snapshot.index?.close} />
-                  <SnapshotMetric
-                    label="Change"
-                    value={data.snapshot.index?.changePercent != null
-                      ? `${data.snapshot.index.changePercent}%`
-                      : undefined}
-                  />
-                  <SnapshotMetric label="Turnover" value={data.snapshot.turnover?.amount} />
-                  <SnapshotMetric label="Status" value={data.snapshot.status} variant="status" />
+              <aside className="border-t p-6 lg:p-7 xl:border-l xl:border-t-0" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--background)' }}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-black" style={{ color: 'var(--text-main)' }}>
+                      Live runtime
+                    </h2>
+                    <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
+                      Demo services currently backing this workspace.
+                    </p>
+                  </div>
+                  <Activity className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {readinessItems.map(([label, ok]) => (
+                    <div key={label} className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card)' }}>
+                      <span className="text-sm font-bold" style={{ color: 'var(--text-main)' }}>{label}</span>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${ok ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'}`}>
+                        {ok ? 'Ready' : 'Check'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-5 rounded-xl border p-4" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card)' }}>
+                  <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                    Qdrant collection
+                  </p>
+                  <p className="mt-2 break-all text-sm font-bold" style={{ color: 'var(--text-main)' }}>
+                    {runtimeStatus?.qdrantCollection || 'Not configured'}
+                  </p>
+                </div>
+              </aside>
+            </div>
+          </section>
+
+          <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+            <div className="premium-card p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div className="max-w-2xl">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+                    <h2 className="text-xl font-black" style={{ color: 'var(--text-main)' }}>
+                      Latest report
+                    </h2>
+                  </div>
+                  <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+                    Published Qwen report with grounded citations and sentence anchors.
+                  </p>
+                </div>
+                {latestReport && <StatusPill active={latestReport.status === 'published'} label={latestReport.status || 'report'} />}
+              </div>
+
+              {latestReport ? (
+                <div className="mt-5 space-y-5">
+                  <div>
+                    <h3 className="text-2xl font-black leading-tight" style={{ color: 'var(--text-main)' }}>
+                      {latestReport.headline || 'MarketGyan report'}
+                    </h3>
+                    <p className="mt-2 text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>
+                      {formatDate(latestReport.reportDate)} • {latestReport.model?.version || latestReport.model?.name || 'model unknown'}
+                    </p>
+                  </div>
+                  <p className="line-clamp-4 text-sm leading-relaxed" style={{ color: 'var(--text-main)' }}>
+                    {latestReport.summary || 'No report summary is available.'}
+                  </p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)' }}>
+                      <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Evidence</p>
+                      <p className="mt-1 text-2xl font-black" style={{ color: 'var(--text-main)' }}>{latestReportEvidenceCount}</p>
+                    </div>
+                    <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)' }}>
+                      <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Sectors</p>
+                      <p className="mt-1 text-2xl font-black" style={{ color: 'var(--text-main)' }}>{latestReportSectorCount}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('reports')}
+                    className="btn-primary inline-flex items-center gap-2"
+                  >
+                    Open report
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
                 </div>
               ) : (
-                <div className="rounded-2xl border border-dashed p-8 text-center" style={{ borderColor: 'var(--border)' }}>
-                  <p className="font-bold" style={{ color: 'var(--text-main)' }}>
-                    Market data is not available yet.
-                  </p>
+                <div className="mt-5 rounded-xl border border-dashed p-6" style={{ borderColor: 'var(--border)' }}>
+                  <p className="font-bold" style={{ color: 'var(--text-main)' }}>No published report yet.</p>
                   <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-                    Run deterministic market ingestion before generating a daily report.
+                    Local generation is available only when the runtime checklist passes.
                   </p>
                 </div>
               )}
-            </section>
+            </div>
 
-            <EmptyPanel
-              icon={FileText}
-              title="Latest report"
-              message={
-                latestReport
-                  ? latestReport.summary
-                  : 'No report has been generated yet. Local generation is available only when the runtime checklist passes.'
-              }
-            />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <section className="premium-card p-6">
-              <div className="flex items-center gap-3 mb-5">
-                <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <h2 className="text-lg font-bold" style={{ color: 'var(--text-main)' }}>
-                  Sector sentiment
-                </h2>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+                    <h2 className="text-xl font-black" style={{ color: 'var(--text-main)' }}>
+                      Sector sentiment
+                    </h2>
+                  </div>
+                  <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+                    Deterministic snapshot sector state for the current market date.
+                  </p>
+                </div>
+                <Layers className="h-5 w-5 text-slate-400" />
               </div>
-              {data.sectors.length > 0 ? (
-                <div className="space-y-3">
-                  {data.sectors.map((sector) => (
-                    <div key={sector.name || sector.sector} className="flex items-center justify-between border-b py-3 last:border-0" style={{ borderColor: 'var(--border)' }}>
-                      <span className="font-semibold" style={{ color: 'var(--text-main)' }}>{sector.name || sector.sector}</span>
-                      <span className="text-sm font-bold capitalize" style={{ color: 'var(--text-muted)' }}>{sector.sentiment}</span>
+
+              {overviewSectors.length > 0 ? (
+                <div className="mt-5 space-y-3">
+                  {overviewSectors.slice(0, 8).map((sector) => (
+                    <div key={sector.name || sector.sector} className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3" style={{ borderColor: 'var(--border)' }}>
+                      <div className="min-w-0">
+                        <span className="block truncate font-bold" style={{ color: 'var(--text-main)' }}>{sector.name || sector.sector}</span>
+                        {sector.changePercent !== undefined && (
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            {sector.changePercent}% change
+                          </span>
+                        )}
+                      </div>
+                      <SentimentBadge sentiment={sector.sentiment} />
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                <p className="mt-5 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                   Sector sentiment will appear after market data and finance documents are available.
                 </p>
               )}
             </section>
+          </section>
 
-            <section className="premium-card p-6">
-              <div className="flex items-center gap-3 mb-5">
-                <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <h2 className="text-lg font-bold" style={{ color: 'var(--text-main)' }}>
+          <section className="premium-card p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <div className="flex items-center gap-3">
+                  <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+                  <h2 className="text-xl font-black" style={{ color: 'var(--text-main)' }}>
                   Evidence and market stories
-                </h2>
+                  </h2>
+                </div>
+                <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+                  Recent indexed evidence that can feed grounded answers and reports.
+                </p>
               </div>
-              {data.stories.length > 0 ? (
-                <div className="space-y-4">
-                  {data.stories.map((story) => (
+              <button
+                type="button"
+                onClick={() => setActiveTab('search')}
+                className="btn-secondary inline-flex items-center gap-2"
+              >
+                Search evidence
+                <Search className="h-4 w-4" />
+              </button>
+            </div>
+
+            {overviewStories.length > 0 ? (
+              <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                {overviewStories.slice(0, 6).map((story) => (
+                  <article key={story.url || story.id} className="rounded-xl border p-4" style={{ borderColor: 'var(--border)' }}>
                     <a
-                      key={story.url || story.id}
                       href={story.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block font-semibold hover:text-blue-600"
+                      className="line-clamp-2 font-bold hover:text-blue-600"
                       style={{ color: 'var(--text-main)' }}
                     >
                       {story.title}
                     </a>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                  Source-backed financial stories and regulatory evidence will appear after ingestion and indexing.
-                </p>
-              )}
-            </section>
-          </div>
+                    <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {[story.source, formatDate(story.publishedAt)].filter(Boolean).join(' • ') || 'MarketGyan evidence'}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-5 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                Source-backed financial stories and regulatory evidence will appear after ingestion and indexing.
+              </p>
+            )}
+          </section>
         </div>
       )}
 

@@ -1,1 +1,1 @@
-"""MarketGyan CrewAI service."""
+"""MarketGyan single-pass agent service."""

@@ -50,6 +50,8 @@ def scenario_metrics(rows):
     citations = []
     sentence_citations = []
     grounding = []
+    disclaimers = []
+    advice = []
     freshness = []
     latency = []
     for row in rows:
@@ -62,6 +64,10 @@ def scenario_metrics(rows):
             sentence_citations.append(bool(result["sentenceCitationsCorrect"]))
         if "grounded" in result:
             grounding.append(bool(result["grounded"]))
+        if "disclaimerPresent" in result:
+            disclaimers.append(bool(result["disclaimerPresent"]))
+        if "adviceSafe" in result:
+            advice.append(bool(result["adviceSafe"]))
         if result.get("freshnessSeconds") is not None:
             freshness.append(float(result["freshnessSeconds"]))
         if result.get("latencySeconds") is not None:
@@ -72,6 +78,8 @@ def scenario_metrics(rows):
         "citationCorrectness": mean(citations),
         "sentenceCitationCorrectness": mean(sentence_citations),
         "grounding": mean(grounding),
+        "disclaimerPresence": mean(disclaimers),
+        "adviceSafety": mean(advice),
         "averageFreshnessSeconds": mean(freshness),
         "averageLatencySeconds": mean(latency),
         "p95LatencySeconds": percentile(latency, 95),

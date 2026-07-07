@@ -84,8 +84,8 @@
     \small
     \textbf{Document boundary.} This report covers the MarketGyan data
     pipeline, API-assisted structuring, dataset preparation, model design,
-    fine-tuning configuration, and evaluation plan. It intentionally excludes
-    web application and frontend development.
+    fine-tuning configuration, retrieval/runtime evaluation, and local
+    frontend demonstration evidence.
   \end{minipage}
 \end{titlepage}
 \hypersetup{pageanchor=true}
@@ -97,11 +97,12 @@
 MarketGyan is a Nepal-focused financial NLP research project extending the
 existing Khabar AI data platform. Its revised contribution is
 \textbf{NEPSE-Impact-500}: a human-adjudicated bilingual benchmark and
-Qwen3-8B adapter for deciding whether Nepal-focused news is relevant to
-NEPSE, classifying the event, mapping it to listed companies and sectors, and
-producing an evidence-grounded potential-impact explanation. The novelty is
-the Nepal-specific dataset, ontology, task definition, and evaluation design;
-LoRA is an efficient adaptation method, not the research novelty.
+Qwen3.5-9B targeted-v2 adapter for deciding whether Nepal-focused news is
+relevant to NEPSE, classifying the event, mapping it to listed companies and
+sectors, and producing evidence-grounded potential-impact explanations. The
+novelty is the Nepal-specific dataset, ontology, task definition, retrieval
+contract, and evaluation design; LoRA is an efficient adaptation method, not
+the research novelty.
 
 Human review of the first schema exposed a material corpus-quality problem.
 Several general-business stories passed schema validation and some were
@@ -121,23 +122,67 @@ adjudicated gold records. The current NEPSE-Impact-500 gold corpus contains
 \VTwoIndirectSelectionCount{} indirect records, and
 \VTwoNegativeSelectionCount{} hard negatives after targeted rebalance. It
 passes the composition, language, source, symbol, and event-coverage gates.
-The approved JSONL export and balanced duplicate-grouped split manifest are
-ready for training. Three model-output sets have now been audited. XLM-R is
-the current reliable supervised baseline, while the third compact-label Qwen
-QLoRA run still failed the official strict JSON and evidence-grounding gates.
-The v3 Qwen outputs do show partial extraction learning under tolerant
-diagnostic repair, but runtime use still requires schema-constrained decoding
-and remains disabled.
+The approved JSONL export and balanced duplicate-grouped split manifest have
+been used for XLM-R, FinBERT, Qwen3-8B diagnostic runs, and two Qwen3.5-9B
+A100 runs. The current served candidate is
+\texttt{marketgyan-qwen35-9b-targeted-v2}, a Qwen3.5-9B BF16 LoRA adapter
+hosted through Lightning AI vLLM. On the frozen test split it reached strict
+structured-output validity of 1.000 and evidence grounding of 1.000, with
+relevance macro-F1 of 0.796. It did not clear the full content gate:
+direction macro-F1 was 0.575, neutral recall was 0.000, and sector, symbol,
+and evidence-recall metrics remained below target.
 
-The modeling plan now compares Gemma before edits, base Qwen3-8B zero-shot,
-base Qwen3-8B three-shot, XLM-R, English-only FinBERT, and MarketGyan
-Qwen3-8B QLoRA \cite{finbert,fingpt,finllmSurvey,fintral,conneau2020xlmr,qwen3ModelCard,dettmers2023qlora}.
+Runtime evaluation confirms the correct serving boundary. Direct
+unconstrained adapter prompting is diagnostic only because it can emit
+reasoning text instead of JSON. vLLM JSON Schema constrained decoding is the
+model-only structured inference path, and the application path is a
+single-pass RAG agent that retrieves compact evidence, asks Qwen3.5-9B for
+evidence indexes, and materializes exact citations from retrieved rows. The
+single-pass live scenario run passed schema, citation, sentence-citation,
+grounding, disclaimer, and no-advice checks for all 20 proposal scenarios.
+Retrieval remains the main blocker: judged-query Precision@5 is 0.262 over
+13 query groups with labeled returned candidates, and all-30-query
+zero-padded Precision@5 is 0.113. The current decision is therefore
+\textbf{demo-only / research prototype}, not deployable.
+
+The evaluated model stack now compares Gemma before edits, base Qwen3-8B
+zero-shot, base Qwen3-8B three-shot, XLM-R, English-only FinBERT, earlier
+Qwen3-8B QLoRA diagnostics, and the served MarketGyan Qwen3.5-9B targeted-v2
+LoRA adapter \cite{finbert,fingpt,finllmSurvey,fintral,conneau2020xlmr,qwen3ModelCard,qwen35ModelCard,dettmers2023qlora}.
 Static adaptation teaches the task, Nepal-market terminology, mappings, and
 reasoning pattern. Current prices, policies, and announcements remain in
 retrieval-augmented generation rather than model weights.
 
 \textbf{Safety statement:} MarketGyan provides informational analysis based on
 public data. It is not investment advice and does not place trades.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Final proposal-evaluation readout for the current served candidate.}
+  \small
+  \begin{tabularx}{\textwidth}{@{}L{0.32\textwidth}L{0.30\textwidth}Y@{}}
+    \toprule
+    Area & Current result & Submission decision \\
+    \midrule
+    Model-only Qwen3.5-9B targeted-v2 &
+      Validity 1.000, grounding 1.000, relevance macro-F1 0.796 &
+      Structural gate passes; content gate still fails on direction, neutral,
+      and set-field recall. \\
+    vLLM JSON Schema constrained inference &
+      Validity 0.987, grounding 0.987 on the 75-row frozen test split &
+      Correct structured model-serving path; not a content-metric fix. \\
+    Single-pass live RAG scenarios &
+      20/20 passed schema, citation, grounding, disclaimer, and advice-safety checks &
+      Acceptable for grounded local demonstration. \\
+    Retrieval &
+      Judged-query Precision@5 0.262; all-query zero-padded Precision@5 0.113 &
+      Fails the 0.60 proposal retrieval gate. \\
+    Frontend/report smoke &
+      Live Qwen answer, evidence search, and 2026-06-11 report generation passed &
+      Demo-ready, but not deployment-ready. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
 
 \tableofcontents
 \clearpage
@@ -261,26 +306,33 @@ composition gates must be checked again after adjudication.
   Third-run outputs exist and have been audited. XLM-R relevance is currently
   the strongest reliable classifier; direction remains weaker, especially for
   neutral cases. \\
-  Qwen3-8B QLoRA & \implemented &
-  A direct Colab/Kaggle notebook implements zero-shot, three-shot, four-bit
-  QLoRA, checkpoint resumption, deterministic JSON generation, ablation
-  controls, plots, smoke testing, strict metrics, and tolerant diagnostic
-  metrics. The third compact-label Qwen run still failed strict validity and
-  grounding gates, so runtime use remains disabled. \\
+  Qwen adapter experiments & \implemented &
+  The notebook path implements zero-shot, three-shot, LoRA/QLoRA training,
+  checkpoint resumption, deterministic JSON generation, ablation controls,
+  plots, smoke testing, strict metrics, tolerant diagnostics, and vLLM JSON
+  Schema constrained inference. Earlier Qwen3-8B runs are diagnostic; the
+  current served candidate is Qwen3.5-9B targeted-v2. \\
   Qdrant retrieval & \implemented &
   Dedicated collection, deterministic chunking, content-hash idempotency,
-  metadata filters, and citation reconstruction are implemented. No live
-  retrieval benchmark has been run. \\
-  CrewAI orchestration & \implemented &
-  A protected FastAPI service defines Researcher, Analyst, and Publisher roles
-  with strict response validation and fail-closed dependencies. It has not
-  been connected to a trained adapter. \\
+  metadata filters, and citation reconstruction are implemented. A 1,000
+  document local index has been populated and manually judged retrieval
+  results show that metadata/filter coverage is the main remaining blocker. \\
+  Agent orchestration & \implemented &
+  A protected FastAPI service supports deterministic mock mode and a compact
+  single-pass live runtime with strict response validation and fail-closed
+  dependencies. Mock-mode and single-pass live scenarios pass citation gates;
+  the earlier CrewAI-style prompt is retained only as a context-window failure
+  diagnosis. \\
   Reporting and automation & \implemented &
   Grounded query/report APIs and an idempotent ingestion, indexing, reporting,
-  archival, and digest sequence exist behind disabled configuration flags. \\
+  archival, and digest sequence exist behind protected local/runtime flags.
+  Frontend smoke testing generated and archived a published report for
+  2026-06-11. \\
   Runtime inference & \implemented &
-  Local OpenAI-compatible vLLM or llama.cpp boundaries are configured, but no
-  model is enabled in the application runtime. \\
+  The Qwen3.5-9B targeted-v2 adapter is served through Lightning AI vLLM with
+  JSON Schema constrained decoding available for structured model-only
+  inference. The Mac agent uses a single-pass indexed-citation runtime for the
+  application/demo path. \\
   \bottomrule
 \end{longtable}
 \normalsize
@@ -861,6 +913,315 @@ only. They show that the adapter learned part of the extraction task, but they
 do not satisfy the official gate and must not be used as deployment
 readiness.
 
+\subsection{Qwen3.5-9B A100 80GB follow-up outputs}
+
+After the Qwen3-8B failure analysis, the next two completed A100 80GB runs
+used \texttt{Qwen/Qwen3.5-9B} with BF16 LoRA, LoRA rank 32, maximum sequence
+length 2,048, train batch 4, evaluation batch 4, and gradient accumulation 2.
+Both were evaluated on the unchanged frozen 75-row test split. The first run
+is the plain A100 80GB baseline output
+\texttt{marketgyan-qwen35-9b-a100-80gb-bf16-lora}; the second is the
+targeted-v2 oversampling output
+\texttt{marketgyan-qwen35-9b-a100-80gb-bf16-lora-targeted-v2}.
+
+The targeted-v2 run used only the frozen train split. It expanded the 350
+training rows to 922 weighted examples with the \texttt{targeted\_v2}
+oversampling profile, capped row weight at 8, used learning rate
+\(2 \times 10^{-5}\), saved the best validation-loss checkpoint, wrote
+\texttt{training\_profile.json}, and wrote
+\texttt{deep\_error\_slices.json}. The older A100 baseline artifact did not
+include these run-profile and deep-slice files and still contained a
+\texttt{processor\_config.json}; the targeted-v2 artifact saved only the text
+tokenizer configuration for the text-only adapter.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Strict frozen-test comparison for Qwen3.5-9B A100 80GB runs.}
+  \small
+  \begin{tabularx}{\textwidth}{@{}lrrr@{}}
+    \toprule
+    Metric & Baseline & Targeted-v2 & Delta \\
+    \midrule
+    Structured-output validity & 0.960 & 1.000 & +0.040 \\
+    Evidence grounding & 0.987 & 1.000 & +0.013 \\
+    Invalid outputs & 3 & 0 & -3 \\
+    Relevance macro-F1 & 0.735 & 0.796 & +0.061 \\
+    Nepali relevance accuracy & 0.667 & 0.788 & +0.121 \\
+    English relevance accuracy & 0.857 & 0.881 & +0.024 \\
+    Event macro-F1 & 0.597 & 0.633 & +0.036 \\
+    Direction macro-F1 & 0.582 & 0.575 & -0.007 \\
+    Neutral direction recall & 0.000 & 0.000 & 0.000 \\
+    Sector micro-F1 & 0.759 & 0.677 & -0.082 \\
+    Symbol micro-F1 & 0.815 & 0.793 & -0.022 \\
+    Evidence sentence micro-F1 & 0.765 & 0.736 & -0.028 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+The targeted-v2 profile achieved the intended structural improvement: strict
+validity, evidence grounding, and invalid-output count all cleared the
+deployment-structure gate. It also beat the content baseline on relevance
+macro-F1 and Nepali relevance accuracy. However, it did not satisfy the full
+next-phase content acceptance target because event macro-F1 remained below
+0.65, direction macro-F1 remained below 0.65, neutral recall stayed at zero,
+and the set-valued sector, symbol, and evidence metrics regressed.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Targeted-v2 acceptance-gate readout.}
+  \small
+  \begin{tabularx}{\textwidth}{@{}lrrX@{}}
+    \toprule
+    Gate metric & Target & Observed & Result \\
+    \midrule
+    Structured-output validity & 0.960 & 1.000 & Pass \\
+    Evidence grounding & 0.980 & 1.000 & Pass \\
+    Invalid outputs & 3 max & 0 & Pass \\
+    Relevance macro-F1 & 0.780 & 0.796 & Pass \\
+    Nepali relevance accuracy & 0.720 & 0.788 & Pass \\
+    Event macro-F1 & 0.650 & 0.633 & Fail \\
+    Direction macro-F1 & 0.650 & 0.575 & Fail \\
+    Neutral direction recall & 0.330 & 0.000 & Fail \\
+    Sector micro-F1 & 0.760 & 0.677 & Fail \\
+    Symbol micro-F1 & 0.810 & 0.793 & Fail \\
+    Evidence sentence micro-F1 & 0.770 & 0.736 & Fail \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+The deep-slice diagnostics explain the mixed result. There were no invalid
+rows in the targeted-v2 strict outputs. Relevance accuracy improved to 37 of
+42 English rows and 26 of 33 Nepali rows. Event errors concentrated in a few
+taxonomy confusions: four \texttt{capital\_action} rows were predicted as
+\texttt{earnings}, two \texttt{credit\_financing} rows were predicted as
+\texttt{capital\_action}, and three \texttt{sector\_industry} rows were missed
+as either \texttt{not\_applicable} or \texttt{regulation}. Direction remained
+the main blocker: all six neutral examples were missed, with two predicted
+as bullish and four as uncertain; five bullish examples were predicted as
+uncertain, and three uncertain examples were predicted as bullish.
+
+The set-valued fields show a recall problem rather than a grounding-format
+problem. Targeted-v2 sector precision was 0.878 but recall was only 0.551;
+common missing sectors included \texttt{Hydropower},
+\texttt{Manufacturing and Processing}, and \texttt{Hotels and Tourism}. Symbol
+precision was 0.902 and recall was 0.708, with remaining misses on dense
+market-summary rows and ticker aliases. Evidence sentence precision was 0.831
+and recall was 0.661, so the model selected valid sentence IDs but often
+selected too few of the adjudicated evidence anchors. The next improvement
+should therefore not be another blind model switch or longer training run. It
+should address neutral examples, sector/ticker recall, and evidence-anchor
+coverage directly through data or schema-constrained post-processing.
+
+\subsection{Proposal-aligned runtime evaluation start}
+
+The frozen targeted-v2 adapter was next served through the Lightning AI vLLM
+endpoint as \texttt{marketgyan-qwen35-9b-targeted-v2}. The local FastAPI
+agent was configured with live generation enabled and deterministic mock mode
+disabled. A reusable proposal-evaluation harness now writes model-only,
+constrained-inference, retrieval, and scenario artifacts under
+\texttt{ml/marketGyan/outputs/proposal\_eval/}. The frozen split was not
+modified.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Proposal-aligned frozen model versus constrained runtime inference.}
+  \small
+  \begin{tabularx}{\textwidth}{@{}lrrr@{}}
+    \toprule
+    Metric & Frozen adapter output & vLLM constrained zero-shot & Change \\
+    \midrule
+    Structured-output validity & 1.000 & 0.987 & -0.013 \\
+    Evidence grounding & 1.000 & 0.987 & -0.013 \\
+    Invalid outputs & 0 & 1 & +1 \\
+    Relevance macro-F1 & 0.796 & 0.819 & +0.023 \\
+    Event macro-F1 & 0.633 & 0.604 & -0.029 \\
+    Direction macro-F1 & 0.575 & 0.585 & +0.010 \\
+    Sector micro-F1 & 0.677 & 0.643 & -0.034 \\
+    Symbol micro-F1 & 0.793 & 0.709 & -0.084 \\
+    Evidence sentence micro-F1 & 0.736 & 0.704 & -0.032 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+The constrained zero-shot runtime pass processed all 75 frozen test rows and
+kept structural quality above the 95\% proposal gate, but it did not improve
+the content metrics enough for deployment. Relevance improved modestly, while
+event, sector, symbol, and evidence-anchor scores declined. Three-shot
+constrained inference was not used as an official runtime result in this pass
+because the active vLLM server was configured with \texttt{max-model-len=2048};
+the three-shot prompt exceeded that context budget. A larger-context vLLM
+restart is required before three-shot constrained inference is a fair
+comparison.
+
+Direct unconstrained adapter prompting is not treated as a structured runtime
+path. A live smoke prompt against the served Qwen3.5-9B adapter produced
+reasoning text before JSON and hit the generation limit. In contrast, a compact
+vLLM \texttt{response\_format=json\_schema} smoke test returned valid JSON for
+the same classification style. The report therefore separates three paths:
+unconstrained prompting is diagnostic only, JSON Schema constrained decoding is
+the model-only structured-output path, and the single-pass RAG agent is the
+application path because citations are materialized from retrieved evidence
+rows.
+
+The local runtime prerequisites were then started. MongoDB, Qdrant, the Node
+backend, and the FastAPI agent were reachable. The MarketGyan index job
+processed 1,000 documents with no failures and populated the dedicated
+\texttt{market\_gyan\_documents} collection with 2,038 chunk points. The
+proposal retrieval harness exported top-5 candidates for all 30 canonical
+retrieval queries to
+\texttt{outputs/proposal\_eval/retrieval\_results.single\_pass\_labeled.json}.
+Thirteen queries returned five candidates, while 17 returned no candidates. The
+65 returned candidates were manually labeled against each query-specific
+judgment rubric. The current evaluator reports judged-query Precision@5 of
+0.262 over the 13 query groups that returned labeled candidates. If the 17
+empty query groups are counted as 0/5 against all 30 canonical proposal
+queries, all-query zero-padded Precision@5 is 0.113. Both values are below
+the 0.60 proposal minimum. Most empty queries used sector or source filters
+whose exact values are not populated in the indexed payloads.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Proposal retrieval evaluation after manual labels.}
+  \small
+  \begin{tabularx}{\textwidth}{@{}L{0.54\textwidth}Y@{}}
+    \toprule
+    Retrieval item & Result \\
+    \midrule
+    Canonical queries exported & 30 \\
+    Queries with at least one candidate & 13 \\
+    Queries with no candidate & 17 \\
+    Total exported candidates & 65 \\
+    Judged queries & 13 \\
+    Relevant candidates among returned top-5 slots & 17 / 65 \\
+    Judged-query Precision@5 & 0.262 \\
+    All-query zero-padded Precision@5 & 0.113 \\
+    Main observed blocker & Missing or mismatched sector/source metadata filters \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+The 20 report/query scenarios were run in mock mode and live mode. The
+deterministic mock agent passed the schema, citation, sentence-citation,
+grounding, disclaimer, and no-advice checks for all 20 scenarios. This
+validates the retrieval and citation-validation path when the generator is not
+involved. The first live Qwen full run failed all 20 scenarios because the Mac
+agent was configured with the Lightning root URL rather than the
+\texttt{/v1} OpenAI-compatible base path, causing requests to hit
+\texttt{/chat/completions}. After correcting the base path and serving vLLM
+with tool-call support, a live smoke request reached
+\texttt{/v1/chat/completions} but failed because the CrewAI prompt exceeded
+the configured 4,096-token context window. The runtime tool output has been
+compacted to citation-ready records. A follow-up Lightning restart exposed
+\texttt{Qwen/Qwen3.5-9B} with \texttt{max\_model\_len=8192} and the
+\texttt{marketgyan-qwen35-9b-targeted-v2} LoRA adapter loaded. Backend,
+Qdrant, and the live FastAPI agent were then started successfully, but the
+CrewAI request still exceeded the larger context window: vLLM reported at
+least 8,193 input tokens for an 8,192-token limit. The full live scenario run
+was stopped after repeated identical context failures. A second Lightning
+restart increased \texttt{max\_model\_len} to 16,384 and confirmed that the
+same adapter remained loaded. Backend, Qdrant, and the FastAPI agent again
+passed preflight, but the live scenario run still failed with the same pattern:
+vLLM reported at least 16,385 input tokens for a 16,384-token limit. The run
+was interrupted after repeated context failures, so no official 16k CrewAI
+scenario metrics are available. The application agent was then changed to a
+single-pass runtime: it retrieves compact evidence, asks vLLM for JSON with
+evidence indexes, and materializes exact citation objects from the retrieved
+rows. The single-pass live rerun completed all 20 scenarios without HTTP,
+schema, citation, grounding, disclaimer, or advice-safety failures. Average
+latency was 6.23 seconds and p95 latency was 9.07 seconds.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Proposal scenario gate status.}
+  \small
+  \begin{tabularx}{\textwidth}{@{}lrrl@{}}
+    \toprule
+    Check & Mock & Single-pass live & Notes \\
+    \midrule
+    Completed & 20/20 & 20/20 & Single-pass replaced context-heavy CrewAI path \\
+    Schema & 1.000 & 1.000 & Response model validation passed \\
+    Citations & 1.000 & 1.000 & Required source fields present \\
+    Sentence citations & 1.000 & 1.000 & Sentence IDs resolve to returned evidence \\
+    Grounding & 1.000 & 1.000 & Citations materialized from retrieved rows \\
+    Disclaimer & 1.000 & 1.000 & Required disclaimer present \\
+    Advice safety & 1.000 & 1.000 & No buy/sell advice detected \\
+    Avg latency, s & 0.029 & 6.230 & Single-pass p95 latency was 9.075 s \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{Frontend demo and report-generation smoke}
+
+On July 3, 2026, the demo runtime was exercised end to end from the local
+React dashboard against the Lightning-hosted Qwen adapter. The vLLM model list
+reported \texttt{Qwen/Qwen3.5-9B} with \texttt{max\_model\_len=16384} and the
+\texttt{marketgyan-qwen35-9b-targeted-v2} LoRA adapter loaded. On the Mac,
+Qdrant was green with 2,038 points in
+\texttt{market\_gyan\_documents}; the FastAPI agent reported
+\texttt{single\_pass} mode with live generation enabled; and the Node runtime
+status showed query, review, local report generation, and agent-token checks
+enabled. The latest available market snapshot was partial for
+2026-06-11.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Frontend demo smoke test against live Qwen runtime.}
+  \small
+  \begin{tabularx}{\textwidth}{@{}lX@{}}
+    \toprule
+    Demo check & Result \\
+    \midrule
+    Dashboard load & Market Gyan rendered with Overview, Ask, Evidence Search,
+    Reports, System, and Validate data tabs. \\
+    System tab & Query API, review tools, local report generation, agent token,
+    latest snapshot, latest published report, and Qdrant collection checks were
+    visible. \\
+    Ask tab & A live Qwen answer rendered with the required disclaimer,
+    citations, sentence IDs, and expanded sentence text. \\
+    Evidence Search tab & Query \texttt{NEPSE trading hours} returned
+    sentence-anchored ShareSansar evidence rather than an error or empty state. \\
+    Report generation & Local generation for 2026-06-11 completed with status
+    \texttt{published}, three evidence citations, and three sector-analysis
+    rows. \\
+    Report archival & The generated report was archived as
+    \texttt{market-gyan://reports/2026-06-11} with complete generated text and
+    evidence provenance. \\
+    Reports tab & The published report headline, summary, sector analysis,
+    citation list, and sentence anchors were visible in the frontend. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+The generated report headline was
+\textit{Nepal Stock Exchange Market Snapshot: Mixed Performance Amid Regulatory
+Updates}. It summarized a 2,728.03 NEPSE close, a 0.29\% daily decline, bullish
+hydropower evidence, bearish finance/debenture evidence, and neutral regulatory
+context. The report is suitable for a grounded demonstration because the prose
+is displayed with source URLs, excerpts, content hashes, sentence IDs, and
+expanded sentence text. It is not a deployment-quality market product because
+retrieval quality remains below the proposal gate.
+
+After the frontend smoke test, the 20 proposal scenarios were rerun through the
+same live single-pass setup and scored against the labeled retrieval file. The
+scenario gate again passed all structural checks: schema adherence, citation
+correctness, sentence-citation correctness, grounding, disclaimer presence, and
+advice safety were all 1.000. Average latency was 6.665 seconds and p95 latency
+was 9.735 seconds. Retrieval remained unchanged: judged-query Precision@5 was
+0.262 over the 13 query groups with labeled returned candidates, and
+all-query zero-padded Precision@5 was 0.113 across the 30 canonical proposal
+queries. During the smoke test, the runtime status endpoint was
+aligned with \texttt{/reports/latest} so the System tab reports the latest
+published report rather than a later failed generation attempt.
+
+The current decision is demo-only, not deployable. The trained adapter passes
+the structural model gate, constrained zero-shot serving preserves structural
+quality, and both mock-mode and single-pass live RAG/citation checks pass.
+The frontend can now demonstrate live Qwen query answering, evidence search,
+and report generation. However, judged-query Precision@5 is only 0.262,
+all-query zero-padded Precision@5 is 0.113, filtered retrieval coverage is
+weak, and the model's direction, neutral, sector, symbol, and evidence-recall
+metrics remain below the proposal target.
+
 \section{RAG evidence and citation anchors}
 
 MarketGyan keeps changing facts in retrieval memory rather than model weights,
@@ -908,15 +1269,17 @@ measures:
         end-to-end latency over at least 20 report or query scenarios.
 \end{itemize}
 
-Runtime inference remains disabled unless all of the following gates pass:
+Production deployment remains blocked unless all of the following gates pass:
 
 \begin{itemize}
   \item Qwen structured-output validity is at least 95\%;
   \item evidence grounding is at least 95\%;
   \item every relevance and direction class has usable measured performance;
-        and
-  \item QLoRA improves macro-F1 over base Qwen by at least 0.05 or the paired
-        bootstrap 95\% confidence interval for improvement excludes zero.
+  \item retrieval Precision@5 reaches the 0.60 proposal minimum over the 30
+        canonical query groups; and
+  \item the adapted Qwen model improves macro-F1 over base Qwen by at least
+        0.05 or the paired bootstrap 95\% confidence interval for improvement
+        excludes zero.
 \end{itemize}
 
 \section{Ablations and market-reaction analysis}
@@ -936,8 +1299,9 @@ bootstrap confidence intervals as exploratory association, never causation
 or forecasting performance.
 
 The repository includes 30 retrieval-query specifications and 20 system
-scenario specifications. They define the benchmark but do not yet contain
-measured judgments or results.
+scenario specifications. The July 3 run produced measured retrieval labels and
+scenario metrics for these benchmarks; retrieval remains below the proposal
+gate, while the single-pass live scenario gate passes.
 
 \chapter{Proposal Gap Analysis and AI Backend}
 
@@ -945,19 +1309,22 @@ measured judgments or results.
 
 The original proposal is preserved as the submitted baseline. The current
 implementation updates its model choice from Qwen2.5 to
-\texttt{Qwen/Qwen3-8B}, keeps XLM-R as the supervised baseline, and separates
-the public Node API from the Python agent and model-serving processes. OCR is
-removed rather than deferred. The methodology refinement is motivated by the
-proposal's references 4--8 and the corpus-quality problem found during review.
+\texttt{Qwen/Qwen3.5-9B} for the current served adapter, keeps XLM-R as the
+supervised baseline, and separates the public Node API from the Python agent
+and model-serving processes. Earlier Qwen3-8B runs are retained as diagnostic
+baselines. OCR is removed rather than deferred. The methodology refinement is
+motivated by the proposal's references 4--8 and the corpus-quality problem
+found during review.
 
 \section{Revised novelty claim}
 
 \begin{quote}
 \textbf{MarketGyan introduces NEPSE-Impact-500, a human-adjudicated bilingual
-benchmark and Qwen3-8B adapter for identifying whether Nepal-focused news is
-relevant to NEPSE, classifying its event type, mapping it to listed companies
-and sectors, and producing evidence-grounded potential-impact explanations.
-Current facts remain in RAG rather than model weights.}
+benchmark and Qwen3.5-9B targeted-v2 adapter for identifying whether
+Nepal-focused news is relevant to NEPSE, classifying its event type, mapping it
+to listed companies and sectors, and producing evidence-grounded
+potential-impact explanations. Current facts remain in RAG rather than model
+weights.}
 \end{quote}
 
 \small
@@ -1018,25 +1385,28 @@ adaptation experiment while reducing stale-knowledge and hallucination risk.
   duplicate-grouped split are complete. The 40-record model-error audit loop
   has been reviewed and the refreshed export passes validation before final
   reruns. \\
-  Model experiments & \planned &
-  XLM-R, FinBERT, and one Qwen QLoRA run have been executed and audited.
-  Compact-Qwen rerun, base-Qwen zero-shot/three-shot, ablations, and final
-  measured results remain. \\
+  Model experiments & \implemented &
+  XLM-R, FinBERT, base-Qwen prompting, Qwen3-8B diagnostic QLoRA, and
+  Qwen3.5-9B targeted-v2 LoRA have been executed and audited. Remaining work
+  is analysis and ablation depth, not another final-submission training run. \\
   Finance RAG & \implemented &
   Qdrant chunking, payload provenance, filters, and citation reconstruction
-  exist. Live indexing and 30-query manual evaluation remain. \\
+  exist. Live indexing and manual labels for the 30-query suite exist, but
+  filter coverage and Precision@5 remain below the proposal gate. \\
   Agent workflow & \implemented &
-  Researcher, Analyst, and Publisher roles use a sequential CrewAI process
-  \cite{crewAIFlows}. A trained Qwen adapter and live scenario evaluation
-  remain. \\
+  The earlier sequential CrewAI design \cite{crewAIFlows} was replaced for the
+  live demo by a compact single-pass RAG agent after repeated context-window
+  failures. Mock and single-pass live scenario evaluations pass citation
+  gates. \\
   Local model serving & \implemented &
-  The agent accepts a local OpenAI-compatible endpoint suitable for vLLM
-  \cite{vllmOpenAI} or llama.cpp. Serving remains disabled without a trained
-  adapter. \\
+  The served candidate is the Lightning AI vLLM OpenAI-compatible endpoint
+  \cite{vllmOpenAI} for \texttt{Qwen/Qwen3.5-9B} plus the targeted-v2 LoRA
+  adapter. JSON Schema constrained decoding is the structured model-only path. \\
   Reporting and automation & \implemented &
   Grounded report storage, archival, protected generation, scheduler
-  rerun-safety, and digest suppression are implemented. Live end-to-end
-  validation remains. \\
+  rerun-safety, and digest suppression are implemented. Local frontend smoke
+  testing generated and archived a grounded report; production scheduling
+  remains blocked by retrieval and content gates. \\
   OCR & \textbf{Excluded} &
   Unreadable and legacy-font regulatory files remain failed audit records and
   are not part of the project deliverables. \\
@@ -1054,20 +1424,23 @@ content keeps stable point identifiers, while changed content replaces stale
 points. Search supports query, date, sector, source, language, and document
 type filters.
 
-\section{CrewAI, reports, and fail-closed operation}
+\section{Single-pass agent, reports, and fail-closed operation}
 
-The Python FastAPI service defines three sequential roles. The Researcher
-calls the protected Node retrieval endpoint. The Analyst combines retrieved
-chunks with deterministic market context. The Publisher produces strict JSON
-with citations and the informational disclaimer. Citation URLs and excerpts
-must match retrieved material before the response is accepted.
+The Python FastAPI service now uses a compact single-pass runtime for the live
+demo. It calls the protected Node retrieval endpoint, sends compact evidence
+rows and deterministic market context to the served Qwen3.5-9B adapter, and
+materializes strict citations from retrieved rows. Citation URLs, excerpts,
+sentence IDs, and expanded sentence text must match retrieved material before
+the response is accepted. The earlier sequential CrewAI prompt remains useful
+as a design reference, but it is not the current live path because it exceeded
+the vLLM context window.
 
 Node remains responsible for public APIs, report persistence, post-market
 scheduling, and newsletter delivery. The scheduler runs ingestion, indexing,
 generation, report archival, reindexing, and delivery in order. A failed or
-uncited report prevents publication and suppresses the digest. Qdrant,
-CrewAI, query inference, the scheduler, and digest delivery are all disabled
-by default and fail closed when dependencies or credentials are unavailable.
+uncited report prevents publication and suppresses the digest. Qdrant, query
+inference, the scheduler, and digest delivery remain protected by explicit
+runtime flags and fail closed when dependencies or credentials are unavailable.
 
 \chapter{Risks and Limitations}
 
@@ -1098,9 +1471,12 @@ by default and fail closed when dependencies or credentials are unavailable.
         \RetryableFailureCount{} transient jobs remain eligible under the
         current retry policy.
   \item Independent second-review agreement has not yet been measured.
-  \item The second Qwen fine-tuning run still failed strict JSON validity,
-        evidence grounding, Nepali relevance, and macro-F1 gates.
-  \item No live retrieval, agent, or inference benchmarks exist yet.
+  \item Earlier Qwen3-8B diagnostic fine-tuning runs failed strict JSON
+        validity, evidence grounding, Nepali relevance, and macro-F1 gates.
+  \item Proposal-aligned runtime checks show that single-pass live scenarios
+        pass, but judged-query Precision@5 is only 0.262, all-query
+        zero-padded Precision@5 is 0.113, and filtered retrieval coverage is
+        weak.
 \end{itemize}
 
 \section{Report update procedure}
@@ -1119,15 +1495,20 @@ more defensible NEPSE-specific research design. The schema-v1 pilot exposed
 the need for a relevance gate and hard negatives. Schema v2 now implements a
 versioned ontology, bilingual aliases, sentence-grounded Gemma proposals,
 independent annotations, explicit adjudication, duplicate-safe export,
-reaction records, and model notebooks covering XLM-R, FinBERT, base Qwen, and
-Qwen3-8B QLoRA. The methodology and quota-compliant 500-record adjudicated
-dataset are implemented and exported. Three model-output sets have been
-audited, and the latest run keeps XLM-R as the reliable supervised baseline.
-Qwen remains a negative strict-output experiment until it can produce valid
-JSON and grounded evidence consistently, although tolerant diagnostics now
-show partial extraction learning. Agreement results, constrained-decoding
-serving, retrieval benchmarks, agent benchmarks, and reaction analysis are
-not complete.
+reaction records, and model notebooks covering XLM-R, FinBERT, base Qwen,
+Qwen3-8B diagnostics, and Qwen3.5-9B LoRA. The methodology and
+quota-compliant 500-record adjudicated dataset are implemented and exported.
+The current served Qwen3.5 targeted-v2 adapter passes strict JSON and
+grounding gates on the frozen test split, but its direction, neutral, sector,
+symbol, and evidence-recall metrics remain below the proposal target. JSON
+Schema constrained serving keeps structural quality above the proposal gate
+but does not solve the content errors. The proposal runtime pass populated the
+Qdrant evidence index, produced manual retrieval labels, and passed both
+deterministic mock and single-pass live citation scenarios. Retrieval remains
+below the proposal minimum: judged-query Precision@5 is 0.262, and all-query
+zero-padded Precision@5 is 0.113. Agreement results and reaction analysis
+remain incomplete. The current status is a grounded demo/research prototype,
+not a deployable market product.
 
 \chapter{Remaining Work}
 
@@ -1142,22 +1523,23 @@ application interface:
         below 0.70.
   \item If any new label fixes are made, regenerate the JSONL export,
         balanced split, XLM-R baseline, and English-only FinBERT baseline.
-  \item Rerun base-Qwen zero-shot, base-Qwen three-shot, and compact-label
-        Qwen3-8B QLoRA with schema-constrained decoding where available.
+  \item Keep the served Qwen3.5-9B targeted-v2 adapter as the current model
+        candidate for final submission; do not introduce alternative
+        Qwen-size metrics unless a separate evaluated artifact exists.
   \item Keep reporting strict Qwen metrics as the official gate and tolerant
         repaired-output metrics only as failure-analysis diagnostics.
   \item Run QLoRA/base-Qwen, hard-negative, and RAG ablations; use paired
         bootstrap analysis for the adaptation claim.
   \item Compute first- and third-session market reactions with missing-data
         and overlap warnings, and report association only.
-  \item Populate the live MarketGyan Qdrant collection and manually judge the
-        30 retrieval queries, including Precision@5 and citation correctness.
-  \item Serve the trained adapter through the configured local
-        OpenAI-compatible endpoint and execute the 20 CrewAI report/query
-        scenarios.
-  \item Enable report generation, scheduling, and digest delivery only after
-        the structured-validity, grounding, class-performance, and adaptation
-        gates pass.
+  \item Fix sector/source metadata normalization and retrieval filters, then
+        rerun the 30-query retrieval evaluation until Precision@5 reaches the
+        proposal minimum.
+  \item Keep the 20-scenario single-pass live run as the current runtime
+        control, and rerun it only after retrieval metadata or prompt changes.
+  \item Keep local report generation available for demo, but enable production
+        scheduling and digest delivery only after retrieval, content, and
+        adaptation gates pass.
 \end{enumerate}
 
 \begingroup

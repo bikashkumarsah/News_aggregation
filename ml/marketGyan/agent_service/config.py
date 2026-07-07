@@ -30,6 +30,9 @@ class Settings:
     request_timeout_seconds: float = float(
         os.getenv("MARKET_GYAN_AGENT_TIMEOUT_SECONDS", "120")
     )
+    generation_max_tokens: int = int(
+        os.getenv("MARKET_GYAN_AGENT_MAX_TOKENS", "512")
+    )
 
 
 settings = Settings()

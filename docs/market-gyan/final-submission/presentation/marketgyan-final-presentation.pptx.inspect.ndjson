@@ -1,0 +1,219 @@
+{"kind":"deck","id":"pr/81p3e6","name":"Deck"}
+{"kind":"layout","layoutId":"a47ead56-30c6-49d9-aa57-7da3ee442cab","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"e1e61fd2-50f0-4ee1-99d4-c91631d31d6f","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/4uyjsy","slide":1,"title":"Kathmandu University","textShapes":5}
+{"kind":"shape","id":"sh/mhk3q5o7","slide":1,"bbox":[0,0,1280,720]}
+{"kind":"shape","id":"sh/t83itgfm","slide":1,"bbox":[0,604,1280,116]}
+{"kind":"textbox","id":"sh/4nap4r65","slide":1,"text":"Kathmandu University\nDepartment of Artificial Intelligence","textPreview":"Kathmandu University | Department of Artificial Intelligence","textChars":58,"textLines":2,"bbox":[82,56,760,78]}
+{"kind":"textbox","id":"sh/bq1oryts","slide":1,"text":"MarketGyan","textPreview":"MarketGyan","textChars":10,"textLines":1,"bbox":[82,182,820,86]}
+{"kind":"textbox","id":"sh/m58z25kb","slide":1,"text":"NEPSE and Financial News Analysis\nAn Extension of Khabar AI","textPreview":"NEPSE and Financial News Analysis | An Extension of Khabar AI","textChars":59,"textLines":2,"bbox":[86,284,860,88]}
+{"kind":"textbox","id":"sh/twra5gbq","slide":1,"text":"Final Project Submission | Bikash Kumar Sah | Roll 16","textPreview":"Final Project Submission | Bikash Kumar Sah | Roll 16","textChars":53,"textLines":1,"bbox":[86,640,900,32]}
+{"kind":"textbox","id":"sh/4byhgn29","slide":1,"text":"July 3, 2026","textPreview":"July 3, 2026","textChars":12,"textLines":1,"bbox":[1030,642,170,28]}
+{"kind":"notes","id":"nt/4uyjsy","slide":1,"text":""}
+{"kind":"slide","id":"sl/qx3b4v","slide":2,"title":"PROBLEM","textShapes":6}
+{"kind":"textbox","id":"sh/4fu18jqh","slide":2,"text":"PROBLEM","textPreview":"PROBLEM","textChars":7,"textLines":1,"bbox":[72,36,600,24]}
+{"kind":"textbox","id":"sh/fu18jqh0","slide":2,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[1160,34,48,28]}
+{"kind":"shape","id":"sh/m94fu18j","slide":2,"bbox":[72,66,1136,2]}
+{"kind":"textbox","id":"sh/xobm58z2","slide":2,"text":"Nepal-market information is fragmented","textPreview":"Nepal-market information is fragmented","textChars":38,"textLines":1,"bbox":[72,104,930,58]}
+{"kind":"textbox","id":"sh/83itgfml","slide":2,"text":"- NEPSE movement, sector activity, news, and regulatory updates live in separate sources.\n- General summaries do not answer whether a story is market-relevant.\n- Financial users need evidence-backed explanation, not generic positive or negative tone.\n- The system must avoid buy/sell advice and show why each claim is grounded.","textPreview":"- NEPSE movement, sector activity, news, and regulatory updates live in separate sources. | - General summaries do not answer whether a s...","textChars":327,"textLines":4,"bbox":[90,190,720,260]}
+{"kind":"shape","id":"sh/fil0rqd4","slide":2,"bbox":[875,182,300,240]}
+{"kind":"textbox","id":"sh/qxs72x4n","slide":2,"text":"Core Question","textPreview":"Core Question","textChars":13,"textLines":1,"bbox":[902,216,250,28]}
+{"kind":"textbox","id":"sh/xkf6dcbu","slide":2,"text":"Can a Nepal-specific system connect market data, bilingual financial news, and citation-grounded generation?","textPreview":"Can a Nepal-specific system connect market data, bilingual financial news, and citation-grounded generation?","textChars":108,"textLines":1,"bbox":[902,265,245,118]}
+{"kind":"notes","id":"nt/qx3b4v","slide":2,"text":""}
+{"kind":"slide","id":"sl/x6gn5i","slide":3,"title":"CONTRIBUTION","textShapes":11}
+{"kind":"textbox","id":"sh/d4vmtwra","slide":3,"text":"CONTRIBUTION","textPreview":"CONTRIBUTION","textChars":12,"textLines":1,"bbox":[72,36,600,24]}
+{"kind":"textbox","id":"sh/6dcbulwv","slide":3,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[1160,34,48,28]}
+{"kind":"shape","id":"sh/vy90je9c","slide":3,"bbox":[72,66,1136,2]}
+{"kind":"textbox","id":"sh/o7qpg3ex","slide":3,"text":"What MarketGyan contributes","textPreview":"What MarketGyan contributes","textChars":27,"textLines":1,"bbox":[72,104,850,56]}
+{"kind":"shape","id":"sh/dsji5sne","slide":3,"bbox":[82,192,500,130]}
+{"kind":"textbox","id":"sh/61032lsz","slide":3,"text":"NEPSE-Impact-500","textPreview":"NEPSE-Impact-500","textChars":16,"textLines":1,"bbox":[106,216,440,32]}
+{"kind":"textbox","id":"sh/vmtwra5g","slide":3,"text":"500 adjudicated English/Nepali rows with sentence evidence.","textPreview":"500 adjudicated English/Nepali rows with sentence evidence.","textChars":59,"textLines":1,"bbox":[106,258,430,46]}
+{"kind":"shape","id":"sh/ovahoza1","slide":3,"bbox":[630,192,500,130]}
+{"kind":"textbox","id":"sh/dg7adsji","slide":3,"text":"Qwen3.5-9B LoRA","textPreview":"Qwen3.5-9B LoRA","textChars":15,"textLines":1,"bbox":[654,216,440,32]}
+{"kind":"textbox","id":"sh/1032lszq","slide":3,"text":"Targeted-v2 adapter for compact structured impact extraction.","textPreview":"Targeted-v2 adapter for compact structured impact extraction.","textChars":61,"textLines":1,"bbox":[654,258,430,46]}
+{"kind":"shape","id":"sh/cfa9w3m9","slide":3,"bbox":[82,366,500,130]}
+{"kind":"textbox","id":"sh/judg7ads","slide":3,"text":"Finance RAG","textPreview":"Finance RAG","textChars":11,"textLines":1,"bbox":[106,390,440,32]}
+{"kind":"textbox","id":"sh/u9knih4b","slide":3,"text":"Qdrant evidence chunks with URL, hash, sentence IDs, and excerpts.","textPreview":"Qdrant evidence chunks with URL, hash, sentence IDs, and excerpts.","textChars":66,"textLines":1,"bbox":[106,432,430,46]}
+{"kind":"shape","id":"sh/1orytsvu","slide":3,"bbox":[630,366,500,130]}
+{"kind":"textbox","id":"sh/c7u54zid","slide":3,"text":"Demo System","textPreview":"Demo System","textChars":11,"textLines":1,"bbox":[654,390,440,32]}
+{"kind":"textbox","id":"sh/jm1cfa9w","slide":3,"text":"React dashboard for Ask, Evidence Search, Reports, and System status.","textPreview":"React dashboard for Ask, Evidence Search, Reports, and System status.","textChars":69,"textLines":1,"bbox":[654,432,430,46]}
+{"kind":"notes","id":"nt/x6gn5i","slide":3,"text":""}
+{"kind":"slide","id":"sl/ug6uiv","slide":4,"title":"ARCHITECTURE","textShapes":18}
+{"kind":"textbox","id":"sh/4vmtwra5","slide":4,"text":"ARCHITECTURE","textPreview":"ARCHITECTURE","textChars":12,"textLines":1,"bbox":[72,36,600,24]}
+{"kind":"textbox","id":"sh/bat47y1k","slide":4,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[1160,34,48,28]}
+{"kind":"shape","id":"sh/mp0bi9s3","slide":4,"bbox":[72,66,1136,2]}
+{"kind":"textbox","id":"sh/tsvu9kni","slide":4,"text":"Final system architecture","textPreview":"Final system architecture","textChars":25,"textLines":1,"bbox":[72,104,760,54]}
+{"kind":"shape","id":"sh/47y1kre1","slide":4,"bbox":[74,220,184,102]}
+{"kind":"textbox","id":"sh/bm58z25k","slide":4,"text":"Sources","textPreview":"Sources","textChars":7,"textLines":1,"bbox":[90,234,152,22]}
+{"kind":"textbox","id":"sh/m1cfa9w3","slide":4,"text":"NEPSE, news,\nNRB/SEBON","textPreview":"NEPSE, news, | NRB/SEBON","textChars":22,"textLines":2,"bbox":[90,264,154,45]}
+{"kind":"shape","id":"sh/twra5gbq","slide":4,"bbox":[314,220,184,102]}
+{"kind":"textbox","id":"sh/4byhgn29","slide":4,"text":"Backend","textPreview":"Backend","textChars":7,"textLines":1,"bbox":[330,234,152,22]}
+{"kind":"textbox","id":"sh/m58z25kb","slide":4,"text":"Khabar AI\nNode APIs","textPreview":"Khabar AI | Node APIs","textChars":19,"textLines":2,"bbox":[330,264,154,45]}
+{"kind":"shape","id":"sh/bq1oryts","slide":4,"bbox":[554,220,184,102]}
+{"kind":"textbox","id":"sh/4byhgn29","slide":4,"text":"Storage","textPreview":"Storage","textChars":7,"textLines":1,"bbox":[570,234,152,22]}
+{"kind":"textbox","id":"sh/twra5gbq","slide":4,"text":"MongoDB\nrecords","textPreview":"MongoDB | records","textChars":15,"textLines":2,"bbox":[570,264,154,45]}
+{"kind":"shape","id":"sh/mhk3q5o7","slide":4,"bbox":[794,220,184,102]}
+{"kind":"textbox","id":"sh/b2hwfyxo","slide":4,"text":"Evidence","textPreview":"Evidence","textChars":8,"textLines":1,"bbox":[810,234,152,22]}
+{"kind":"textbox","id":"sh/4nap4r65","slide":4,"text":"Qdrant\n2038 chunks","textPreview":"Qdrant | 2038 chunks","textChars":18,"textLines":2,"bbox":[810,264,154,45]}
+{"kind":"shape","id":"sh/t83itgfm","slide":4,"bbox":[314,420,184,102]}
+{"kind":"textbox","id":"sh/mp0bi9s3","slide":4,"text":"Agent","textPreview":"Agent","textChars":5,"textLines":1,"bbox":[330,434,152,22]}
+{"kind":"textbox","id":"sh/bat47y1k","slide":4,"text":"FastAPI\nsingle-pass RAG","textPreview":"FastAPI | single-pass RAG","textChars":23,"textLines":2,"bbox":[330,464,154,45]}
+{"kind":"shape","id":"sh/3ex0nuxc","slide":4,"bbox":[554,420,184,102]}
+{"kind":"textbox","id":"sh/at47y1kr","slide":4,"text":"Model","textPreview":"Model","textChars":5,"textLines":1,"bbox":[570,434,152,22]}
+{"kind":"textbox","id":"sh/lkjm1cfa","slide":4,"text":"Lightning vLLM\nQwen3.5-9B LoRA","textPreview":"Lightning vLLM | Qwen3.5-9B LoRA","textChars":30,"textLines":2,"bbox":[570,464,154,45]}
+{"kind":"shape","id":"sh/szqtcj6t","slide":4,"bbox":[794,420,184,102]}
+{"kind":"textbox","id":"sh/32lszqtc","slide":4,"text":"Frontend","textPreview":"Frontend","textChars":8,"textLines":1,"bbox":[810,434,152,22]}
+{"kind":"textbox","id":"sh/ahoza1gv","slide":4,"text":"React dashboard\nAsk/Search/Reports","textPreview":"React dashboard | Ask/Search/Reports","textChars":34,"textLines":2,"bbox":[810,464,154,45]}
+{"kind":"textbox","id":"sh/l87ed8ba","slide":4,"text":"- Changing facts stay in retrieval, not model weights.\n- Citations are materialized from retrieved evidence rows.\n- Unsupported answers fail closed.","textPreview":"- Changing facts stay in retrieval, not model weights. | - Citations are materialized from retrieved evidence rows. | - Unsupported answe...","textChars":148,"textLines":3,"bbox":[74,555,1030,78]}
+{"kind":"notes","id":"nt/ug6uiv","slide":4,"text":""}
+{"kind":"slide","id":"sl/o86x6b","slide":5,"title":"DATASET","textShapes":22}
+{"kind":"textbox","id":"sh/9s36hcrm","slide":5,"text":"DATASET","textPreview":"DATASET","textChars":7,"textLines":1,"bbox":[72,36,600,24]}
+{"kind":"textbox","id":"sh/y1kre1w7","slide":5,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[1160,34,48,28]}
+{"kind":"shape","id":"sh/rmhk3q5o","slide":5,"bbox":[72,66,1136,2]}
+{"kind":"textbox","id":"sh/gfmlkjm1","slide":5,"text":"NEPSE-Impact-500","textPreview":"NEPSE-Impact-500","textChars":16,"textLines":1,"bbox":[72,104,600,54]}
+{"kind":"shape","id":"sh/90je9cvi","slide":5,"bbox":[80,198,250,116]}
+{"kind":"textbox","id":"sh/yd0z6103","slide":5,"text":"500","textPreview":"500","textChars":3,"textLines":1,"bbox":[98,216,214,36]}
+{"kind":"textbox","id":"sh/rytsvu9k","slide":5,"text":"Gold records","textPreview":"Gold records","textChars":12,"textLines":1,"bbox":[98,254,214,26]}
+{"kind":"textbox","id":"sh/gr2p8nqx","slide":5,"text":"human-adjudicated","textPreview":"human-adjudicated","textChars":17,"textLines":1,"bbox":[98,280,214,22]}
+{"kind":"shape","id":"sh/9cvixcze","slide":5,"bbox":[365,198,320,116]}
+{"kind":"textbox","id":"sh/tovahoza","slide":5,"text":"300 / 100 / 100","textPreview":"300 / 100 / 100","textChars":15,"textLines":1,"bbox":[383,216,284,36]}
+{"kind":"textbox","id":"sh/032lszqt","slide":5,"text":"Direct / indirect / hard-negative","textPreview":"Direct / indirect / hard-negative","textChars":33,"textLines":1,"bbox":[383,254,284,26]}
+{"kind":"textbox","id":"sh/bi9s36hc","slide":5,"text":"balanced relevance gate","textPreview":"balanced relevance gate","textChars":23,"textLines":1,"bbox":[383,280,284,22]}
+{"kind":"shape","id":"sh/ixczed8v","slide":5,"bbox":[724,198,310,116]}
+{"kind":"textbox","id":"sh/p0bi9s36","slide":5,"text":"299 EN / 200 NE","textPreview":"299 EN / 200 NE","textChars":15,"textLines":1,"bbox":[742,216,274,36]}
+{"kind":"textbox","id":"sh/0fepkzup","slide":5,"text":"Languages","textPreview":"Languages","textChars":9,"textLines":1,"bbox":[742,254,274,26]}
+{"kind":"textbox","id":"sh/bulwval8","slide":5,"text":"plus 1 mixed","textPreview":"plus 1 mixed","textChars":12,"textLines":1,"bbox":[742,280,274,22]}
+{"kind":"shape","id":"sh/i9s36hcr","slide":5,"bbox":[80,354,250,116]}
+{"kind":"textbox","id":"sh/t47y1kre","slide":5,"text":"273","textPreview":"273","textChars":3,"textLines":1,"bbox":[98,372,214,36]}
+{"kind":"textbox","id":"sh/0je9cvix","slide":5,"text":"Symbol-level rows","textPreview":"Symbol-level rows","textChars":17,"textLines":1,"bbox":[98,410,214,26]}
+{"kind":"textbox","id":"sh/g7adsji5","slide":5,"text":"listed-entity mapping","textPreview":"listed-entity mapping","textChars":21,"textLines":1,"bbox":[98,436,214,22]}
+{"kind":"shape","id":"sh/9s36hcrm","slide":5,"bbox":[365,354,320,116]}
+{"kind":"textbox","id":"sh/y1kre1w7","slide":5,"text":"350 / 75 / 75","textPreview":"350 / 75 / 75","textChars":13,"textLines":1,"bbox":[383,372,284,36]}
+{"kind":"textbox","id":"sh/rmhk3q5o","slide":5,"text":"Frozen split","textPreview":"Frozen split","textChars":12,"textLines":1,"bbox":[383,410,284,26]}
+{"kind":"textbox","id":"sh/gfmlkjm1","slide":5,"text":"train / validation / test","textPreview":"train / validation / test","textChars":25,"textLines":1,"bbox":[383,436,284,22]}
+{"kind":"shape","id":"sh/90je9cvi","slide":5,"bbox":[724,354,310,116]}
+{"kind":"textbox","id":"sh/yd0z6103","slide":5,"text":">= 20","textPreview":">= 20","textChars":5,"textLines":1,"bbox":[742,372,274,36]}
+{"kind":"textbox","id":"sh/rytsvu9k","slide":5,"text":"Core event floor","textPreview":"Core event floor","textChars":16,"textLines":1,"bbox":[742,410,274,26]}
+{"kind":"textbox","id":"sh/gr2p8nqx","slide":5,"text":"per required category","textPreview":"per required category","textChars":21,"textLines":1,"bbox":[742,436,274,22]}
+{"kind":"textbox","id":"sh/9cvixcze","slide":5,"text":"Schema v2 fixed the pilot issue by separating relevance from potential impact and requiring numbered source-sentence evidence.","textPreview":"Schema v2 fixed the pilot issue by separating relevance from potential impact and requiring numbered source-sentence evidence.","textChars":126,"textLines":1,"bbox":[92,540,960,58]}
+{"kind":"notes","id":"nt/o86x6b","slide":5,"text":""}
+{"kind":"slide","id":"sl/e5h5jb","slide":6,"title":"MODELING","textShapes":5}
+{"kind":"textbox","id":"sh/9s36hcrm","slide":6,"text":"MODELING","textPreview":"MODELING","textChars":8,"textLines":1,"bbox":[72,36,600,24]}
+{"kind":"textbox","id":"sh/y1kre1w7","slide":6,"text":"06","textPreview":"06","textChars":2,"textLines":1,"bbox":[1160,34,48,28]}
+{"kind":"shape","id":"sh/rmhk3q5o","slide":6,"bbox":[72,66,1136,2]}
+{"kind":"textbox","id":"sh/gfmlkjm1","slide":6,"text":"Model path and final candidate","textPreview":"Model path and final candidate","textChars":30,"textLines":1,"bbox":[72,104,890,54]}
+{"kind":"textbox","id":"sh/90je9cvi","slide":6,"text":"- Baselines: XLM-R, English-only FinBERT, and base Qwen prompting.\n- Earlier Qwen3-8B QLoRA runs were diagnostic and failed strict schema/grounding gates.\n- Final candidate: Qwen3.5-9B BF16 LoRA, targeted-v2 oversampling, best validation checkpoint.\n- Training used only the frozen train split; test failures were not reused as training data.","textPreview":"- Baselines: XLM-R, English-only FinBERT, and base Qwen prompting. | - Earlier Qwen3-8B QLoRA runs were diagnostic and failed strict sche...","textChars":342,"textLines":4,"bbox":[90,186,920,218]}
+{"kind":"shape","id":"sh/yd0z6103","slide":6,"bbox":[92,460,990,92]}
+{"kind":"textbox","id":"sh/rytsvu9k","slide":6,"text":"Final served adapter: marketgyan-qwen35-9b-targeted-v2","textPreview":"Final served adapter: marketgyan-qwen35-9b-targeted-v2","textChars":54,"textLines":1,"bbox":[122,490,900,30]}
+{"kind":"notes","id":"nt/e5h5jb","slide":6,"text":""}
+{"kind":"slide","id":"sl/rbnykl","slide":7,"title":"RESULTS","textShapes":28}
+{"kind":"textbox","id":"sh/ovahoza1","slide":7,"text":"RESULTS","textPreview":"RESULTS","textChars":7,"textLines":1,"bbox":[72,36,600,24]}
+{"kind":"textbox","id":"sh/vahoza1g","slide":7,"text":"07","textPreview":"07","textChars":2,"textLines":1,"bbox":[1160,34,48,28]}
+{"kind":"shape","id":"sh/6tovahoz","slide":7,"bbox":[72,66,1136,2]}
+{"kind":"textbox","id":"sh/d8v6psfi","slide":7,"text":"Frozen test-set result","textPreview":"Frozen test-set result","textChars":22,"textLines":1,"bbox":[72,104,690,54]}
+{"kind":"shape","id":"sh/onyd0z61","slide":7,"bbox":[78,190,250,116]}
+{"kind":"textbox","id":"sh/z25kb6xk","slide":7,"text":"1.000","textPreview":"1.000","textChars":5,"textLines":1,"bbox":[96,208,214,36]}
+{"kind":"textbox","id":"sh/6hcrmhk3","slide":7,"text":"Structured validity","textPreview":"Structured validity","textChars":19,"textLines":1,"bbox":[96,246,214,26]}
+{"kind":"textbox","id":"sh/d4vmtwra","slide":7,"text":"passes gate","textPreview":"passes gate","textChars":11,"textLines":1,"bbox":[96,272,214,22]}
+{"kind":"shape","id":"sh/oj2t83it","slide":7,"bbox":[352,190,250,116]}
+{"kind":"textbox","id":"sh/2x4nap4r","slide":7,"text":"1.000","textPreview":"1.000","textChars":5,"textLines":1,"bbox":[370,208,214,36]}
+{"kind":"textbox","id":"sh/vixczed8","slide":7,"text":"Evidence grounding","textPreview":"Evidence grounding","textChars":18,"textLines":1,"bbox":[370,246,214,26]}
+{"kind":"textbox","id":"sh/k3q5o7qp","slide":7,"text":"passes gate","textPreview":"passes gate","textChars":11,"textLines":1,"bbox":[370,272,214,22]}
+{"kind":"shape","id":"sh/donyd0z6","slide":7,"bbox":[626,190,250,116]}
+{"kind":"textbox","id":"sh/6psfil0r","slide":7,"text":"0.796","textPreview":"0.796","textChars":5,"textLines":1,"bbox":[644,208,214,36]}
+{"kind":"textbox","id":"sh/val87ed8","slide":7,"text":"Relevance macro-F1","textPreview":"Relevance macro-F1","textChars":18,"textLines":1,"bbox":[644,246,214,26]}
+{"kind":"textbox","id":"sh/kre1w7mp","slide":7,"text":"passes target","textPreview":"passes target","textChars":13,"textLines":1,"bbox":[644,272,214,22]}
+{"kind":"shape","id":"sh/dcbulwva","slide":7,"bbox":[900,190,250,116]}
+{"kind":"textbox","id":"sh/2lszqtcj","slide":7,"text":"0.575","textPreview":"0.575","textChars":5,"textLines":1,"bbox":[918,208,214,36]}
+{"kind":"textbox","id":"sh/v6psfil0","slide":7,"text":"Direction macro-F1","textPreview":"Direction macro-F1","textChars":18,"textLines":1,"bbox":[918,246,214,26]}
+{"kind":"textbox","id":"sh/nuxc3ylc","slide":7,"text":"below target","textPreview":"below target","textChars":12,"textLines":1,"bbox":[918,272,214,22]}
+{"kind":"shape","id":"sh/y90je9cv","slide":7,"bbox":[78,344,250,116]}
+{"kind":"textbox","id":"sh/5wjudg7a","slide":7,"text":"0.633","textPreview":"0.633","textChars":5,"textLines":1,"bbox":[96,362,214,36]}
+{"kind":"textbox","id":"sh/gbq1oryt","slide":7,"text":"Event macro-F1","textPreview":"Event macro-F1","textChars":14,"textLines":1,"bbox":[96,400,214,26]}
+{"kind":"textbox","id":"sh/n29gr2p8","slide":7,"text":"below 0.65","textPreview":"below 0.65","textChars":10,"textLines":1,"bbox":[96,426,214,22]}
+{"kind":"shape","id":"sh/yhgn29gr","slide":7,"bbox":[352,344,250,116]}
+{"kind":"textbox","id":"sh/58z25kb6","slide":7,"text":"0.677","textPreview":"0.677","textChars":5,"textLines":1,"bbox":[370,362,214,36]}
+{"kind":"textbox","id":"sh/gn29gr2p","slide":7,"text":"Sector F1","textPreview":"Sector F1","textChars":9,"textLines":1,"bbox":[370,400,214,26]}
+{"kind":"textbox","id":"sh/neloj2t8","slide":7,"text":"recall weak","textPreview":"recall weak","textChars":11,"textLines":1,"bbox":[370,426,214,22]}
+{"kind":"shape","id":"sh/ytsvu9kn","slide":7,"bbox":[626,344,250,116]}
+{"kind":"textbox","id":"sh/4zidonyd","slide":7,"text":"0.793","textPreview":"0.793","textChars":5,"textLines":1,"bbox":[644,362,214,36]}
+{"kind":"textbox","id":"sh/xkf6dcbu","slide":7,"text":"Symbol F1","textPreview":"Symbol F1","textChars":9,"textLines":1,"bbox":[644,400,214,26]}
+{"kind":"textbox","id":"sh/mtwra5gb","slide":7,"text":"below 0.81","textPreview":"below 0.81","textChars":10,"textLines":1,"bbox":[644,426,214,22]}
+{"kind":"shape","id":"sh/fepkzupw","slide":7,"bbox":[900,344,250,116]}
+{"kind":"textbox","id":"sh/4r65wjud","slide":7,"text":"0.736","textPreview":"0.736","textChars":5,"textLines":1,"bbox":[918,362,214,36]}
+{"kind":"textbox","id":"sh/xc3ylc7u","slide":7,"text":"Evidence sentence F1","textPreview":"Evidence sentence F1","textChars":20,"textLines":1,"bbox":[918,400,214,26]}
+{"kind":"textbox","id":"sh/mlkjm1cf","slide":7,"text":"below 0.77","textPreview":"below 0.77","textChars":10,"textLines":1,"bbox":[918,426,214,22]}
+{"kind":"textbox","id":"sh/f6dcbulw","slide":7,"text":"Interpretation: the adapter learned schema and relevance, but content quality is still not deployable.","textPreview":"Interpretation: the adapter learned schema and relevance, but content quality is still not deployable.","textChars":102,"textLines":1,"bbox":[82,540,980,36]}
+{"kind":"notes","id":"nt/rbnykl","slide":7,"text":""}
+{"kind":"slide","id":"sl/9376u4","slide":8,"title":"RUNTIME","textShapes":5}
+{"kind":"textbox","id":"sh/2t83itgf","slide":8,"text":"RUNTIME","textPreview":"RUNTIME","textChars":7,"textLines":1,"bbox":[72,36,600,24]}
+{"kind":"textbox","id":"sh/9knih4by","slide":8,"text":"08","textPreview":"08","textChars":2,"textLines":1,"bbox":[1160,34,48,28]}
+{"kind":"shape","id":"sh/kzupwb2h","slide":8,"bbox":[72,66,1136,2]}
+{"kind":"textbox","id":"sh/rqd4vmtw","slide":8,"text":"Why the live path is single-pass RAG","textPreview":"Why the live path is single-pass RAG","textChars":36,"textLines":1,"bbox":[72,104,930,54]}
+{"kind":"textbox","id":"sh/25kb6xkf","slide":8,"text":"- Unconstrained direct prompting can emit reasoning text and is diagnostic only.\n- vLLM JSON Schema constrained decoding is the structured model-only path.\n- The CrewAI-style multi-agent prompt exceeded 4k, 8k, and 16k context limits.\n- The final agent retrieves compact evidence and asks Qwen for evidence indexes in one pass.\n- Public citations are reconstructed from retrieved rows, not hallucinated by the model.","textPreview":"- Unconstrained direct prompting can emit reasoning text and is diagnostic only. | - vLLM JSON Schema constrained decoding is the structu...","textChars":416,"textLines":5,"bbox":[88,182,940,282]}
+{"kind":"shape","id":"sh/9w3m94fu","slide":8,"bbox":[92,515,930,58]}
+{"kind":"textbox","id":"sh/kb6xkf6d","slide":8,"text":"Result: 20/20 live scenarios passed schema, citation, grounding, disclaimer, and advice-safety checks.","textPreview":"Result: 20/20 live scenarios passed schema, citation, grounding, disclaimer, and advice-safety checks.","textChars":102,"textLines":1,"bbox":[116,534,880,26]}
+{"kind":"notes","id":"nt/9376u4","slide":8,"text":""}
+{"kind":"slide","id":"sl/4acb17","slide":9,"title":"SYSTEM EVALUATION","textShapes":17}
+{"kind":"textbox","id":"sh/g3ex0nux","slide":9,"text":"SYSTEM EVALUATION","textPreview":"SYSTEM EVALUATION","textChars":17,"textLines":1,"bbox":[72,36,600,24]}
+{"kind":"textbox","id":"sh/nih4byhg","slide":9,"text":"09","textPreview":"09","textChars":2,"textLines":1,"bbox":[1160,34,48,28]}
+{"kind":"shape","id":"sh/yxobm58z","slide":9,"bbox":[72,66,1136,2]}
+{"kind":"textbox","id":"sh/9cvixcze","slide":9,"text":"Proposal-aligned evaluation","textPreview":"Proposal-aligned evaluation","textChars":27,"textLines":1,"bbox":[72,104,780,54]}
+{"kind":"shape","id":"sh/gr2p8nqx","slide":9,"bbox":[80,192,270,116]}
+{"kind":"textbox","id":"sh/r65wjudg","slide":9,"text":"0.987","textPreview":"0.987","textChars":5,"textLines":1,"bbox":[98,210,234,36]}
+{"kind":"textbox","id":"sh/ylc7u54z","slide":9,"text":"Constrained validity","textPreview":"Constrained validity","textChars":20,"textLines":1,"bbox":[98,248,234,26]}
+{"kind":"textbox","id":"sh/90je9cvi","slide":9,"text":"75-row frozen split","textPreview":"75-row frozen split","textChars":19,"textLines":1,"bbox":[98,274,234,22]}
+{"kind":"shape","id":"sh/gfmlkjm1","slide":9,"bbox":[382,192,270,116]}
+{"kind":"textbox","id":"sh/65wjudg7","slide":9,"text":"0.987","textPreview":"0.987","textChars":5,"textLines":1,"bbox":[400,210,234,36]}
+{"kind":"textbox","id":"sh/zqtcj6to","slide":9,"text":"Constrained grounding","textPreview":"Constrained grounding","textChars":21,"textLines":1,"bbox":[400,248,234,26]}
+{"kind":"textbox","id":"sh/obm58z25","slide":9,"text":"above 0.95 gate","textPreview":"above 0.95 gate","textChars":15,"textLines":1,"bbox":[400,274,234,22]}
+{"kind":"shape","id":"sh/hwfyxobm","slide":9,"bbox":[684,192,270,116]}
+{"kind":"textbox","id":"sh/6xkf6dcb","slide":9,"text":"0.262","textPreview":"0.262","textChars":5,"textLines":1,"bbox":[702,210,234,36]}
+{"kind":"textbox","id":"sh/zed8v6ps","slide":9,"text":"Judged-query P@5","textPreview":"Judged-query P@5","textChars":16,"textLines":1,"bbox":[702,248,234,26]}
+{"kind":"textbox","id":"sh/oza1gvy9","slide":9,"text":"13 query groups","textPreview":"13 query groups","textChars":15,"textLines":1,"bbox":[702,274,234,22]}
+{"kind":"shape","id":"sh/hk3q5o7q","slide":9,"bbox":[986,192,210,116]}
+{"kind":"textbox","id":"sh/al87ed8b","slide":9,"text":"0.113","textPreview":"0.113","textChars":5,"textLines":1,"bbox":[1004,210,174,36]}
+{"kind":"textbox","id":"sh/z61032ls","slide":9,"text":"All-query P@5","textPreview":"All-query P@5","textChars":13,"textLines":1,"bbox":[1004,248,174,26]}
+{"kind":"textbox","id":"sh/bi9s36hc","slide":9,"text":"30 query groups","textPreview":"30 query groups","textChars":15,"textLines":1,"bbox":[1004,274,174,22]}
+{"kind":"shape","id":"sh/ixczed8v","slide":9,"bbox":[86,380,1010,118]}
+{"kind":"textbox","id":"sh/tovahoza","slide":9,"text":"Retrieval is the deployment blocker","textPreview":"Retrieval is the deployment blocker","textChars":35,"textLines":1,"bbox":[116,408,780,30]}
+{"kind":"textbox","id":"sh/032lszqt","slide":9,"text":"Most empty query groups used sector or source filters that did not match the indexed payload metadata.","textPreview":"Most empty query groups used sector or source filters that did not match the indexed payload metadata.","textChars":102,"textLines":1,"bbox":[116,452,880,32]}
+{"kind":"notes","id":"nt/4acb17","slide":9,"text":""}
+{"kind":"slide","id":"sl/k9q0rc","slide":10,"title":"FRONTEND DEMO","textShapes":11}
+{"kind":"textbox","id":"sh/crmhk3q5","slide":10,"text":"FRONTEND DEMO","textPreview":"FRONTEND DEMO","textChars":13,"textLines":1,"bbox":[72,36,600,24]}
+{"kind":"textbox","id":"sh/j6tovaho","slide":10,"text":"10","textPreview":"10","textChars":2,"textLines":1,"bbox":[1160,34,48,28]}
+{"kind":"shape","id":"sh/ulwval87","slide":10,"bbox":[72,66,1136,2]}
+{"kind":"textbox","id":"sh/1kre1w7m","slide":10,"text":"Demo-ready workflow","textPreview":"Demo-ready workflow","textChars":19,"textLines":1,"bbox":[72,104,720,54]}
+{"kind":"shape","id":"sh/c3ylc7u5","slide":10,"bbox":[92,188,970,66]}
+{"kind":"textbox","id":"sh/ji5snelo","slide":10,"text":"System","textPreview":"System","textChars":6,"textLines":1,"bbox":[116,205,130,24]}
+{"kind":"textbox","id":"sh/uxc3ylc7","slide":10,"text":"runtime status shows Qwen, agent, Qdrant, snapshot, and report readiness","textPreview":"runtime status shows Qwen, agent, Qdrant, snapshot, and report readiness","textChars":72,"textLines":1,"bbox":[270,205,760,26]}
+{"kind":"shape","id":"sh/1w7mp0bi","slide":10,"bbox":[92,280,970,66]}
+{"kind":"textbox","id":"sh/8bat47y1","slide":10,"text":"Ask","textPreview":"Ask","textChars":3,"textLines":1,"bbox":[116,297,130,24]}
+{"kind":"textbox","id":"sh/ytsvu9kn","slide":10,"text":"live Qwen answer includes disclaimer, citations, sentence IDs, and expanded text","textPreview":"live Qwen answer includes disclaimer, citations, sentence IDs, and expanded text","textChars":80,"textLines":1,"bbox":[270,297,760,26]}
+{"kind":"shape","id":"sh/neloj2t8","slide":10,"bbox":[92,372,970,66]}
+{"kind":"textbox","id":"sh/czed8v6p","slide":10,"text":"Evidence","textPreview":"Evidence","textChars":8,"textLines":1,"bbox":[116,389,130,24]}
+{"kind":"textbox","id":"sh/5kb6xkf6","slide":10,"text":"search returns sentence-anchored ShareSansar evidence","textPreview":"search returns sentence-anchored ShareSansar evidence","textChars":53,"textLines":1,"bbox":[270,389,760,26]}
+{"kind":"shape","id":"sh/u54zidon","slide":10,"bbox":[92,464,970,66]}
+{"kind":"textbox","id":"sh/nqxs72x4","slide":10,"text":"Reports","textPreview":"Reports","textChars":7,"textLines":1,"bbox":[116,481,130,24]}
+{"kind":"textbox","id":"sh/cbulwval","slide":10,"text":"2026-06-11 report published with 3 citations and 3 sector rows","textPreview":"2026-06-11 report published with 3 citations and 3 sector rows","textChars":62,"textLines":1,"bbox":[270,481,760,26]}
+{"kind":"notes","id":"nt/k9q0rc","slide":10,"text":""}
+{"kind":"slide","id":"sl/3pf1gy","slide":11,"title":"DECISION","textShapes":8}
+{"kind":"textbox","id":"sh/0fepkzup","slide":11,"text":"DECISION","textPreview":"DECISION","textChars":8,"textLines":1,"bbox":[72,36,600,24]}
+{"kind":"textbox","id":"sh/bulwval8","slide":11,"text":"11","textPreview":"11","textChars":2,"textLines":1,"bbox":[1160,34,48,28]}
+{"kind":"shape","id":"sh/i9s36hcr","slide":11,"bbox":[72,66,1136,2]}
+{"kind":"textbox","id":"sh/tovahoza","slide":11,"text":"Final decision: demo-only / research prototype","textPreview":"Final decision: demo-only / research prototype","textChars":46,"textLines":1,"bbox":[72,104,1040,54]}
+{"kind":"shape","id":"sh/032lszqt","slide":11,"bbox":[86,190,480,250]}
+{"kind":"textbox","id":"sh/bi9s36hc","slide":11,"text":"Passes","textPreview":"Passes","textChars":6,"textLines":1,"bbox":[116,220,200,30]}
+{"kind":"textbox","id":"sh/ixczed8v","slide":11,"text":"- schema validity\n- evidence grounding\n- relevance macro-F1\n- single-pass citation scenarios\n- local frontend/report smoke","textPreview":"- schema validity | - evidence grounding | - relevance macro-F1 | - single-pass citation scenarios | - local frontend/report smoke","textChars":122,"textLines":5,"bbox":[120,272,380,130]}
+{"kind":"shape","id":"sh/tcj6tova","slide":11,"bbox":[626,190,480,250]}
+{"kind":"textbox","id":"sh/0rqd4vmt","slide":11,"text":"Blocks deployment","textPreview":"Blocks deployment","textChars":17,"textLines":1,"bbox":[656,220,300,30]}
+{"kind":"textbox","id":"sh/i9s36hcr","slide":11,"text":"- retrieval Precision@5\n- neutral direction recall\n- direction macro-F1\n- sector/symbol recall\n- evidence sentence recall","textPreview":"- retrieval Precision@5 | - neutral direction recall | - direction macro-F1 | - sector/symbol recall | - evidence sentence recall","textChars":121,"textLines":5,"bbox":[660,272,380,130]}
+{"kind":"textbox","id":"sh/bulwval8","slide":11,"text":"The honest submission claim is a grounded demo system with measured limitations, not a production financial advisor.","textPreview":"The honest submission claim is a grounded demo system with measured limitations, not a production financial advisor.","textChars":116,"textLines":1,"bbox":[90,508,980,48]}
+{"kind":"notes","id":"nt/3pf1gy","slide":11,"text":""}
+{"kind":"slide","id":"sl/69tgey","slide":12,"title":"Future Work","textShapes":4}
+{"kind":"textbox","id":"sh/ovahoza1","slide":12,"text":"Future Work","textPreview":"Future Work","textChars":11,"textLines":1,"bbox":[82,72,680,62]}
+{"kind":"textbox","id":"sh/vahoza1g","slide":12,"text":"- Normalize source, sector, ticker, and document-type metadata in retrieval payloads.\n- Rerun the 30-query retrieval benchmark until P@5 reaches the proposal minimum.\n- Complete second annotation and report agreement metrics.\n- Add targeted neutral, regulation, sector-industry, credit-financing, and ticker hard cases.\n- Keep single-pass RAG and constrained decoding as the safe serving boundary.","textPreview":"- Normalize source, sector, ticker, and document-type metadata in retrieval payloads. | - Rerun the 30-query retrieval benchmark until P@...","textChars":397,"textLines":5,"bbox":[96,178,980,300]}
+{"kind":"shape","id":"sh/6tovahoz","slide":12,"bbox":[82,562,1030,68]}
+{"kind":"textbox","id":"sh/d8v6psfi","slide":12,"text":"Thank you","textPreview":"Thank you","textChars":9,"textLines":1,"bbox":[112,582,460,30]}
+{"kind":"textbox","id":"sh/onyd0z61","slide":12,"text":"Questions and discussion","textPreview":"Questions and discussion","textChars":24,"textLines":1,"bbox":[760,588,320,24]}
+{"kind":"notes","id":"nt/69tgey","slide":12,"text":""}

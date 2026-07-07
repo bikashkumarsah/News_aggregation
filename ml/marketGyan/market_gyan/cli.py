@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import zipfile
 from collections import Counter
 from pathlib import Path
@@ -25,8 +26,14 @@ from .metrics import (
 from .system_evaluation import (
     deployment_gate,
     qwen_model_gate,
+    qwen_condition_summary,
     retrieval_metrics,
     scenario_metrics,
+)
+from .proposal_evaluation import (
+    collect_retrieval_results,
+    collect_scenario_results,
+    run_constrained_inference,
 )
 
 
@@ -240,6 +247,93 @@ def command_system_evaluate(args):
     print(str(target))
 
 
+def command_proposal_model_benchmark(args):
+    metrics_document = _load_metrics_document(args.metrics)
+    condition = args.condition or "unsloth_qlora"
+    if condition not in metrics_document:
+        raise ValueError("missing metrics condition: %s" % condition)
+    report = {
+        "condition": condition,
+        "summary": qwen_condition_summary(metrics_document[condition]),
+        "source": str(args.metrics),
+        "notes": [
+            "Frozen targeted-v2 model-only benchmark.",
+            "No additional training or split changes were used.",
+        ],
+    }
+    target = Path(args.output)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(str(target))
+
+
+def command_proposal_constrained_inference(args):
+    base_url = args.base_url or os.getenv("MARKET_GYAN_VLLM_BASE_URL")
+    api_key = args.api_key or os.getenv("MARKET_GYAN_VLLM_API_KEY")
+    model = args.model or os.getenv(
+        "MARKET_GYAN_VLLM_MODEL",
+        "marketgyan-qwen35-9b-targeted-v2",
+    )
+    if not base_url:
+        raise ValueError("Set --base-url or MARKET_GYAN_VLLM_BASE_URL")
+    if not api_key:
+        raise ValueError("Set --api-key or MARKET_GYAN_VLLM_API_KEY")
+    report = run_constrained_inference(
+        test_path=args.test,
+        train_path=args.train,
+        output_dir=args.output_dir,
+        base_url=base_url,
+        api_key=api_key,
+        model=model,
+        limit=args.limit,
+        max_tokens=args.max_tokens,
+        timeout=args.timeout,
+        conditions=[
+            value.strip()
+            for value in args.conditions.split(",")
+            if value.strip()
+        ],
+    )
+    manifest_path = Path(args.output_dir) / "constrained_inference_run.json"
+    public_report = {
+        "rows": report["rows"],
+        "model": model,
+        "baseUrl": base_url,
+        "summaryPath": report["summaryPath"],
+    }
+    manifest_path.write_text(
+        json.dumps(public_report, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    print(str(manifest_path))
+
+
+def command_proposal_collect_retrieval(args):
+    report = collect_retrieval_results(
+        queries_path=args.queries,
+        output_path=args.output,
+        backend_url=args.backend_url,
+        top_k=args.top_k,
+        timeout=args.timeout,
+    )
+    print(json.dumps(report, indent=2, ensure_ascii=False))
+
+
+def command_proposal_collect_scenarios(args):
+    report = collect_scenario_results(
+        scenarios_path=args.scenarios,
+        output_path=args.output,
+        agent_url=args.agent_url,
+        service_token=args.service_token or os.getenv(
+            "MARKET_GYAN_AGENT_SERVICE_TOKEN",
+            "",
+        ),
+        timeout=args.timeout,
+        report_date=args.report_date,
+    )
+    print(json.dumps(report, indent=2, ensure_ascii=False))
+
+
 def command_deployment_gate(args):
     xlmr = json.loads(Path(args.xlmr).read_text(encoding="utf-8"))
     qwen = json.loads(Path(args.qwen).read_text(encoding="utf-8"))
@@ -391,6 +485,77 @@ def build_parser():
     system_evaluate.add_argument("scenarios")
     system_evaluate.add_argument("output")
     system_evaluate.set_defaults(func=command_system_evaluate)
+
+    proposal_model = subparsers.add_parser("proposal-model-benchmark")
+    proposal_model.add_argument("metrics")
+    proposal_model.add_argument(
+        "output",
+        nargs="?",
+        default="outputs/proposal_eval/model_only_benchmark.json",
+    )
+    proposal_model.add_argument("--condition", default="unsloth_qlora")
+    proposal_model.set_defaults(func=command_proposal_model_benchmark)
+
+    proposal_constrained = subparsers.add_parser("proposal-constrained-inference")
+    proposal_constrained.add_argument(
+        "--test",
+        default="data/processed/splits/test.jsonl",
+    )
+    proposal_constrained.add_argument(
+        "--train",
+        default="data/processed/splits/train.jsonl",
+    )
+    proposal_constrained.add_argument(
+        "--output-dir",
+        default="outputs/proposal_eval",
+    )
+    proposal_constrained.add_argument("--base-url")
+    proposal_constrained.add_argument("--api-key")
+    proposal_constrained.add_argument("--model")
+    proposal_constrained.add_argument("--limit", type=int)
+    proposal_constrained.add_argument("--max-tokens", type=int, default=192)
+    proposal_constrained.add_argument(
+        "--conditions",
+        default="zero_shot,three_shot",
+        help="Comma-separated subset: zero_shot,three_shot",
+    )
+    proposal_constrained.add_argument("--timeout", type=int, default=180)
+    proposal_constrained.set_defaults(func=command_proposal_constrained_inference)
+
+    proposal_retrieval = subparsers.add_parser("proposal-collect-retrieval")
+    proposal_retrieval.add_argument(
+        "--queries",
+        default="evaluation/retrieval_queries.json",
+    )
+    proposal_retrieval.add_argument(
+        "--output",
+        default="outputs/proposal_eval/retrieval_results.unlabeled.json",
+    )
+    proposal_retrieval.add_argument(
+        "--backend-url",
+        default="http://127.0.0.1:5001",
+    )
+    proposal_retrieval.add_argument("--top-k", type=int, default=5)
+    proposal_retrieval.add_argument("--timeout", type=int, default=120)
+    proposal_retrieval.set_defaults(func=command_proposal_collect_retrieval)
+
+    proposal_scenarios = subparsers.add_parser("proposal-collect-scenarios")
+    proposal_scenarios.add_argument(
+        "--scenarios",
+        default="evaluation/system_scenarios.json",
+    )
+    proposal_scenarios.add_argument(
+        "--output",
+        default="outputs/proposal_eval/system_scenarios.live.json",
+    )
+    proposal_scenarios.add_argument(
+        "--agent-url",
+        default="http://127.0.0.1:8100",
+    )
+    proposal_scenarios.add_argument("--service-token")
+    proposal_scenarios.add_argument("--report-date")
+    proposal_scenarios.add_argument("--timeout", type=int, default=180)
+    proposal_scenarios.set_defaults(func=command_proposal_collect_scenarios)
 
     gate = subparsers.add_parser("deployment-gate")
     gate.add_argument("xlmr")
