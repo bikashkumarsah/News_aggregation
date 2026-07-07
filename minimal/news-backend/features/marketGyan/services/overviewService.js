@@ -2,6 +2,7 @@ const { marketGyanConfig } = require('../config');
 const MarketDocument = require('../models/MarketDocument');
 const MarketReport = require('../models/MarketReport');
 const MarketSnapshot = require('../models/MarketSnapshot');
+const { availableFilters } = require('./filterNormalizationService');
 
 const MARKET_GYAN_DISCLAIMER =
     'Informational analysis based on public data, not investment advice.';
@@ -20,7 +21,8 @@ const createOverviewResponse = ({
         stories,
         report,
         queryEnabled: marketGyanConfig.queryEnabled,
-        reviewEnabled
+        reviewEnabled,
+        filters: availableFilters()
     },
     disclaimer: MARKET_GYAN_DISCLAIMER
 });

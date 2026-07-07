@@ -177,27 +177,68 @@ const Field = ({ label, children }) => (
 const inputClass =
   'w-full rounded-xl border px-4 py-3 bg-transparent outline-none focus:ring-2 focus:ring-blue-500/30';
 
-const MarketFilters = ({ filters, onChange }) => {
+const DOCUMENT_TYPE_LABELS = {
+  financial_news: 'Financial news',
+  regulatory_notice: 'Regulatory notice',
+  policy_document: 'Policy document',
+  archived_report: 'Archived report'
+};
+
+const LANGUAGE_LABELS = { en: 'English', ne: 'Nepali', mixed: 'Mixed' };
+
+const MarketFilters = ({ filters, onChange, options }) => {
   const update = (field, value) => onChange({ ...filters, [field]: value });
+  const sectors = options?.sectors || [];
+  const sources = options?.sources || [];
+  const documentTypes = options?.documentTypes || [];
+  const languages = options?.languages || [];
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
       <Field label="Sector">
-        <input
-          value={filters.sector || ''}
-          onChange={(event) => update('sector', event.target.value)}
-          className={inputClass}
-          style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
-          placeholder="Banking"
-        />
+        {sectors.length ? (
+          <select
+            value={filters.sector || ''}
+            onChange={(event) => update('sector', event.target.value)}
+            className={inputClass}
+            style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+          >
+            <option value="">Any</option>
+            {sectors.map((sector) => (
+              <option key={sector} value={sector}>{sector}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            value={filters.sector || ''}
+            onChange={(event) => update('sector', event.target.value)}
+            className={inputClass}
+            style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+            placeholder="Banking"
+          />
+        )}
       </Field>
       <Field label="Source">
-        <input
-          value={filters.source || ''}
-          onChange={(event) => update('source', event.target.value)}
-          className={inputClass}
-          style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
-          placeholder="ShareSansar"
-        />
+        {sources.length ? (
+          <select
+            value={filters.source || ''}
+            onChange={(event) => update('source', event.target.value)}
+            className={inputClass}
+            style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+          >
+            <option value="">Any</option>
+            {sources.map((source) => (
+              <option key={source.key} value={source.key}>{source.label}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            value={filters.source || ''}
+            onChange={(event) => update('source', event.target.value)}
+            className={inputClass}
+            style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
+            placeholder="ShareSansar"
+          />
+        )}
       </Field>
       <Field label="Type">
         <select
@@ -207,9 +248,14 @@ const MarketFilters = ({ filters, onChange }) => {
           style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
         >
           <option value="">Any</option>
-          <option value="financial_news">Financial news</option>
-          <option value="regulatory_document">Regulatory document</option>
-          <option value="archived_report">Archived report</option>
+          {(documentTypes.length
+            ? documentTypes
+            : Object.keys(DOCUMENT_TYPE_LABELS)
+          ).map((type) => (
+            <option key={type} value={type}>
+              {DOCUMENT_TYPE_LABELS[type] || type}
+            </option>
+          ))}
         </select>
       </Field>
       <Field label="Language">
@@ -220,8 +266,14 @@ const MarketFilters = ({ filters, onChange }) => {
           style={{ borderColor: 'var(--border)', color: 'var(--text-main)' }}
         >
           <option value="">Any</option>
-          <option value="en">English</option>
-          <option value="ne">Nepali</option>
+          {(languages.length
+            ? languages
+            : Object.keys(LANGUAGE_LABELS)
+          ).map((language) => (
+            <option key={language} value={language}>
+              {LANGUAGE_LABELS[language] || language}
+            </option>
+          ))}
         </select>
       </Field>
       <Field label="From">
@@ -427,6 +479,7 @@ const RuntimeChecklist = ({ status }) => {
 const MarketGyanDashboard = () => {
   const [overview, setOverview] = useState(null);
   const [runtimeStatus, setRuntimeStatus] = useState(null);
+  const [statusWarning, setStatusWarning] = useState('');
   const [latestReport, setLatestReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -471,9 +524,15 @@ const MarketGyanDashboard = () => {
             ? statusPayload.data
             : null
         );
+        setStatusWarning('');
       } catch (statusError) {
         if (statusError.name !== 'AbortError') {
           setRuntimeStatus(null);
+          setStatusWarning(
+            statusError.message
+              ? `Runtime status could not be loaded (${statusError.message}). Query, search, and report controls are disabled until it recovers.`
+              : 'Runtime status could not be loaded. Query, search, and report controls are disabled until it recovers.'
+          );
         }
       }
     } catch (requestError) {
@@ -501,6 +560,7 @@ const MarketGyanDashboard = () => {
   const snapshot = data?.snapshot || null;
   const overviewSectors = data?.sectors || [];
   const overviewStories = data?.stories || [];
+  const filterOptions = data?.filters || null;
   const latestReportEvidenceCount = latestReport?.evidence?.length || 0;
   const latestReportSectorCount = latestReport?.sectorAnalysis?.length || 0;
   const snapshotTone = snapshot?.index?.changePercent > 0
@@ -689,6 +749,17 @@ const MarketGyanDashboard = () => {
               {tab.label}
             </button>
           ))}
+        </div>
+      )}
+
+      {!loading && !error && statusWarning && (
+        <div
+          role="alert"
+          className="rounded-xl border p-4 flex gap-3"
+          style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+        >
+          <AlertCircle className="w-5 h-5 shrink-0 text-amber-500" />
+          <p className="text-sm font-medium leading-relaxed">{statusWarning}</p>
         </div>
       )}
 
@@ -965,7 +1036,9 @@ const MarketGyanDashboard = () => {
                     </h2>
                   </div>
                   <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-                    Deterministic snapshot sector state for the current market date.
+                    {overviewSectors.some((sector) => sector.basis === 'constituent_average')
+                      ? 'Sector tone derived from the average change of constituent stocks.'
+                      : 'Deterministic snapshot sector state for the current market date.'}
                   </p>
                 </div>
                 <Layers className="h-5 w-5 text-slate-400" />
@@ -973,13 +1046,14 @@ const MarketGyanDashboard = () => {
 
               {overviewSectors.length > 0 ? (
                 <div className="mt-5 space-y-3">
-                  {overviewSectors.slice(0, 8).map((sector) => (
+                  {overviewSectors.map((sector) => (
                     <div key={sector.name || sector.sector} className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3" style={{ borderColor: 'var(--border)' }}>
                       <div className="min-w-0">
                         <span className="block truncate font-bold" style={{ color: 'var(--text-main)' }}>{sector.name || sector.sector}</span>
-                        {sector.changePercent !== undefined && (
+                        {sector.changePercent !== undefined && sector.changePercent !== null && (
                           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                             {sector.changePercent}% change
+                            {sector.constituents ? ` · ${sector.constituents} stocks` : ''}
                           </span>
                         )}
                       </div>
@@ -1088,7 +1162,7 @@ const MarketGyanDashboard = () => {
                   required
                 />
               </Field>
-              <MarketFilters filters={queryFilters} onChange={setQueryFilters} />
+              <MarketFilters filters={queryFilters} onChange={setQueryFilters} options={filterOptions} />
               <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                 Ask factual questions only. MarketGyan will return citations or reject the response.
               </p>
@@ -1181,7 +1255,7 @@ const MarketGyanDashboard = () => {
                   required
                 />
               </Field>
-              <MarketFilters filters={searchFilters} onChange={setSearchFilters} />
+              <MarketFilters filters={searchFilters} onChange={setSearchFilters} options={filterOptions} />
               <button
                 type="submit"
                 disabled={!queryEnabled || searchLoading || !searchQuery.trim()}
@@ -1306,6 +1380,30 @@ const MarketGyanDashboard = () => {
           aria-labelledby="market-gyan-tab-system"
         >
           <RuntimeChecklist status={runtimeStatus} />
+        </div>
+      )}
+
+      {!loading && !error && !data && (
+        <div
+          role="status"
+          className="premium-card p-10 flex flex-col items-center justify-center gap-3 text-center"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          <Database className="w-6 h-6" />
+          <p className="font-semibold" style={{ color: 'var(--text-main)' }}>
+            No MarketGyan data is available yet
+          </p>
+          <p className="text-sm">
+            The overview loaded but returned no market data. Ingest a snapshot and index documents, then refresh.
+          </p>
+          <button
+            type="button"
+            onClick={() => setReloadKey((value) => value + 1)}
+            className="btn-primary flex items-center justify-center gap-2 mt-1"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
         </div>
       )}
     </div>

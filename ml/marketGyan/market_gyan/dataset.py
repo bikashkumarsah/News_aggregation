@@ -443,6 +443,12 @@ def dataset_readiness(rows, min_records=500, **_legacy):
         count = coverage["directions"].get(direction, 0)
         if count < 60:
             errors.append("%s relevant records %d is below 60" % (direction, count))
+    # Neutral is the scarcest direction and the hardest for the classifier to
+    # learn; without an explicit floor it collapsed to ~23 rows and its F1 fell
+    # to zero. Guarantee a training-viable minimum on future regenerations.
+    neutral_count = coverage["directions"].get("neutral", 0)
+    if neutral_count < 40:
+        errors.append("neutral relevant records %d is below 40" % neutral_count)
     for event_type in sorted(CORE_EVENT_TYPES):
         count = coverage["eventTypes"].get(event_type, 0)
         if count < 20:
@@ -463,6 +469,7 @@ def dataset_readiness(rows, min_records=500, **_legacy):
             "minCoreEvent": 20,
             "minBullish": 60,
             "minBearish": 60,
+            "minNeutral": 40,
             "maxSourceShare": 0.60,
         },
         "coverage": coverage,

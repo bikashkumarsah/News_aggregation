@@ -141,6 +141,7 @@ const buildSectors = (sources) => {
         if (!source?.sectors?.length) continue;
         return source.sectors.map((sector) => ({
             ...sector,
+            basis: 'sector_index',
             sentiment: !isNumber(sector.changePercent)
                 ? 'unavailable'
                 : (
@@ -151,6 +152,39 @@ const buildSectors = (sources) => {
         }));
     }
     return [];
+};
+
+// When no source exposes an official sector sub-index table, derive sector
+// movement by averaging the change of the constituent securities we already
+// collect (each tagged with its sector by the ShareSansar parser). This is an
+// aggregate signal, not the official sub-index value, so it is marked
+// accordingly via `basis: 'constituent_average'`.
+const buildSectorsFromSecurities = (sources) => {
+    const groups = new Map();
+    for (const security of uniqueSecurities(sources)) {
+        if (!security.sector || !isNumber(security.changePercent)) continue;
+        const group = groups.get(security.sector) || { changes: [] };
+        group.changes.push(security.changePercent);
+        groups.set(security.sector, group);
+    }
+    return Array.from(groups.entries())
+        .map(([name, group]) => {
+            const average = group.changes.reduce((sum, value) => sum + value, 0)
+                / group.changes.length;
+            const changePercent = Math.round(average * 100) / 100;
+            return {
+                name,
+                close: null,
+                change: null,
+                changePercent,
+                constituents: group.changes.length,
+                basis: 'constituent_average',
+                sentiment: changePercent > 0
+                    ? 'bullish'
+                    : (changePercent < 0 ? 'bearish' : 'neutral')
+            };
+        })
+        .sort((left, right) => right.changePercent - left.changePercent);
 };
 
 const reconcileMarketSources = (sources, {
@@ -184,7 +218,10 @@ const reconcileMarketSources = (sources, {
     const required = ['close', 'change', 'changePercent', 'turnoverAmount'];
     const leaders = buildLeaders(sources);
     const breadth = buildBreadth(sources);
-    const sectors = buildSectors(sources);
+    const scrapedSectors = buildSectors(sources);
+    const sectors = scrapedSectors.length
+        ? scrapedSectors
+        : buildSectorsFromSecurities(sources);
     if (!sectors.length) missingFields.push('sectors');
     if (!(breadth.advancers + breadth.decliners + breadth.unchanged)) {
         missingFields.push('breadth');
@@ -241,5 +278,6 @@ module.exports = {
     reconcileMarketSources,
     buildBreadth,
     buildSectors,
+    buildSectorsFromSecurities,
     withinTolerance
 };

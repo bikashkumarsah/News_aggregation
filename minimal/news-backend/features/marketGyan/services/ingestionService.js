@@ -17,11 +17,32 @@ const {
 } = require('../collectors/documentCollectors');
 const { reconcileMarketSources } = require('./marketReconciliationService');
 const { contentHash } = require('./textService');
+const { findMentionedSecurities } = require('./securityAliasService');
 
 const dayString = (value) => new Date(value).toISOString().slice(0, 10);
 const startOfDayUtc = (value) => new Date(`${dayString(value)}T00:00:00.000Z`);
 
 const buildRunKey = ({ mode, from, to }) => `${mode}:${dayString(from)}:${dayString(to)}`;
+
+// Load the active security registry (symbol, name, aliases, sector) once so
+// ingestion can deterministically tag documents with the companies and sectors
+// they mention — no external LLM required. The retrieval sector filter reads
+// MarketDocument.metadata.sectors, so this is what makes fresh news filterable.
+const loadSecurityRegistry = async () => MarketSecurity.find({ active: true })
+    .select('symbol name sector aliases')
+    .lean();
+
+const deriveDocumentTags = (item, securities) => {
+    const matches = findMentionedSecurities(
+        { title: item.title, excerpt: item.content },
+        securities
+    );
+    const companies = Array.from(new Set(matches.map((match) => match.symbol)));
+    const sectors = Array.from(new Set(
+        matches.map((match) => match.sector).filter(Boolean)
+    ));
+    return { companies, sectors };
+};
 
 const upsertSecurityRegistry = async (sources) => {
     const entries = new Map();
@@ -66,6 +87,7 @@ const upsertSecurityRegistry = async (sources) => {
 const upsertFinancialNews = async (items, runId) => {
     let created = 0;
     let updated = 0;
+    const securities = await loadSecurityRegistry();
     for (const item of items) {
         const existing = await Article.findOne({ url: item.url }).select('_id');
         const article = await Article.findOneAndUpdate(
@@ -84,6 +106,8 @@ const upsertFinancialNews = async (items, runId) => {
             },
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
+
+        const { companies, sectors } = deriveDocumentTags(item, securities);
 
         await MarketDocument.findOneAndUpdate(
             { 'source.url': item.url },
@@ -106,6 +130,8 @@ const upsertFinancialNews = async (items, runId) => {
                         extractionMethod: 'article_reference',
                         contentHash: contentHash(item.title, item.content)
                     },
+                    'metadata.companies': companies,
+                    'metadata.sectors': sectors,
                     ingestion: {
                         status: 'complete',
                         sourceId: item.sourceId,
