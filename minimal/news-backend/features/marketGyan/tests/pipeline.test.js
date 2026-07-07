@@ -28,7 +28,8 @@ const {
 } = require('../collectors/documentCollectors');
 const {
     reconcileField,
-    reconcileMarketSources
+    reconcileMarketSources,
+    buildSectorsFromSecurities
 } = require('../services/marketReconciliationService');
 
 const fixture = (name) => fs.readFileSync(
@@ -65,6 +66,78 @@ test('sector table parser extracts deterministic sector movement', () => {
     const sectors = parseSectorRows($);
     assert.equal(sectors[0].name, 'Banking');
     assert.equal(sectors[0].changePercent, 0.67);
+});
+
+test('ShareSansar parser tags securities with their sector section header', () => {
+    const html = `
+      <html><body>
+      <table id="headFixed">
+        <thead><tr>
+          <th>S.No</th><th>Symbol</th><th>Conf.</th><th>Open</th><th>High</th>
+          <th>Low</th><th>Close</th><th>LTP</th><th>Close - LTP</th>
+          <th>Close - LTP %</th><th>VWAP</th><th>Vol</th><th>Prev. Close</th>
+          <th>Turnover</th><th>Trans.</th><th>Diff</th><th>Range</th><th>Diff %</th>
+        </tr></thead>
+        <tbody>
+          <tr><td colspan="18">Commercial Banks</td></tr>
+          <tr>
+            <td>1</td><td><a href="/company/nabil" title="Nabil Bank Limited">NABIL</a></td>
+            <td>33</td><td>505</td><td>520</td><td>500</td><td>510</td><td>510</td>
+            <td>0</td><td>0</td><td>508</td><td>10,000</td><td>505</td>
+            <td>5,000,000</td><td>100</td><td>5</td><td>20</td><td>1.50</td>
+          </tr>
+          <tr><td colspan="18">Hydro Power</td></tr>
+          <tr>
+            <td>2</td><td><a href="/company/uppw" title="Upper Power">UPPW</a></td>
+            <td>33</td><td>300</td><td>320</td><td>290</td><td>295</td><td>295</td>
+            <td>0</td><td>0</td><td>298</td><td>8,000</td><td>300</td>
+            <td>2,400,000</td><td>80</td><td>-5</td><td>30</td><td>-2.00</td>
+          </tr>
+        </tbody>
+      </table>
+      </body></html>`;
+    const result = parseShareSansarHtml(html);
+    const bySymbol = Object.fromEntries(result.securities.map((s) => [s.symbol, s]));
+    assert.equal(bySymbol.NABIL.sector, 'Banking');
+    assert.equal(bySymbol.UPPW.sector, 'Hydropower');
+});
+
+test('sector movement is derived from constituent securities when no sub-index table exists', () => {
+    const sectors = buildSectorsFromSecurities([
+        {
+            sourceName: 'ShareSansar',
+            securities: [
+                { symbol: 'NABIL', sector: 'Banking', changePercent: 1.5 },
+                { symbol: 'SCB', sector: 'Banking', changePercent: 0.5 },
+                { symbol: 'UPPW', sector: 'Hydropower', changePercent: -2 }
+            ]
+        }
+    ]);
+    const banking = sectors.find((sector) => sector.name === 'Banking');
+    const hydro = sectors.find((sector) => sector.name === 'Hydropower');
+    assert.equal(banking.changePercent, 1);
+    assert.equal(banking.constituents, 2);
+    assert.equal(banking.sentiment, 'bullish');
+    assert.equal(banking.basis, 'constituent_average');
+    assert.equal(hydro.sentiment, 'bearish');
+});
+
+test('reconciliation falls back to constituent sector movement', () => {
+    const snapshot = reconcileMarketSources([
+        {
+            sourceName: 'ShareSansar',
+            sourceUrl: 'https://sharesansar.com',
+            metrics: { close: 2500, change: 10, changePercent: 0.4, turnoverAmount: 50000000 },
+            securities: [
+                { symbol: 'NABIL', sector: 'Banking', changePercent: 1.5 },
+                { symbol: 'UPPW', sector: 'Hydropower', changePercent: -2 }
+            ]
+        }
+    ]);
+    const banking = snapshot.sectors.find((sector) => sector.name === 'Banking');
+    assert.ok(banking, 'expected a derived Banking sector');
+    assert.equal(banking.basis, 'constituent_average');
+    assert.ok(!snapshot.quality.missingFields.includes('sectors'));
 });
 
 test('finance article helpers derive canonical dates and full paragraph text', () => {

@@ -5,6 +5,13 @@ const { marketGyanConfig } = require('../config');
 const { embedText } = require('../../../services/embeddingService');
 const { cleanText } = require('./textService');
 const { splitNumberedSentences } = require('./sentenceService');
+const {
+    resolveSector,
+    resolveSource,
+    resolveDocumentType,
+    resolveLanguage,
+    validateFilters
+} = require('./filterNormalizationService');
 
 const DEFAULT_LIMIT = 8;
 
@@ -76,6 +83,7 @@ const buildChunkPayloads = (document, options) => {
     return chunks.map((text, chunkIndex) => {
         const chunkSentences = sentencesForChunk(text, sentences, chunkIndex);
         const chunkId = stablePointId(documentId, chunkIndex);
+        const resolvedSource = resolveSource(document.source?.name);
         return {
             id: chunkId,
             text,
@@ -87,6 +95,7 @@ const buildChunkPayloads = (document, options) => {
                 title: document.title,
                 url: document.source?.url,
                 source: document.source?.name,
+                sourceKey: resolvedSource ? resolvedSource.key : null,
                 publishedAt: sourcePublishedAt
                     ? Math.floor(sourcePublishedAt.getTime() / 1000)
                     : null,
@@ -133,10 +142,25 @@ const buildSearchFilter = ({
         });
     };
 
-    matchValue('sectors', sector);
-    matchValue('source', source);
-    matchValue('documentType', documentType);
-    matchValue('language', language);
+    // Normalize human input to the canonical values stored in the payload.
+    // Unknown values are dropped here (validateFilters surfaces them to the
+    // caller) so a typo never turns into a guaranteed-empty exact match.
+    matchValue('sectors', resolveSector(sector));
+    matchValue('documentType', resolveDocumentType(documentType));
+    matchValue('language', resolveLanguage(language));
+
+    // Source names drift (e.g. OnlineKhabar's stored name follows the RSS feed
+    // title), so match either the canonical sourceKey added at index time or any
+    // of the known stored aliases. Nested `should` acts as an OR within `must`.
+    const resolvedSource = resolveSource(source);
+    if (resolvedSource) {
+        must.push({
+            should: [
+                { key: 'sourceKey', match: { value: resolvedSource.key } },
+                { key: 'source', match: { any: resolvedSource.aliases } }
+            ]
+        });
+    }
 
     const gte = parseDateSeconds(from);
     const lte = parseDateSeconds(to);
@@ -236,6 +260,13 @@ const createMarketQdrantClient = ({
         if (!String(query || '').trim()) {
             const error = new Error('q is required');
             error.status = 400;
+            throw error;
+        }
+        const { errors: filterErrors } = validateFilters(filters);
+        if (filterErrors.length) {
+            const error = new Error('Invalid search filters');
+            error.status = 400;
+            error.validationErrors = filterErrors;
             throw error;
         }
         const vector = await embedTextImpl(query, { role: 'query' });

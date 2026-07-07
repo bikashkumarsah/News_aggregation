@@ -1,5 +1,66 @@
 const cheerio = require('cheerio');
 
+// ShareSansar sector labels (from the today-price sector filter and the
+// sectorwise-share-price headings) mapped to canonical ontology sectors.
+// Non-equity groups (bonds, debentures, promoter/preference shares) map to
+// null so they are excluded from sector-sentiment aggregation.
+const SHARESANSAR_SECTOR_LABELS = Object.freeze({
+    'commercial bank': 'Banking',
+    'commercial banks': 'Banking',
+    'development bank': 'Development Bank',
+    'development banks': 'Development Bank',
+    'finance': 'Finance',
+    'hotel and tourism': 'Hotels and Tourism',
+    'hotels and tourism': 'Hotels and Tourism',
+    'hotels': 'Hotels and Tourism',
+    'hydro power': 'Hydropower',
+    'hydropower': 'Hydropower',
+    'investment': 'Investment',
+    'life insurance': 'Life Insurance',
+    'manufacturing and processing': 'Manufacturing and Processing',
+    'microfinance': 'Microfinance',
+    'micro finance': 'Microfinance',
+    'mutual fund': 'Mutual Fund',
+    'non life insurance': 'Non-Life Insurance',
+    'others': 'Others',
+    'trading': 'Trading'
+});
+
+const normalizeSectorLabel = (value) => String(value || '')
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const mapShareSansarSector = (text) => {
+    const normalized = normalizeSectorLabel(text);
+    return SHARESANSAR_SECTOR_LABELS[normalized] || null;
+};
+
+// Parse the ShareSansar sectorwise-share-price page into a { SYMBOL: sector }
+// map. The page lists each sector as an <h3> heading followed by that sector's
+// company links, so we walk the document in order and attribute every company
+// symbol to the most recent sector heading.
+const parseShareSansarSectorMap = (html) => {
+    const $ = cheerio.load(html);
+    const map = {};
+    let current = null;
+    $('*').each((_, element) => {
+        if (element.tagName === 'h3') {
+            current = mapShareSansarSector($(element).text());
+            return;
+        }
+        if (element.tagName === 'a' && current) {
+            const href = $(element).attr('href') || '';
+            if (!href.includes('/company/')) return;
+            const symbol = $(element).text().trim().toUpperCase();
+            if (symbol && !map[symbol]) map[symbol] = current;
+        }
+    });
+    return map;
+};
+
 const parseNumber = (value) => {
     const cleaned = String(value ?? '')
         .replace(/[^\d.+-]/g, '')
@@ -91,14 +152,28 @@ const parseShareSansarHtml = (html) => {
     const changePercentIndex = column(['diff %'], 17);
     const volumeIndex = column(['vol', 'volume'], 11);
 
+    // ShareSansar interleaves sector section-header rows (a single cell with the
+    // sector name, often spanning all columns) between the constituent rows.
+    // Track the most recent header so each security can be tagged with its
+    // sector, which lets reconciliation derive sector movement without a
+    // separate (and brittle) sector-index page.
+    let currentSector = null;
     $('#headFixed tbody tr').each((_, row) => {
         const cells = $(row).find('td').map((__, cell) => $(cell).text().trim()).get();
         const link = $(row).find('a[href*="/company/"]').first();
         const symbol = link.text().trim().toUpperCase();
-        if (!symbol || cells.length <= ltpIndex) return;
+        if (!symbol || cells.length <= ltpIndex) {
+            // A row with no company link and a single meaningful cell is a
+            // sector section header.
+            const headerText = cells.find(Boolean);
+            const mapped = mapShareSansarSector(headerText);
+            if (mapped) currentSector = mapped;
+            return;
+        }
         securities.push({
             symbol,
             name: link.attr('title') || '',
+            sector: currentSector,
             lastTradedPrice: parseNumber(cells[ltpIndex]),
             change: parseNumber(cells[changeIndex]),
             changePercent: parseNumber(cells[changePercentIndex]),
@@ -205,11 +280,13 @@ const parseShareSansarHistory = (payload) => (
 
 module.exports = {
     findLabeledNumber,
+    mapShareSansarSector,
     parseCompanyJson,
     parseMeroLaganiHtml,
     parseNepseHtml,
     parseNumber,
     parseSectorRows,
     parseShareSansarHistory,
-    parseShareSansarHtml
+    parseShareSansarHtml,
+    parseShareSansarSectorMap
 };

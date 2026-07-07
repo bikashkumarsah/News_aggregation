@@ -55,6 +55,14 @@ const sectorSchema = new mongoose.Schema({
     close: Number,
     change: Number,
     changePercent: Number,
+    // Number of constituent securities when the sector movement is derived by
+    // aggregating members rather than read from an official sector sub-index.
+    constituents: Number,
+    basis: {
+        type: String,
+        enum: ['sector_index', 'constituent_average'],
+        default: 'sector_index'
+    },
     sentiment: {
         type: String,
         enum: ['bullish', 'bearish', 'neutral', 'unavailable'],

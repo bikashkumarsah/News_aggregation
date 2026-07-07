@@ -250,7 +250,9 @@ test('fails closed when runtime status is unavailable even if overview is stale-
 
   await userEvent.click(await screen.findByRole('tab', { name: 'Ask MarketGyan' }));
 
-  expect(screen.getByRole('alert')).toHaveTextContent('Grounded Q&A is locked');
+  const alerts = screen.getAllByRole('alert');
+  expect(alerts.some((node) => node.textContent.includes('Runtime status could not be loaded'))).toBe(true);
+  expect(alerts.some((node) => node.textContent.includes('Grounded Q&A is locked'))).toBe(true);
   expect(screen.getByLabelText('Question')).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Ask with RAG' })).toBeDisabled();
 });

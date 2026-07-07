@@ -2,6 +2,8 @@ const express = require('express');
 const { loadOverview } = require('../services/overviewService');
 const { isReviewRequestAllowed } = require('../middleware/reviewAccess');
 const { requireInternalAccess } = require('../middleware/internalAccess');
+const { createRateLimiter } = require('../middleware/rateLimit');
+const { sendError } = require('../middleware/errorResponse');
 const { marketGyanConfig } = require('../config');
 const { createMarketQdrantClient } = require('../services/marketQdrantService');
 const MarketReport = require('../models/MarketReport');
@@ -17,20 +19,21 @@ const reviewRoutes = require('./reviewRoutes');
 
 const router = express.Router();
 
+// Throttle the expensive, unauthenticated inference/search endpoints so a tight
+// loop cannot exhaust embedding/LLM resources.
+const inferenceRateLimit = createRateLimiter({ windowMs: 60000, max: 20 });
+
 router.get('/overview', async (req, res) => {
     try {
         res.json(await loadOverview({
             reviewEnabled: isReviewRequestAllowed(req)
         }));
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        sendError(res, error, 'Market Gyan overview is unavailable');
     }
 });
 
-router.get('/search', async (req, res) => {
+router.get('/search', inferenceRateLimit, async (req, res) => {
     if (!marketGyanConfig.queryEnabled) {
         return res.status(404).json({ success: false, error: 'Market Gyan query is disabled' });
     }
@@ -38,11 +41,11 @@ router.get('/search', async (req, res) => {
         const results = await createMarketQdrantClient().search(req.query.q, req.query);
         return res.json({ success: true, data: results });
     } catch (error) {
-        return res.status(error.status || 503).json({ success: false, error: error.message });
+        return sendError(res, error, 'Market Gyan search is unavailable');
     }
 });
 
-router.post('/query', async (req, res) => {
+router.post('/query', inferenceRateLimit, async (req, res) => {
     try {
         const data = await answerMarketQuery({
             question: req.body?.question,
@@ -50,11 +53,7 @@ router.post('/query', async (req, res) => {
         });
         return res.json({ success: true, data });
     } catch (error) {
-        return res.status(error.status || 500).json({
-            success: false,
-            error: error.message,
-            validationErrors: error.validationErrors || []
-        });
+        return sendError(res, error, 'Market Gyan query failed');
     }
 });
 
@@ -62,7 +61,7 @@ router.get('/runtime/status', async (req, res) => {
     try {
         return res.json({ success: true, data: await loadRuntimeStatus(req) });
     } catch (error) {
-        return res.status(500).json({ success: false, error: error.message });
+        return sendError(res, error, 'Runtime status is unavailable');
     }
 });
 
@@ -73,7 +72,7 @@ router.get('/reports/latest', async (_req, res) => {
             .lean();
         return res.json({ success: true, data: report });
     } catch (error) {
-        return res.status(500).json({ success: false, error: error.message });
+        return sendError(res, error, 'Latest report is unavailable');
     }
 });
 
@@ -91,11 +90,7 @@ router.post('/reports/generate', async (req, res) => {
         });
         return res.json({ success: true, data });
     } catch (error) {
-        return res.status(error.status || 500).json({
-            success: false,
-            error: error.message,
-            validationErrors: error.validationErrors || []
-        });
+        return sendError(res, error, 'Report generation failed');
     }
 });
 
@@ -104,7 +99,7 @@ router.get('/internal/search', requireInternalAccess, async (req, res) => {
         const results = await createMarketQdrantClient().search(req.query.q, req.query);
         return res.json({ success: true, data: results });
     } catch (error) {
-        return res.status(error.status || 503).json({ success: false, error: error.message });
+        return sendError(res, error, 'Market Gyan search is unavailable');
     }
 });
 
@@ -116,7 +111,7 @@ router.post('/internal/reports/generate', requireInternalAccess, async (req, res
         });
         return res.json({ success: true, data });
     } catch (error) {
-        return res.status(error.status || 500).json({ success: false, error: error.message });
+        return sendError(res, error, 'Report generation failed');
     }
 });
 

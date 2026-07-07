@@ -9,6 +9,7 @@ const {
     MARKET_GYAN_DISCLAIMER,
     createOverviewResponse
 } = require('../services/overviewService');
+const { availableFilters } = require('../services/filterNormalizationService');
 
 test('overview response remains stable during the data-pipeline phase', () => {
     assert.deepEqual(createOverviewResponse(), {
@@ -20,7 +21,8 @@ test('overview response remains stable during the data-pipeline phase', () => {
             stories: [],
             report: null,
             queryEnabled: false,
-            reviewEnabled: false
+            reviewEnabled: false,
+            filters: availableFilters()
         },
         disclaimer: MARKET_GYAN_DISCLAIMER
     });

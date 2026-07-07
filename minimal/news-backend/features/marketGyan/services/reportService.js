@@ -4,6 +4,7 @@ const MarketSnapshot = require('../models/MarketSnapshot');
 const { marketGyanConfig } = require('../config');
 const { createAgentClient } = require('./agentClientService');
 const { contentHash } = require('./textService');
+const { validateFilters } = require('./filterNormalizationService');
 const mongoose = require('mongoose');
 
 const localDateString = (value, timezone = marketGyanConfig.timezone) => {
@@ -186,6 +187,13 @@ const answerMarketQuery = async ({
     if (!String(question || '').trim()) {
         const error = new Error('question is required');
         error.status = 400;
+        throw error;
+    }
+    const { errors: filterErrors } = validateFilters(filters);
+    if (filterErrors.length) {
+        const error = new Error('Invalid query filters');
+        error.status = 400;
+        error.validationErrors = filterErrors;
         throw error;
     }
     return agentClient.run({

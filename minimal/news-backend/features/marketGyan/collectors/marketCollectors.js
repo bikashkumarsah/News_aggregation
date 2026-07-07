@@ -2,9 +2,12 @@ const {
     parseMeroLaganiHtml,
     parseNepseHtml,
     parseShareSansarHistory,
-    parseShareSansarHtml
+    parseShareSansarHtml,
+    parseShareSansarSectorMap
 } = require('./marketParsers');
 const { createHttpClient } = require('./httpClient');
+
+const SHARESANSAR_SECTORWISE_URL = 'https://www.sharesansar.com/sectorwise-share-price';
 
 const MARKET_SOURCE_DEFINITIONS = Object.freeze([
     {
@@ -91,6 +94,20 @@ const kathmanduDate = () => {
     return `${values.year}-${values.month}-${values.day}`;
 };
 
+// Fetch the ShareSansar sectorwise page and return a { SYMBOL: canonicalSector }
+// map. Used to tag today's securities with their sector so sector movement can
+// be derived from constituents (the flat today-price table carries no sector).
+const collectShareSansarSectors = async ({
+    httpClient = createHttpClient()
+} = {}) => {
+    try {
+        const html = await httpClient.request(SHARESANSAR_SECTORWISE_URL);
+        return parseShareSansarSectorMap(html);
+    } catch {
+        return {};
+    }
+};
+
 const collectCurrentMarketSources = async ({
     httpClient = createHttpClient()
 } = {}) => {
@@ -113,6 +130,19 @@ const collectCurrentMarketSources = async ({
             };
         }
     }));
+
+    // Tag securities with their sector from the ShareSansar sectorwise page so
+    // downstream reconciliation can aggregate sector movement.
+    const sectorMap = await collectShareSansarSectors({ httpClient });
+    if (Object.keys(sectorMap).length) {
+        for (const source of sources) {
+            for (const security of source.securities || []) {
+                if (!security.sector && sectorMap[security.symbol]) {
+                    security.sector = sectorMap[security.symbol];
+                }
+            }
+        }
+    }
 
     const date = kathmanduDate();
     try {
@@ -146,6 +176,7 @@ module.exports = {
     MARKET_SOURCE_DEFINITIONS,
     collectCurrentMarketSources,
     collectShareSansarHistory,
+    collectShareSansarSectors,
     kathmanduDate,
     splitDateRange
 };
