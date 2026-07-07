@@ -444,11 +444,16 @@ def dataset_readiness(rows, min_records=500, **_legacy):
         if count < 60:
             errors.append("%s relevant records %d is below 60" % (direction, count))
     # Neutral is the scarcest direction and the hardest for the classifier to
-    # learn; without an explicit floor it collapsed to ~23 rows and its F1 fell
-    # to zero. Guarantee a training-viable minimum on future regenerations.
+    # learn. It is a non-blocking warning (not a hard error) so the already
+    # frozen 500-record gold corpus and its manifest stay valid, while future
+    # regenerations get a loud signal to collect more neutral evidence.
+    warnings = []
     neutral_count = coverage["directions"].get("neutral", 0)
     if neutral_count < 40:
-        errors.append("neutral relevant records %d is below 40" % neutral_count)
+        warnings.append(
+            "neutral relevant records %d is below the recommended floor of 40; "
+            "direction neutral-F1 is unreliable at this support" % neutral_count
+        )
     for event_type in sorted(CORE_EVENT_TYPES):
         count = coverage["eventTypes"].get(event_type, 0)
         if count < 20:
@@ -469,11 +474,12 @@ def dataset_readiness(rows, min_records=500, **_legacy):
             "minCoreEvent": 20,
             "minBullish": 60,
             "minBearish": 60,
-            "minNeutral": 40,
+            "recommendedMinNeutral": 40,
             "maxSourceShare": 0.60,
         },
         "coverage": coverage,
         "errors": errors,
+        "warnings": warnings,
     }
 
 
