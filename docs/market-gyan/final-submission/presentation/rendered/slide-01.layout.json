@@ -1,0 +1,457 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/4uyjsy",
+    "id": "4uyjsy",
+    "slide": 1,
+    "layoutId": "e1e61fd2-50f0-4ee1-99d4-c91631d31d6f",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "a47ead56-30c6-49d9-aa57-7da3ee442cab",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#F8FAFC",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "+mn-lt"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "e1e61fd2-50f0-4ee1-99d4-c91631d31d6f",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "a47ead56-30c6-49d9-aa57-7da3ee442cab",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "a47ead56-30c6-49d9-aa57-7da3ee442cab",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/mhk3q5o7",
+      "id": "1",
+      "bbox": [
+        0,
+        0,
+        1280,
+        720
+      ],
+      "geometry": "rect",
+      "fillColor": "#172554",
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/t83itgfm",
+      "id": "2",
+      "bbox": [
+        0,
+        604,
+        1280,
+        116
+      ],
+      "geometry": "rect",
+      "fillColor": "#FACC15",
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4nap4r65",
+      "id": "3",
+      "bbox": [
+        82,
+        56,
+        760,
+        78
+      ],
+      "geometry": "rect",
+      "text": "Kathmandu University\nDepartment of Artificial Intelligence",
+      "textPreview": "Kathmandu University | Department of Artificial Intelligence",
+      "resolvedFontSize": 22,
+      "resolvedTextStyle": {
+        "fontSize": 22,
+        "typeface": "+mn-lt",
+        "color": "#DBEAFE",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Kathmandu University"
+          },
+          {
+            "index": 2,
+            "text": "Department of Artificial Intelligence"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Kathmandu University",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "color": "#DBEAFE",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Kathmandu University",
+              "fontSize": 22,
+              "color": "#DBEAFE",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "Department of Artificial Intelligence",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "color": "#DBEAFE",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Department of Artificial Intelligence",
+              "fontSize": 22,
+              "color": "#DBEAFE",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/bq1oryts",
+      "id": "4",
+      "bbox": [
+        82,
+        182,
+        820,
+        86
+      ],
+      "geometry": "rect",
+      "text": "MarketGyan",
+      "textPreview": "MarketGyan",
+      "resolvedFontSize": 62,
+      "resolvedTextStyle": {
+        "fontSize": 62,
+        "typeface": "+mn-lt",
+        "color": "#FFFFFF",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "MarketGyan"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "MarketGyan",
+          "resolvedTextStyle": {
+            "fontSize": 62,
+            "color": "#FFFFFF",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "MarketGyan",
+              "fontSize": 62,
+              "color": "#FFFFFF",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/m58z25kb",
+      "id": "5",
+      "bbox": [
+        86,
+        284,
+        860,
+        88
+      ],
+      "geometry": "rect",
+      "text": "NEPSE and Financial News Analysis\nAn Extension of Khabar AI",
+      "textPreview": "NEPSE and Financial News Analysis | An Extension of Khabar AI",
+      "resolvedFontSize": 30,
+      "resolvedTextStyle": {
+        "fontSize": 30,
+        "typeface": "+mn-lt",
+        "color": "#BFDBFE",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "NEPSE and Financial News Analysis"
+          },
+          {
+            "index": 2,
+            "text": "An Extension of Khabar AI"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "NEPSE and Financial News Analysis",
+          "resolvedTextStyle": {
+            "fontSize": 30,
+            "color": "#BFDBFE",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "NEPSE and Financial News Analysis",
+              "fontSize": 30,
+              "color": "#BFDBFE",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "An Extension of Khabar AI",
+          "resolvedTextStyle": {
+            "fontSize": 30,
+            "color": "#BFDBFE",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "An Extension of Khabar AI",
+              "fontSize": 30,
+              "color": "#BFDBFE",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/twra5gbq",
+      "id": "6",
+      "bbox": [
+        86,
+        640,
+        900,
+        32
+      ],
+      "geometry": "rect",
+      "text": "Final Project Submission | Bikash Kumar Sah | Roll 16",
+      "textPreview": "Final Project Submission | Bikash Kumar Sah | Roll 16",
+      "resolvedFontSize": 22,
+      "resolvedTextStyle": {
+        "fontSize": 22,
+        "typeface": "+mn-lt",
+        "color": "#172554",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Final Project Submission | Bikash Kumar Sah | Roll 16"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Final Project Submission | Bikash Kumar Sah | Roll 16",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "color": "#172554",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Final Project Submission | Bikash Kumar Sah | Roll 16",
+              "fontSize": 22,
+              "color": "#172554",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4byhgn29",
+      "id": "7",
+      "bbox": [
+        1030,
+        642,
+        170,
+        28
+      ],
+      "geometry": "rect",
+      "text": "July 3, 2026",
+      "textPreview": "July 3, 2026",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "fontSize": 18,
+        "typeface": "+mn-lt",
+        "color": "#172554",
+        "bold": true,
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "July 3, 2026"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "July 3, 2026",
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "color": "#172554",
+            "bold": true,
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "July 3, 2026",
+              "fontSize": 18,
+              "color": "#172554",
+              "bold": true,
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

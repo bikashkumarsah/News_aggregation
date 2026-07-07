@@ -5,7 +5,17 @@ try:
     from agent_service import workflow
     from agent_service.config import Settings
     from agent_service.schemas import AnalysisResult, DISCLAIMER
-    from agent_service.workflow import crewai_model_name, run_mock, validate_grounded_result
+    from agent_service.workflow import (
+        compact_retrieval_rows,
+        crewai_model_name,
+        materialize_single_pass_result,
+        openai_model_name,
+        run_mock,
+        run_single_pass,
+        single_pass_messages,
+        single_pass_response_format,
+        validate_grounded_result,
+    )
 except ImportError:
     ValidationError = None
 
@@ -36,6 +46,50 @@ class AgentServiceTest(unittest.TestCase):
             crewai_model_name("openai/custom-model"),
             "openai/custom-model",
         )
+        self.assertEqual(
+            crewai_model_name("hosted_vllm/custom-model"),
+            "hosted_vllm/custom-model",
+        )
+
+    def test_direct_vllm_model_name_strips_provider_prefix(self):
+        self.assertEqual(
+            openai_model_name("hosted_vllm/marketgyan-qwen35-9b-targeted-v2"),
+            "marketgyan-qwen35-9b-targeted-v2",
+        )
+        self.assertEqual(
+            openai_model_name("openai/custom-model"),
+            "custom-model",
+        )
+        self.assertEqual(
+            openai_model_name("marketgyan-qwen35-9b-targeted-v2"),
+            "marketgyan-qwen35-9b-targeted-v2",
+        )
+
+    def test_compact_retrieval_rows_preserves_citation_anchors(self):
+        rows = compact_retrieval_rows([{
+            "documentId": "doc-1",
+            "title": "Daily market",
+            "url": "https://example.com/market",
+            "text": "Long article text that should not be copied in full.",
+            "score": 0.9,
+            "source": "ShareSansar",
+            "publishedAtIso": "2026-06-13T00:00:00.000Z",
+            "chunkId": "chunk-1",
+            "contentHash": "hash-1",
+            "sentenceIds": ["S1", "S2", "S3", "S4"],
+            "sentences": [
+                {"id": "S1", "text": "NEPSE closed higher."},
+                {"id": "S2", "text": "Banking shares gained."},
+                {"id": "S3", "text": "Turnover increased."},
+                {"id": "S4", "text": "Extra sentence."},
+            ],
+        }])
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["excerpt"], "NEPSE closed higher.")
+        self.assertEqual(rows[0]["sentenceIds"], ["S1", "S2", "S3"])
+        self.assertEqual(len(rows[0]["sentences"]), 3)
+        self.assertNotIn("text", rows[0])
 
     def result(self, excerpt="NEPSE closed higher after a mixed trading session."):
         value = {
@@ -234,6 +288,122 @@ class AgentServiceTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "No retrievable"):
             run_mock(request, Settings(mock_enabled=True, query_enabled=True))
+
+    def test_single_pass_schema_uses_evidence_index_enum(self):
+        response_format = single_pass_response_format("query", 2)
+        schema = response_format["json_schema"]["schema"]
+
+        self.assertEqual(response_format["type"], "json_schema")
+        self.assertEqual(
+            schema["properties"]["citationIndexes"]["items"]["enum"],
+            [0, 1],
+        )
+        self.assertIn("answer", schema["required"])
+        self.assertNotIn("citations", schema["properties"])
+
+    def test_single_pass_prompt_uses_compact_indexed_evidence(self):
+        request = workflow.AnalysisRequest(
+            mode="query",
+            question="What happened today?",
+        )
+        messages = single_pass_messages(request, [{
+            "documentId": "doc-1",
+            "title": "Daily market",
+            "url": "https://example.com/market",
+            "excerpt": "NEPSE closed higher.",
+            "score": 0.9,
+            "sentenceIds": ["S1"],
+            "sentences": [{"id": "S1", "text": "NEPSE closed higher."}],
+        }])
+        payload = messages[1]["content"]
+
+        self.assertIn('"index": 0', payload)
+        self.assertIn("citationIndexes", payload)
+        self.assertIn("NEPSE closed higher", payload)
+        self.assertLess(len(payload), 2000)
+
+    def test_single_pass_query_materializes_retrieved_citations(self):
+        self.set_fake_retrieval([{
+            "documentId": "doc-1",
+            "title": "Daily market",
+            "url": "https://example.com/market",
+            "text": "NEPSE closed higher after a mixed trading session.",
+            "score": 0.9,
+            "source": "ShareSansar",
+            "publishedAtIso": "2026-06-13T00:00:00.000Z",
+            "chunkId": "chunk-1",
+            "contentHash": "hash-1",
+            "sentenceIds": ["S1"],
+            "sentences": [{
+                "id": "S1",
+                "text": "NEPSE closed higher after a mixed trading session.",
+            }],
+        }])
+        original = workflow.chat_completion_json
+
+        def fake_chat_completion_json(settings, messages, response_format):
+            self.assertEqual(settings.generation_max_tokens, 128)
+            self.assertEqual(
+                response_format["json_schema"]["schema"]["properties"][
+                    "citationIndexes"
+                ]["items"]["enum"],
+                [0],
+            )
+            self.assertIn('"index": 0', messages[1]["content"])
+            return {
+                "mode": "query",
+                "answer": "The cited evidence says NEPSE closed higher.",
+                "citationIndexes": [0],
+            }
+
+        workflow.chat_completion_json = fake_chat_completion_json
+        self.addCleanup(lambda: setattr(workflow, "chat_completion_json", original))
+        request = workflow.AnalysisRequest(
+            mode="query",
+            question="What happened today?",
+        )
+
+        result = run_single_pass(
+            request,
+            Settings(
+                mock_enabled=False,
+                query_enabled=True,
+                inference_model="hosted_vllm/marketgyan-qwen35-9b-targeted-v2",
+                generation_max_tokens=128,
+            ),
+        )
+
+        self.assertEqual(result.mode, "query")
+        self.assertEqual(result.modelVersion, "hosted_vllm/marketgyan-qwen35-9b-targeted-v2")
+        self.assertEqual(result.citations[0].documentId, "doc-1")
+        self.assertEqual(result.citations[0].sentenceIds, ["S1"])
+        self.assertEqual(
+            result.citations[0].sentences[0].text,
+            "NEPSE closed higher after a mixed trading session.",
+        )
+
+    def test_single_pass_rejects_invalid_citation_index(self):
+        request = workflow.AnalysisRequest(
+            mode="query",
+            question="What happened today?",
+        )
+        with self.assertRaisesRegex(ValueError, "invalid citation index"):
+            materialize_single_pass_result(
+                {
+                    "mode": "query",
+                    "answer": "Unsupported answer.",
+                    "citationIndexes": [1],
+                },
+                request,
+                [{
+                    "documentId": "doc-1",
+                    "title": "Daily market",
+                    "url": "https://example.com/market",
+                    "excerpt": "NEPSE closed higher.",
+                    "score": 0.9,
+                }],
+                model_version="test-model",
+            )
 
 
 if __name__ == "__main__":

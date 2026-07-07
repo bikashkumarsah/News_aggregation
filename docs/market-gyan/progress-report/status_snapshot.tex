@@ -2,10 +2,10 @@
 % Update the macros below after each milestone, then append one dated entry to
 % \MarketGyanMilestoneHistory. Keep implementation details in main.tex stable.
 
-\newcommand{\SnapshotDate}{June 21, 2026}
-\newcommand{\SnapshotTimestamp}{the dataset, third training-run, tolerant diagnostic parsing, constrained-decoding, and RAG evidence-anchor status after the June 21, 2026 Qwen analysis}
-\newcommand{\CurrentMilestone}{Qwen v3 evaluation and RAG readiness hardening}
-\newcommand{\CurrentMilestoneState}{XLM-R remains the current reliable baseline; Qwen run 3 failed the official strict-output gate, but tolerant diagnostic repair shows partial extraction learning and confirms that runtime use requires schema-constrained decoding}
+\newcommand{\SnapshotDate}{July 3, 2026}
+\newcommand{\SnapshotTimestamp}{the July 3, 2026 Qwen3.5-9B targeted-v2, constrained-inference, retrieval, single-pass RAG, and frontend report-generation evaluation}
+\newcommand{\CurrentMilestone}{Qwen3.5-9B targeted-v2 proposal evaluation and demo readiness}
+\newcommand{\CurrentMilestoneState}{The served Qwen3.5-9B targeted-v2 adapter passes strict structure and live single-pass citation gates, but retrieval and several content metrics remain below proposal deployment targets; current status is demo-only}
 
 \newcommand{\SnapshotCount}{224}
 \newcommand{\SnapshotStartDate}{June 11, 2025}
@@ -126,7 +126,7 @@
 \newcommand{\GemmaAverageTokenCount}{2,895}
 
 \newcommand{\FineTuningState}{Third XLM-R, FinBERT, and Qwen run analyzed; XLM-R remains the reliable baseline, Qwen remains below strict validity and grounding gates, and tolerant repair is diagnostic only}
-\newcommand{\RuntimeInferenceState}{Implemented but disabled pending evaluation}
+\newcommand{\RuntimeInferenceState}{Implemented for local demo with Lightning vLLM, JSON Schema constrained decoding, and single-pass RAG; deployment remains blocked by retrieval and content metrics}
 
 \newcommand{\MarketGyanMilestoneHistory}{%
   \begin{description}[style=nextline]
@@ -296,5 +296,21 @@
     \QwenThirdRunTolerantEvidenceFOne{}. These tolerant numbers are
     failure-analysis diagnostics only and do not count toward deployment
     readiness.
+    \item[July 3, 2026] The current runtime candidate was updated to the
+    served \texttt{Qwen/Qwen3.5-9B} targeted-v2 BF16 LoRA adapter. Lightning
+    vLLM reported \texttt{max\_model\_len=16384} with
+    \texttt{marketgyan-qwen35-9b-targeted-v2} loaded. Direct unconstrained
+    prompting remained diagnostic only because it can emit reasoning text;
+    JSON Schema constrained decoding returned valid compact JSON, and the
+    application path now uses a single-pass RAG agent that materializes
+    citations from retrieved rows.
+    \item[July 3, 2026, proposal evaluation] The targeted-v2 model-only
+    benchmark passed strict validity and grounding, while live single-pass
+    report/query scenarios passed schema, citation, sentence-citation,
+    grounding, disclaimer, and no-advice checks. Retrieval remained the main
+    blocker: the evaluator reported judged-query Precision@5 of 0.262 over
+    13 query groups with labeled returned candidates, while the stricter
+    all-30-query zero-padded Precision@5 was 0.113. The system is therefore a
+    grounded demo/research prototype, not a deployable market product.
   \end{description}
 }

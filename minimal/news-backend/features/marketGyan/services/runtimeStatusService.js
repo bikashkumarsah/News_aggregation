@@ -29,7 +29,7 @@ const createRuntimeStatus = ({
 
 const loadRuntimeStatus = async (req) => {
     const [latestReport, latestSnapshot] = await Promise.all([
-        MarketReport.findOne()
+        MarketReport.findOne({ status: 'published' })
             .sort({ reportDate: -1 })
             .select('status reportDate')
             .lean(),

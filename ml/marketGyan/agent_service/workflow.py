@@ -1,4 +1,7 @@
 import json
+from json import JSONDecodeError
+
+import httpx
 
 from .config import Settings
 from .retrieval import RetrievalClient
@@ -13,6 +16,50 @@ FORBIDDEN_PHRASES = (
     "recommend buying",
     "recommend selling",
 )
+MAX_TOOL_RESULTS = 3
+
+
+def compact_retrieval_rows(rows, limit=MAX_TOOL_RESULTS):
+    compact = []
+    for row in rows[:limit]:
+        sentence_ids = row.get("sentenceIds") if isinstance(row.get("sentenceIds"), list) else []
+        sentences = row.get("sentences") if isinstance(row.get("sentences"), list) else []
+        wanted = {str(value) for value in sentence_ids[:3]}
+        selected_sentences = [
+            {"id": str(sentence.get("id")), "text": str(sentence.get("text"))}
+            for sentence in sentences
+            if str(sentence.get("id")) in wanted and sentence.get("text")
+        ][:3]
+        if not selected_sentences and sentences:
+            first = sentences[0]
+            if first.get("id") and first.get("text"):
+                selected_sentences = [{
+                    "id": str(first.get("id")),
+                    "text": str(first.get("text")),
+                }]
+                sentence_ids = [selected_sentences[0]["id"]]
+        excerpt = (
+            selected_sentences[0]["text"]
+            if selected_sentences
+            else str(row.get("text") or "")[:500]
+        )
+        compact.append({
+            "documentId": str(row.get("documentId") or row.get("_id") or ""),
+            "title": row.get("title"),
+            "url": row.get("url") or row.get("sourceUrl"),
+            "excerpt": excerpt,
+            "score": row.get("score"),
+            "source": row.get("source"),
+            "publishedAt": row.get("publishedAtIso") or row.get("publishedAt"),
+            "chunkId": row.get("chunkId") or row.get("pointId"),
+            "chunkIndex": row.get("chunkIndex"),
+            "contentHash": row.get("contentHash"),
+            "sentenceIds": [str(value) for value in sentence_ids[:3]],
+            "sentences": selected_sentences,
+            "sectors": row.get("sectors") or [],
+            "symbols": row.get("symbols") or [],
+        })
+    return compact
 
 
 def crewai_model_name(model):
@@ -20,6 +67,14 @@ def crewai_model_name(model):
     if value.startswith(("openai/", "hosted_vllm/")):
         return value
     return "openai/" + value
+
+
+def openai_model_name(model):
+    value = str(model or "").strip()
+    for prefix in ("openai/", "hosted_vllm/"):
+        if value.startswith(prefix):
+            return value[len(prefix):]
+    return value
 
 
 def evidence_key(url, excerpt):
@@ -241,118 +296,225 @@ def parse_result_json(value):
     return AnalysisResult.parse_raw(value)
 
 
-def run_crew(request: AnalysisRequest, settings: Settings):
+def single_pass_json_schema(mode, citation_count):
+    evidence_index = {
+        "type": "integer",
+        "enum": list(range(citation_count)),
+    }
+    sector_analysis = {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": [
+                "sector",
+                "sentiment",
+                "summary",
+                "confidence",
+                "evidenceIndexes",
+            ],
+            "properties": {
+                "sector": {"type": "string"},
+                "sentiment": {
+                    "type": "string",
+                    "enum": ["bullish", "bearish", "neutral", "unavailable"],
+                },
+                "summary": {"type": "string"},
+                "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+                "evidenceIndexes": {
+                    "type": "array",
+                    "items": evidence_index,
+                },
+            },
+        },
+    }
+    properties = {
+        "mode": {"type": "string", "enum": [mode]},
+        "citationIndexes": {
+            "type": "array",
+            "minItems": 1,
+            "items": evidence_index,
+        },
+    }
+    if mode == "query":
+        properties["answer"] = {"type": "string"}
+        required = ["mode", "answer", "citationIndexes"]
+    else:
+        properties.update({
+            "headline": {"type": "string"},
+            "summary": {"type": "string"},
+            "sectorAnalysis": sector_analysis,
+        })
+        required = [
+            "mode",
+            "headline",
+            "summary",
+            "sectorAnalysis",
+            "citationIndexes",
+        ]
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": required,
+        "properties": properties,
+    }
+
+
+def single_pass_response_format(mode, citation_count):
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "marketgyan_single_pass_%s" % mode,
+            "strict": True,
+            "schema": single_pass_json_schema(mode, citation_count),
+        },
+    }
+
+
+def single_pass_messages(request, evidence):
+    request_payload = {
+        "mode": request.mode,
+        "question": request.question,
+        "reportDate": request.reportDate,
+        "snapshot": request.snapshot or {},
+    }
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You are MarketGyan, a Nepal market information assistant. "
+                "Return only JSON matching the schema. Do not reveal reasoning. "
+                "Use only the provided evidence records. Use cautious language. "
+                "Do not give buy/sell advice, price targets, guaranteed returns, "
+                "or claims that news proves market movement."
+            ),
+        },
+        {
+            "role": "user",
+            "content": json.dumps(
+                {
+                    "request": request_payload,
+                    "instructions": [
+                        "For a query, answer the question directly from evidence.",
+                        "For a report, provide a headline, summary, and sectorAnalysis.",
+                        "citationIndexes must reference evidence index values only.",
+                        "evidenceIndexes inside sectorAnalysis also reference evidence indexes.",
+                        "If evidence is weak, say the available evidence is limited.",
+                    ],
+                    "evidence": [
+                        {"index": index, **row}
+                        for index, row in enumerate(evidence)
+                    ],
+                },
+                ensure_ascii=False,
+            ),
+        },
+    ]
+
+
+def chat_completion_json(settings, messages, response_format):
+    body = {
+        "model": openai_model_name(settings.inference_model),
+        "messages": messages,
+        "temperature": 0,
+        "max_tokens": settings.generation_max_tokens,
+        "response_format": response_format,
+    }
+    try:
+        with httpx.Client(timeout=settings.request_timeout_seconds) as client:
+            response = client.post(
+                settings.inference_base_url.rstrip("/") + "/chat/completions",
+                json=body,
+                headers={"Authorization": "Bearer %s" % settings.inference_api_key},
+            )
+        response.raise_for_status()
+    except httpx.HTTPStatusError as error:
+        detail = error.response.text[:1000] if error.response is not None else ""
+        raise RuntimeError(
+            "Inference request failed with HTTP %s: %s" % (
+                error.response.status_code if error.response is not None else "error",
+                detail,
+            )
+        ) from error
+    except httpx.HTTPError as error:
+        raise RuntimeError("Inference request failed: %s" % error) from error
+
+    raw = (
+        response.json()
+        .get("choices", [{}])[0]
+        .get("message", {})
+        .get("content", "")
+    )
+    try:
+        return json.loads(raw)
+    except (TypeError, JSONDecodeError) as error:
+        raise ValueError("Inference response was not valid JSON") from error
+
+
+def materialize_single_pass_result(payload, request, citations, model_version):
+    indexes = payload.get("citationIndexes") or []
+    if not indexes:
+        raise ValueError("Generated output did not select citations")
+    if any(not isinstance(index, int) or index < 0 or index >= len(citations) for index in indexes):
+        raise ValueError("Generated output selected an invalid citation index")
+    selected = []
+    seen = set()
+    for index in indexes:
+        if index in seen:
+            continue
+        selected.append(citations[index])
+        seen.add(index)
+
+    result_payload = {
+        "mode": request.mode,
+        "citations": selected,
+        "disclaimer": DISCLAIMER,
+        "modelVersion": model_version,
+    }
+    if request.mode == "query":
+        result_payload["answer"] = payload.get("answer")
+    else:
+        result_payload["headline"] = payload.get("headline")
+        result_payload["summary"] = payload.get("summary")
+        result_payload["sectorAnalysis"] = payload.get("sectorAnalysis") or []
+    return parse_result(result_payload)
+
+
+def run_single_pass(request: AnalysisRequest, settings: Settings):
     if settings.mock_enabled:
         return run_mock(request, settings)
 
-    try:
-        from crewai import Agent, Crew, LLM, Process, Task
-        from crewai.tools import tool
-    except ImportError as error:
-        raise RuntimeError(
-            "CrewAI is not installed. Install requirements-agent.txt."
-        ) from error
-
     retrieval = RetrievalClient(settings)
+    rows = retrieval.search(research_query(request), request.filters)
+    evidence = []
+    citations = []
+    for row in compact_retrieval_rows(rows):
+        citation = _citation_from_row(row)
+        if citation["documentId"] and citation["url"] and citation["excerpt"]:
+            evidence.append(row)
+            citations.append(citation)
+    if not citations:
+        raise ValueError("No retrievable MarketGyan evidence is available")
 
-    @tool("Search MarketGyan financial documents")
-    def search_market_documents(query: str) -> str:
-        """Search grounded MarketGyan news and regulatory chunks."""
-        return json.dumps(
-            retrieval.search(query, request.filters),
-            ensure_ascii=False,
-        )
-
-    llm = LLM(
-        model=crewai_model_name(settings.inference_model),
-        base_url=settings.inference_base_url,
-        api_key=settings.inference_api_key,
-        temperature=0,
+    payload = chat_completion_json(
+        settings,
+        messages=single_pass_messages(request, evidence),
+        response_format=single_pass_response_format(request.mode, len(citations)),
     )
-    researcher = Agent(
-        role="MarketGyan Researcher",
-        goal="Retrieve only relevant public financial evidence.",
-        backstory=(
-            "You search the MarketGyan index and never invent sources. "
-            "You distinguish evidence from interpretation."
-        ),
-        tools=[search_market_documents],
-        llm=llm,
-        verbose=False,
-        allow_delegation=False,
+    result = materialize_single_pass_result(
+        payload,
+        request,
+        citations,
+        model_version=settings.inference_model,
     )
-    analyst = Agent(
-        role="MarketGyan Analyst",
-        goal="Interpret retrieved evidence cautiously with deterministic market data.",
-        backstory=(
-            "You analyze Nepal market information without claiming causation, "
-            "forecasting prices, or giving investment advice."
-        ),
-        llm=llm,
-        verbose=False,
-        allow_delegation=False,
-    )
-    publisher = Agent(
-        role="MarketGyan Publisher",
-        goal="Return strict grounded JSON with exact citations.",
-        backstory=(
-            "You publish concise informational analysis. Every claim must be "
-            "supported by retrieved evidence and include the required disclaimer."
-        ),
-        llm=llm,
-        verbose=False,
-        allow_delegation=False,
-    )
-
-    research = Task(
-        description=(
-            "Use the search tool for this request: {research_query}. "
-            "Return the relevant retrieved records and no unsupported facts."
-        ),
-        expected_output="A compact list of retrieved evidence records.",
-        agent=researcher,
-    )
-    analysis = Task(
-        description=(
-            "Analyze the retrieved evidence and this market snapshot: {snapshot}. "
-            "Use cautious language. Do not give buy/sell advice or claim that news "
-            "proved a market movement."
-        ),
-        expected_output="Evidence-supported analysis notes.",
-        agent=analyst,
-        context=[research],
-    )
-    publish = Task(
-        description=(
-            "Publish the requested {mode} as the required structured object. "
-            "Citations must copy exact excerpts and URLs returned by retrieval. "
-            "When retrieval returns sentenceIds, sentences, chunkId, source, "
-            "publishedAt, and contentHash, include those fields so sentence IDs "
-            "remain internal anchors backed by visible citation text. "
-            f"The disclaimer must be exactly: {DISCLAIMER}"
-        ),
-        expected_output="A valid MarketGyan AnalysisResult object.",
-        agent=publisher,
-        context=[research, analysis],
-        output_pydantic=AnalysisResult,
-    )
-    crew = Crew(
-        agents=[researcher, analyst, publisher],
-        tasks=[research, analysis, publish],
-        process=Process.sequential,
-        verbose=False,
-        memory=False,
-    )
-    output = crew.kickoff(inputs={
-        "research_query": research_query(request),
-        "snapshot": json.dumps(request.snapshot or {}, ensure_ascii=False),
-        "mode": request.mode,
-    })
-    result = output.pydantic
-    if result is None:
-        if output.json_dict:
-            result = parse_result(output.json_dict)
-        else:
-            result = parse_result_json(output.raw)
-    result.modelVersion = settings.inference_model
     return validate_grounded_result(result, retrieval.seen)
+
+
+def run_crew(request: AnalysisRequest, settings: Settings):
+    """Backward-compatible name for the former CrewAI entrypoint."""
+
+    return run_single_pass(request, settings)

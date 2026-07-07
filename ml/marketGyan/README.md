@@ -144,6 +144,10 @@ remain useful as failure diagnostics, but the deployment path should use
 schema-constrained decoding if Qwen is used for structured output.
 Model artifacts and datasets are intentionally ignored by Git.
 
+For the targeted-v2 Qwen adapter, the recommended runtime path is Lightning AI
+Studio plus vLLM. Use `deploy/lightning/README.md` for the A100 40 GB launch
+script, smoke test, Mac agent environment template, and A100 80 GB fallback.
+
 The notebook also writes `model_gate.json` from the official strict metrics.
 To compare the new A100 run against the previous Qwen3-8B 4-bit output archive:
 
@@ -173,7 +177,9 @@ PYTHONPATH=. python3 -m market_gyan.cli deployment-gate \
   outputs/deployment-gate.json
 ```
 
-The optional CrewAI service has separate dependencies:
+The optional local agent service has separate dependencies. Live mode uses one
+compact OpenAI-compatible chat request after retrieval, then materializes exact
+citations from retrieved evidence indexes:
 
 ```bash
 python -m pip install -r requirements-agent.txt
@@ -192,6 +198,43 @@ export MARKET_GYAN_NODE_BASE_URL=http://127.0.0.1:5001
 
 Mock mode still retrieves evidence from the Node/Qdrant path and runs citation
 validation; it only replaces free-form model generation.
+
+## Proposal-aligned evaluation
+
+Use these commands after the Lightning vLLM endpoint, FastAPI agent, Node
+backend, MongoDB, and Qdrant are running. Generated files live under
+`outputs/proposal_eval/`, which is ignored by Git.
+
+```bash
+PYTHONPATH=. python3 -m market_gyan.cli proposal-model-benchmark \
+  /path/to/News_aggregation_ml_marketGyan_outputs_marketgyan-qwen35-9b-a100-80gb-bf16-lora-targeted-v2.zip
+
+export MARKET_GYAN_VLLM_BASE_URL=https://8000-...cloudspaces.litng.ai/v1
+export MARKET_GYAN_VLLM_API_KEY=marketgyan-local-test-token
+export MARKET_GYAN_VLLM_MODEL=marketgyan-qwen35-9b-targeted-v2
+PYTHONPATH=. python3 -m market_gyan.cli proposal-constrained-inference \
+  --limit 5 --conditions zero_shot --max-tokens 192
+PYTHONPATH=. python3 -m market_gyan.cli proposal-constrained-inference \
+  --conditions zero_shot --max-tokens 192
+
+PYTHONPATH=. python3 -m market_gyan.cli proposal-collect-retrieval
+PYTHONPATH=. python3 -m market_gyan.cli proposal-collect-scenarios
+```
+
+Three-shot constrained inference is supported with `--conditions three_shot`,
+but it usually requires serving vLLM with a larger `--max-model-len` such as
+4096.
+
+Manually copy `outputs/proposal_eval/retrieval_results.unlabeled.json` to
+`outputs/proposal_eval/retrieval_results.labeled.json` and add `relevant` true
+or false to each top-5 result before scoring Precision@5:
+
+```bash
+PYTHONPATH=. python3 -m market_gyan.cli system-evaluate \
+  outputs/proposal_eval/retrieval_results.labeled.json \
+  outputs/proposal_eval/system_scenarios.live.json \
+  outputs/proposal_eval/proposal-system-metrics.json
+```
 
 This is a research workflow. The retrieval, agent, and report paths are
 implemented but disabled until reviewed data, trained artifacts, and deployment

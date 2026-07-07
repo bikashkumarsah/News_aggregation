@@ -4,10 +4,10 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 
 from .config import settings
 from .schemas import AnalysisRequest, AnalysisResult
-from .workflow import run_crew
+from .workflow import run_single_pass
 
 
-app = FastAPI(title="MarketGyan CrewAI Service", version="1.0.0")
+app = FastAPI(title="MarketGyan Agent Service", version="1.0.0")
 
 
 def require_token(x_market_gyan_token: Optional[str] = Header(default=None)):
@@ -22,6 +22,7 @@ def health():
         "queryEnabled": settings.query_enabled,
         "mockEnabled": settings.mock_enabled,
         "model": settings.inference_model,
+        "runtime": "mock" if settings.mock_enabled else "single_pass",
     }
 
 
@@ -36,7 +37,7 @@ def analyze(request: AnalysisRequest):
     if request.mode == "query" and not str(request.question or "").strip():
         raise HTTPException(status_code=400, detail="question is required")
     try:
-        return run_crew(request, settings)
+        return run_single_pass(request, settings)
     except ValueError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
     except Exception as error:
