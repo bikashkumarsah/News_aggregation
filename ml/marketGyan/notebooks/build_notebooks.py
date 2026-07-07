@@ -179,27 +179,70 @@ from transformers import (
     TrainingArguments,
     set_seed,
 )
+from market_gyan.direction_training import (
+    class_weights as compute_class_weights,
+    evaluate_with_bias,
+    label_counts,
+    merge_direction_label,
+    oversample_rows,
+    oversampling_summary,
+    tune_logit_bias,
+)
 
-def train_classifier(name, model_name, task, labels, english_only=False):
+def train_classifier(
+    name,
+    model_name,
+    task,
+    labels,
+    english_only=False,
+    class_weight_scheme="inverse",
+    neutral_weight_boost=1.0,
+    loss="ce",
+    focal_gamma=2.0,
+    oversample_direction=False,
+    neutral_oversample_factor=4,
+    minority_oversample_factor=2,
+    merge_neutral_uncertain=False,
+    tune_bias=False,
+    metric_for_best_model="macro_f1",
+):
+    is_direction = task == "direction"
+    merge = merge_neutral_uncertain and is_direction
     label_to_id = {label: index for index, label in enumerate(labels)}
     id_to_label = {index: label for label, index in label_to_id.items()}
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
+    def direction_of(row):
+        return merge_direction_label(
+            row["gold"]["impactDirection"],
+            merge_neutral_uncertain=merge,
+        )
+
+    def target_label(row):
+        if task == "relevance":
+            return row["gold"]["relevance"]
+        return direction_of(row)
+
     def keep(row):
         if english_only and row["gold"]["language"] != "en":
             return False
-        if task == "direction" and row["gold"]["relevance"] == "not_relevant":
+        if is_direction and row["gold"]["relevance"] == "not_relevant":
             return False
-        target = "relevance" if task == "relevance" else "impactDirection"
-        return row["gold"][target] in labels
+        return target_label(row) in labels
 
-    def prepare(values):
+    def prepare(values, oversample=False):
         filtered = [row for row in values if keep(row)]
-        target = "relevance" if task == "relevance" else "impactDirection"
+        if oversample and is_direction and oversample_direction:
+            filtered = oversample_rows(
+                filtered,
+                direction_of,
+                neutral_factor=neutral_oversample_factor,
+                minority_factor=minority_oversample_factor,
+            )
         dataset = Dataset.from_list([{
             "id": row["id"],
             "text": row["title"] + "\\n" + row["excerpt"],
-            "label": label_to_id[row["gold"][target]],
+            "label": label_to_id[target_label(row)],
         } for row in filtered])
         return dataset.map(
             lambda batch: tokenizer(
@@ -208,7 +251,7 @@ def train_classifier(name, model_name, task, labels, english_only=False):
             batched=True,
         )
 
-    train_data = prepare(train_rows)
+    train_data = prepare(train_rows, oversample=True)
     validation_data = prepare(validation_rows)
     test_data = prepare(test_rows)
     print(
@@ -216,11 +259,32 @@ def train_classifier(name, model_name, task, labels, english_only=False):
         f"validation={len(validation_data)}, test={len(test_data)}, "
         f"labels={labels}"
     )
-    counts = Counter(train_data["label"])
-    weights = torch.tensor([
-        len(train_data) / float(len(labels) * max(counts.get(i, 0), 1))
-        for i in range(len(labels))
-    ])
+    if is_direction and oversample_direction:
+        base_rows = [row for row in train_rows if keep(row)]
+        print(json.dumps(
+            oversampling_summary(
+                base_rows,
+                direction_of,
+                neutral_factor=neutral_oversample_factor,
+                minority_factor=minority_oversample_factor,
+            ),
+            indent=2,
+        ))
+    # Class weights from the pre-oversampling training label distribution.
+    base_counts = label_counts(
+        [target_label(row) for row in train_rows if keep(row)],
+        labels,
+    )
+    boosts = (
+        {"neutral": neutral_weight_boost}
+        if is_direction and neutral_weight_boost != 1.0 and "neutral" in label_to_id
+        else None
+    )
+    weight_values = compute_class_weights(
+        base_counts, labels, scheme=class_weight_scheme, boosts=boosts
+    )
+    weights = torch.tensor(weight_values, dtype=torch.float)
+    print("class weights:", dict(zip(labels, [round(w, 3) for w in weight_values])))
     model = AutoModelForSequenceClassification.from_pretrained(
         model_name,
         num_labels=len(labels),
@@ -229,14 +293,29 @@ def train_classifier(name, model_name, task, labels, english_only=False):
         ignore_mismatched_sizes=True,
     )
 
+    use_focal = loss == "focal"
+
     class WeightedTrainer(Trainer):
         def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
             expected = inputs.pop("labels")
             output = model(**inputs)
-            loss = torch.nn.functional.cross_entropy(
-                output.logits, expected, weight=weights.to(output.logits.device)
-            )
-            return (loss, output) if return_outputs else loss
+            logits = output.logits
+            weight = weights.to(logits.device)
+            if use_focal:
+                # Focal loss down-weights easy majority examples so the scarce
+                # neutral rows dominate the gradient signal.
+                log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
+                gathered = log_probs.gather(1, expected.unsqueeze(1)).squeeze(1)
+                probs = gathered.exp()
+                sample_weight = weight[expected]
+                loss_value = (
+                    -((1.0 - probs) ** focal_gamma) * gathered * sample_weight
+                ).mean()
+            else:
+                loss_value = torch.nn.functional.cross_entropy(
+                    logits, expected, weight=weight
+                )
+            return (loss_value, output) if return_outputs else loss_value
 
     def compute_metrics(prediction):
         predicted = prediction.predictions.argmax(axis=-1)
@@ -248,7 +327,10 @@ def train_classifier(name, model_name, task, labels, english_only=False):
             output_dict=True,
             zero_division=0,
         )
-        return {"macro_f1": report["macro avg"]["f1-score"]}
+        metrics = {"macro_f1": report["macro avg"]["f1-score"]}
+        for label in labels:
+            metrics[f"{label}_f1"] = report[label]["f1-score"]
+        return metrics
 
     output_dir = OUTPUTS / name
     arguments = TrainingArguments(
@@ -262,7 +344,7 @@ def train_classifier(name, model_name, task, labels, english_only=False):
         save_strategy="epoch",
         save_total_limit=1,
         load_best_model_at_end=True,
-        metric_for_best_model="macro_f1",
+        metric_for_best_model=metric_for_best_model,
         report_to=[],
         seed=42,
         disable_tqdm=False,
@@ -284,6 +366,24 @@ def train_classifier(name, model_name, task, labels, english_only=False):
     result = trainer.predict(test_data)
     truth = result.label_ids
     predicted = result.predictions.argmax(axis=-1)
+
+    # Post-hoc per-class logit-bias tuning: fit on validation, apply to test so
+    # a directionally-aware model that never wins neutral at argmax can recover
+    # its recall without retraining.
+    logit_bias = [0.0] * len(labels)
+    if is_direction and tune_bias:
+        validation_logits = trainer.predict(validation_data)
+        logit_bias, tuned_val_f1, _ = tune_logit_bias(
+            validation_logits.predictions.tolist(),
+            validation_logits.label_ids.tolist(),
+            labels,
+            present_only=True,
+        )
+        biased = np.asarray(result.predictions) + np.asarray(logit_bias)
+        predicted = biased.argmax(axis=-1)
+        print("tuned logit bias:", dict(zip(labels, [round(b, 2) for b in logit_bias])))
+        print("validation macro-F1 after bias tuning:", round(tuned_val_f1, 4))
+
     report = classification_report(
         truth, predicted, labels=list(range(len(labels))),
         target_names=labels, output_dict=True, zero_division=0
@@ -296,6 +396,18 @@ def train_classifier(name, model_name, task, labels, english_only=False):
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "metrics.json").write_text(json.dumps(report, indent=2))
     (output_dir / "predictions.json").write_text(json.dumps(predictions, indent=2))
+    if is_direction:
+        (output_dir / "direction_config.json").write_text(json.dumps({
+            "classWeightScheme": class_weight_scheme,
+            "neutralWeightBoost": neutral_weight_boost,
+            "loss": loss,
+            "focalGamma": focal_gamma if use_focal else None,
+            "oversampleDirection": oversample_direction,
+            "mergeNeutralUncertain": merge,
+            "tuneBias": tune_bias,
+            "logitBias": dict(zip(labels, logit_bias)),
+            "metricForBestModel": metric_for_best_model,
+        }, indent=2))
     trainer.save_model(output_dir)
     tokenizer.save_pretrained(output_dir)
     for checkpoint in output_dir.glob("checkpoint-*"):
@@ -312,13 +424,39 @@ relevance_run = train_classifier(
     ["direct", "indirect", "not_relevant"],
 )
 """, ["gpu"]),
-    markdown("## 5. Train XLM-R direction on relevant records"),
+    markdown("""
+## 5. Train XLM-R direction on relevant records
+
+The impact-direction task has a severe minority-class problem: the frozen split
+has only ~14 `neutral` training rows against 122 `uncertain` / 83 `bullish` /
+62 `bearish`, so plain argmax over a weighted softmax almost never predicts
+`neutral` and its F1 collapses. This run turns on the rare-class levers from
+`market_gyan.direction_training`:
+
+* `effective_number` class weights (gentler than raw inverse frequency for
+  ultra-rare classes) with an extra `neutral` boost,
+* `focal` loss to down-weight easy majority examples,
+* minority oversampling (`neutral` x4, `bearish`/`uncertain` x2),
+* `neutral_f1` model selection, and
+* post-hoc logit-bias tuning fit on validation and applied to test.
+
+The bias and config are saved to `direction_config.json` next to the metrics.
+"""),
     code("""
 direction_run = train_classifier(
     "xlmr-direction",
     "xlm-roberta-base",
     "direction",
     ["bullish", "bearish", "neutral", "uncertain"],
+    class_weight_scheme="effective_number",
+    neutral_weight_boost=2.0,
+    loss="focal",
+    focal_gamma=2.0,
+    oversample_direction=True,
+    neutral_oversample_factor=4,
+    minority_oversample_factor=2,
+    tune_bias=True,
+    metric_for_best_model="neutral_f1",
 )
 """, ["gpu"]),
     markdown("## 6. Train the English-only FinBERT baseline"),
