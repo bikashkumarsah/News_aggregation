@@ -17,6 +17,12 @@ class NotebookTest(unittest.TestCase):
                 "ProsusAI/finbert",
                 "confusion matrix",
                 "early_stopping_patience=2",
+                "from market_gyan.direction_training import",
+                "merge_neutral_uncertain=True",
+                "neutral_or_uncertain",
+                "class_weight_scheme=\"effective_number\"",
+                "oversample_direction=True",
+                "tune_logit_bias",
             ],
             "qwen3_8b_qlora.ipynb": [
                 "Qwen/Qwen3.5-9B",

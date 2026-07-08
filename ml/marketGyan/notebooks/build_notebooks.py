@@ -200,8 +200,6 @@ def train_classifier(
     loss="ce",
     focal_gamma=2.0,
     oversample_direction=False,
-    neutral_oversample_factor=4,
-    minority_oversample_factor=2,
     merge_neutral_uncertain=False,
     tune_bias=False,
     metric_for_best_model="macro_f1",
@@ -233,12 +231,7 @@ def train_classifier(
     def prepare(values, oversample=False):
         filtered = [row for row in values if keep(row)]
         if oversample and is_direction and oversample_direction:
-            filtered = oversample_rows(
-                filtered,
-                direction_of,
-                neutral_factor=neutral_oversample_factor,
-                minority_factor=minority_oversample_factor,
-            )
+            filtered = oversample_rows(filtered, direction_of, all_labels=labels)
         dataset = Dataset.from_list([{
             "id": row["id"],
             "text": row["title"] + "\\n" + row["excerpt"],
@@ -262,12 +255,7 @@ def train_classifier(
     if is_direction and oversample_direction:
         base_rows = [row for row in train_rows if keep(row)]
         print(json.dumps(
-            oversampling_summary(
-                base_rows,
-                direction_of,
-                neutral_factor=neutral_oversample_factor,
-                minority_factor=minority_oversample_factor,
-            ),
+            oversampling_summary(base_rows, direction_of, all_labels=labels),
             indent=2,
         ))
     # Class weights from the pre-oversampling training label distribution.
@@ -428,36 +416,54 @@ relevance_run = train_classifier(
 ## 5. Train XLM-R direction on relevant records
 
 The impact-direction task has a severe minority-class problem: the frozen split
-has only ~14 `neutral` training rows against 122 `uncertain` / 83 `bullish` /
-62 `bearish`, so plain argmax over a weighted softmax almost never predicts
-`neutral` and its F1 collapses. This run turns on the rare-class levers from
-`market_gyan.direction_training`:
+has only ~14 `neutral` training rows (3 validation / 6 test) against 122
+`uncertain` / 83 `bullish` / 62 `bearish`. At that support a separate `neutral`
+class is effectively unlearnable — its recall stays at 0 no matter how hard the
+loss is weighted, and over-aggressive weighting/oversampling destabilises the
+majority classes.
 
-* `effective_number` class weights (gentler than raw inverse frequency for
-  ultra-rare classes) with an extra `neutral` boost,
-* `focal` loss to down-weight easy majority examples,
-* minority oversampling (`neutral` x4, `bearish`/`uncertain` x2),
-* `neutral_f1` model selection, and
-* post-hoc logit-bias tuning fit on validation and applied to test.
+Two runs are provided:
 
-The bias and config are saved to `direction_config.json` next to the metrics.
+* **5a — merged 3-class (recommended).** Collapses the adjacent `neutral` +
+  `uncertain` labels into one non-directional bucket. This is the honest,
+  higher-macro-F1 model: it removes the unlearnable 6-sample class and reports a
+  trustworthy `bullish` / `bearish` / `neutral_or_uncertain` split. Uses gentle
+  count-driven oversampling and effective-number weights.
+* **5b — 4-class diagnostic.** Keeps all four labels with logit-bias tuning so
+  you can still inspect neutral behaviour, but treat its neutral-F1 as
+  diagnostic only until the corpus has >=40 neutral rows (see the
+  `dataset_readiness` warning).
+
+Both save their bias/config to `direction_config.json` next to the metrics.
 """),
     code("""
+# 5a. Recommended: merged 3-class direction (bullish / bearish / neutral_or_uncertain)
 direction_run = train_classifier(
     "xlmr-direction",
     "xlm-roberta-base",
     "direction",
-    ["bullish", "bearish", "neutral", "uncertain"],
+    ["bullish", "bearish", "neutral_or_uncertain"],
     class_weight_scheme="effective_number",
-    neutral_weight_boost=2.0,
     loss="focal",
-    focal_gamma=2.0,
+    focal_gamma=1.5,
     oversample_direction=True,
-    neutral_oversample_factor=4,
-    minority_oversample_factor=2,
-    tune_bias=True,
-    metric_for_best_model="neutral_f1",
+    merge_neutral_uncertain=True,
+    metric_for_best_model="macro_f1",
 )
+""", ["gpu"]),
+    code("""
+# 5b. Diagnostic: full 4-class with logit-bias tuning (neutral-F1 is diagnostic
+# only at current neutral support). Uncomment to run alongside 5a.
+# direction_4class_run = train_classifier(
+#     "xlmr-direction-4class",
+#     "xlm-roberta-base",
+#     "direction",
+#     ["bullish", "bearish", "neutral", "uncertain"],
+#     class_weight_scheme="effective_number",
+#     oversample_direction=True,
+#     tune_bias=True,
+#     metric_for_best_model="macro_f1",
+# )
 """, ["gpu"]),
     markdown("## 6. Train the English-only FinBERT baseline"),
     code("""

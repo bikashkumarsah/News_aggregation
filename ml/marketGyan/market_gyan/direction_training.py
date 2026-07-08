@@ -97,11 +97,13 @@ def class_weights(
 
 
 def direction_row_weight(direction, neutral_factor=4, minority_factor=2):
-    """Integer duplication weight for one training row.
+    """Integer duplication weight for one training row (legacy, label-name based).
 
-    ``neutral`` rows are duplicated the most (they are the scarcest and the
-    target of this work); ``bearish``/``uncertain`` get a smaller minority bump;
-    the majority classes stay at weight 1.
+    Kept for backward compatibility. Prefer :func:`balanced_row_weights`, which
+    is count-driven and does not require knowing which labels are minorities in
+    advance. This helper hardcodes ``neutral`` as scarcest and
+    ``bearish``/``uncertain`` as secondary minorities, which is wrong when
+    ``uncertain`` is actually the majority class.
     """
     if direction == "neutral":
         return max(1, neutral_factor)
@@ -110,46 +112,102 @@ def direction_row_weight(direction, neutral_factor=4, minority_factor=2):
     return 1
 
 
-def oversample_rows(rows, get_direction, neutral_factor=4, minority_factor=2):
-    """Deterministically duplicate minority-direction rows.
+def balanced_row_weights(labels, all_labels, cap=6, power=0.5):
+    """Count-driven per-row oversampling weights.
 
-    Mirrors the Qwen ``oversample_training_rows`` pattern (physical row
-    duplication rather than a sampler) so the expansion is reproducible and
-    framework independent. ``get_direction`` maps a row to its (possibly merged)
-    direction label. Original row order is preserved; duplicates are appended in
-    order so the result is stable.
+    Rather than hardcoding which classes are rare, size each class's duplication
+    from its actual frequency: ``weight(c) = round((max_count / count_c) ** power)``,
+    clamped to ``[1, cap]``. ``power`` in (0, 1] softens the ratio so the rarest
+    class is boosted without fully inverting the distribution (``power=1`` would
+    equalise every class and can swamp training with duplicated rare rows; 0.5 is
+    a gentle square-root balance). The majority class always gets weight 1, so no
+    class is ever starved relative to another the way a hardcoded list can do.
+
+    Returns ``{label: int_weight}`` for labels that are present.
     """
-    selected = []
-    for row in rows:
-        weight = direction_row_weight(
-            get_direction(row),
-            neutral_factor=neutral_factor,
-            minority_factor=minority_factor,
+    counts = Counter(labels)
+    if not counts:
+        return {label: 1 for label in all_labels}
+    max_count = max(counts.values())
+    weights = {}
+    for label in all_labels:
+        count = counts.get(label, 0)
+        if count <= 0:
+            weights[label] = 1
+            continue
+        raw = (max_count / float(count)) ** power
+        weights[label] = int(max(1, min(cap, round(raw))))
+    return weights
+
+
+def oversample_rows(
+    rows,
+    get_direction,
+    all_labels=None,
+    cap=6,
+    power=0.5,
+    neutral_factor=None,
+    minority_factor=None,
+):
+    """Deterministically duplicate rows toward class balance.
+
+    Default behaviour is count-driven (:func:`balanced_row_weights`): the rarest
+    class is boosted the most and the majority class is left at weight 1, using
+    the actual label distribution of ``rows``. Pass ``neutral_factor`` /
+    ``minority_factor`` to fall back to the legacy label-name scheme.
+
+    Original row order is preserved; duplicates are appended in order so the
+    result is fully reproducible and framework independent.
+    """
+    directions = [get_direction(row) for row in rows]
+    if neutral_factor is not None or minority_factor is not None:
+        nf = 4 if neutral_factor is None else neutral_factor
+        mf = 2 if minority_factor is None else minority_factor
+        weight_of = lambda direction: direction_row_weight(
+            direction, neutral_factor=nf, minority_factor=mf
         )
-        selected.extend([row] * weight)
+    else:
+        labels = all_labels or sorted(set(directions))
+        weights = balanced_row_weights(directions, labels, cap=cap, power=power)
+        weight_of = lambda direction: weights.get(direction, 1)
+    selected = []
+    for row, direction in zip(rows, directions):
+        selected.extend([row] * weight_of(direction))
     return selected
 
 
-def oversampling_summary(rows, get_direction, neutral_factor=4, minority_factor=2):
-    before = Counter(get_direction(row) for row in rows)
-    weights = [
-        direction_row_weight(
-            get_direction(row),
-            neutral_factor=neutral_factor,
-            minority_factor=minority_factor,
-        )
-        for row in rows
-    ]
+def oversampling_summary(
+    rows,
+    get_direction,
+    all_labels=None,
+    cap=6,
+    power=0.5,
+    neutral_factor=None,
+    minority_factor=None,
+):
+    directions = [get_direction(row) for row in rows]
+    before = Counter(directions)
+    if neutral_factor is not None or minority_factor is not None:
+        nf = 4 if neutral_factor is None else neutral_factor
+        mf = 2 if minority_factor is None else minority_factor
+        weights = {
+            label: direction_row_weight(label, neutral_factor=nf, minority_factor=mf)
+            for label in before
+        }
+    else:
+        labels = all_labels or sorted(before)
+        weights = balanced_row_weights(directions, labels, cap=cap, power=power)
     after = Counter()
-    for row, weight in zip(rows, weights):
-        after[get_direction(row)] += weight
+    for direction in directions:
+        after[direction] += weights.get(direction, 1)
     return {
         "originalCount": len(rows),
-        "oversampledCount": sum(weights),
+        "oversampledCount": sum(after.values()),
         "before": dict(before),
         "after": dict(after),
-        "neutralFactor": neutral_factor,
-        "minorityFactor": minority_factor,
+        "perClassWeight": {
+            label: weights.get(label, 1) for label in sorted(before)
+        },
     }
 
 
