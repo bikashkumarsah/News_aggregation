@@ -42,8 +42,12 @@ def main():
         choices=["none", "direction"],
         default="none",
     )
-    parser.add_argument("--neutral-oversample-factor", type=int, default=4)
-    parser.add_argument("--minority-oversample-factor", type=int, default=2)
+    # Count-driven oversampling knobs. `cap` clamps the max duplication of the
+    # rarest class; `power` in (0,1] softens the frequency ratio (0.5 = gentle
+    # square-root balance). These replace the earlier hardcoded neutral/minority
+    # factors, which wrongly treated the majority `uncertain` class as a minority.
+    parser.add_argument("--oversample-cap", type=int, default=6)
+    parser.add_argument("--oversample-power", type=float, default=0.5)
     parser.add_argument(
         "--merge-neutral-uncertain",
         action="store_true",
@@ -133,14 +137,16 @@ def main():
         oversample_report = oversampling_summary(
             train_rows,
             gold_label,
-            neutral_factor=args.neutral_oversample_factor,
-            minority_factor=args.minority_oversample_factor,
+            all_labels=labels,
+            cap=args.oversample_cap,
+            power=args.oversample_power,
         )
         train_rows = oversample_rows(
             train_rows,
             gold_label,
-            neutral_factor=args.neutral_oversample_factor,
-            minority_factor=args.minority_oversample_factor,
+            all_labels=labels,
+            cap=args.oversample_cap,
+            power=args.oversample_power,
         )
 
     train_data = to_dataset(train_rows)

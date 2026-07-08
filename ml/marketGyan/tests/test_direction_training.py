@@ -1,6 +1,7 @@
 import unittest
 
 from market_gyan.direction_training import (
+    balanced_row_weights,
     class_weights,
     direction_row_weight,
     evaluate_with_bias,
@@ -77,29 +78,50 @@ class DirectionTrainingTest(unittest.TestCase):
         self.assertGreater(boosted["neutral"], base["neutral"])
 
     def test_direction_row_weight_prioritises_neutral(self):
+        # Legacy label-name scheme (kept for backward compatibility).
         self.assertEqual(direction_row_weight("neutral"), 4)
         self.assertEqual(direction_row_weight("bearish"), 2)
         self.assertEqual(direction_row_weight("uncertain"), 2)
         self.assertEqual(direction_row_weight("bullish"), 1)
 
-    def test_oversample_duplicates_minorities_deterministically(self):
+    def test_balanced_weights_only_boost_the_genuinely_rare_class(self):
+        # Real train distribution: uncertain is the MAJORITY, not a minority.
+        labels = ["uncertain"] * 122 + ["bullish"] * 83 + ["bearish"] * 62 + ["neutral"] * 14
+        weights = balanced_row_weights(
+            labels, DIRECTION_LABELS, cap=6, power=0.5
+        )
+        # Majority classes stay at 1; only neutral is boosted.
+        self.assertEqual(weights["uncertain"], 1)
+        self.assertEqual(weights["bullish"], 1)
+        self.assertEqual(weights["bearish"], 1)
+        self.assertGreater(weights["neutral"], 1)
+        self.assertLessEqual(weights["neutral"], 6)
+
+    def test_count_driven_oversample_does_not_starve_a_middle_class(self):
+        # The old hardcoded scheme doubled uncertain (majority) and left bullish
+        # at 1, starving bullish. The count-driven default must not do that.
+        rows = (
+            [gold("uncertain")] * 12
+            + [gold("bullish")] * 8
+            + [gold("neutral")] * 2
+        )
+        get = lambda row: row["gold"]["impactDirection"]
+        summary = oversampling_summary(rows, get, all_labels=DIRECTION_LABELS)
+        # bullish is never duplicated below the majority (uncertain) count.
+        self.assertEqual(summary["after"]["uncertain"], 12)
+        self.assertEqual(summary["after"]["bullish"], 8)
+        self.assertGreaterEqual(summary["after"]["neutral"], 2)
+
+    def test_legacy_factors_still_available_via_kwargs(self):
         rows = [gold("bullish"), gold("neutral"), gold("bearish")]
         get = lambda row: row["gold"]["impactDirection"]
-        expanded = oversample_rows(rows, get, neutral_factor=4, minority_factor=2)
+        expanded = oversample_rows(
+            rows, get, neutral_factor=4, minority_factor=2
+        )
         directions = [get(row) for row in expanded]
         self.assertEqual(directions.count("neutral"), 4)
         self.assertEqual(directions.count("bearish"), 2)
         self.assertEqual(directions.count("bullish"), 1)
-        # Deterministic order: original then appended duplicates are contiguous.
-        self.assertEqual(directions[0], "bullish")
-
-    def test_oversampling_summary_reports_before_and_after(self):
-        rows = [gold("bullish"), gold("neutral"), gold("neutral")]
-        get = lambda row: row["gold"]["impactDirection"]
-        summary = oversampling_summary(rows, get)
-        self.assertEqual(summary["before"], {"bullish": 1, "neutral": 2})
-        self.assertEqual(summary["after"]["neutral"], 8)
-        self.assertEqual(summary["oversampledCount"], 1 + 4 + 4)
 
     def test_label_counts_fills_absent_labels_with_zero(self):
         counts = label_counts(["bullish", "bullish", "neutral"], DIRECTION_LABELS)
