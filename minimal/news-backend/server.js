@@ -260,31 +260,97 @@ const runMbart = ({ task, text, maxNewTokens, maxInputTokens } = {}) => new Prom
   py.stdin.end();
 });
 
-const toBulletSummary = (text, maxBullets = 3) => {
+const hasDevanagari = (text = '') => /[\u0900-\u097F]/u.test(text);
+
+const normalizeSummaryText = (text) => {
   const raw = (text || '').toString().trim();
   if (!raw) return '';
 
-  // Split on Nepali danda, sentence endings, and newlines.
-  const parts = raw
-    .replace(/\r/g, '')
-    .split(/[\n]+|(?<=[.!?।])\s+/u)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const bullets = [];
-  for (const p of parts) {
-    const cleaned = p.replace(/^[-*•]\s+/, '').trim();
-    if (!cleaned) continue;
-    bullets.push(cleaned);
-    if (bullets.length >= maxBullets) break;
-  }
-
-  // If splitting failed, just return a single bullet.
-  if (!bullets.length) return `- ${raw}`;
-  return bullets.map((b) => `- ${b}`).join('\n');
+  return raw
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^[-*•]\s+/, ''))
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 };
 
-// 5. Summarize article using local mBART (Gemma implementation kept commented for later use)
+const extractGeneratedText = (payload) => {
+  const candidate = payload?.candidates?.[0];
+  if (!candidate) return '';
+
+  const parts = candidate?.content?.parts || [];
+  return parts
+    .map((part) => part?.text || '')
+    .join('')
+    .trim();
+};
+
+const generateSummaryWithApi = async ({ article, fullContent, outputLanguage }) => {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw new Error('Missing GEMINI_API_KEY or GOOGLE_API_KEY for API summarizer');
+  }
+
+  const model = process.env.GEMINI_MODEL || process.env.SUMMARY_API_MODEL || 'gemini-1.5-flash';
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const prompt = [
+    'You are summarizing a news article for a web app.',
+    `Write exactly 2-3 concise sentences in ${outputLanguage}.`,
+    'Return a single short paragraph.',
+    'Do not use bullet points, headings, or filler text.',
+    'Keep the summary faithful to the article and avoid adding outside facts.',
+    'When natural, highlight important names, places, dates, and numbers with Markdown bold using **double asterisks**.',
+    '',
+    `Title: ${article.title || ''}`,
+    `Description: ${article.description || ''}`,
+    '',
+    'Article text:',
+    (fullContent || '').slice(0, 8000)
+  ].join('\n');
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt }]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.25,
+        topP: 0.9,
+        maxOutputTokens: 220
+      }
+    })
+  });
+
+  let payload = {};
+  try {
+    payload = await response.json();
+  } catch (error) {
+    throw new Error(`Summary API returned invalid JSON (${response.status})`);
+  }
+
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || `Summary API request failed (${response.status})`);
+  }
+
+  const summary = normalizeSummaryText(extractGeneratedText(payload));
+  if (!summary) {
+    throw new Error('Summary API returned no text');
+  }
+
+  return summary;
+};
+
+// 5. Summarize article using API first, then fall back to local mBART
 app.post('/api/news/:id/summarize', async (req, res) => {
   try {
     const article = await Article.findById(req.params.id);
@@ -308,7 +374,8 @@ app.post('/api/news/:id/summarize', async (req, res) => {
     if (!fullContent || fullContent.length < 600) {
       console.log(`🔍 Content too short (${fullContent ? fullContent.length : 0} chars), fetching full article...`);
       const scraped = await fetchFullContent(article.url);
-      if (scraped && scraped.length > fullContent.length) {
+      const currentLength = fullContent ? fullContent.length : 0;
+      if (scraped && scraped.length > currentLength) {
         fullContent = scraped;
         // Optionally save the full content back to the DB for future use
         article.content = fullContent;
@@ -317,39 +384,45 @@ app.post('/api/news/:id/summarize', async (req, res) => {
     }
 
     const isNepaliSource = article.url.match(/(onlinekhabar\.com|ratopati\.com|setopati\.com|nagariknews\.com|\.np)/i);
-
-    // mBART model we are using is fine-tuned for:
-    // - Nepali summarization ("summarize:" prefix)
-    // - English -> Nepali translation ("translate English to Nepali:" prefix)
-    //
-    // For English articles we translate first, then summarize (output is Nepali).
     const baseText = `${article.title || ''}\n${article.description || ''}\n${(fullContent || '')}`.trim();
     const clipped = baseText.slice(0, 5000); // keep latency bounded
+    const outputLanguage = (isNepaliSource || hasDevanagari(baseText)) ? 'Nepali' : 'English';
 
-    let summaryText = '';
-    if (isNepaliSource) {
-      summaryText = await runMbart({
-        task: 'summarize',
-        text: clipped,
-        maxNewTokens: 160,
-        maxInputTokens: 1024
+    let summary = '';
+    try {
+      summary = await generateSummaryWithApi({
+        article,
+        fullContent,
+        outputLanguage
       });
-    } else {
-      const translated = await runMbart({
-        task: 'translate_en_to_ne',
-        text: clipped,
-        maxNewTokens: 256,
-        maxInputTokens: 1024
-      });
-      summaryText = await runMbart({
-        task: 'summarize',
-        text: translated,
-        maxNewTokens: 160,
-        maxInputTokens: 1024
-      });
+    } catch (apiError) {
+      console.warn(`API summarizer unavailable, falling back to local mBART: ${apiError.message}`);
+
+      let summaryText = '';
+      if (outputLanguage === 'Nepali') {
+        summaryText = await runMbart({
+          task: 'summarize',
+          text: clipped,
+          maxNewTokens: 160,
+          maxInputTokens: 1024
+        });
+      } else {
+        const translated = await runMbart({
+          task: 'translate_en_to_ne',
+          text: clipped,
+          maxNewTokens: 256,
+          maxInputTokens: 1024
+        });
+        summaryText = await runMbart({
+          task: 'summarize',
+          text: translated,
+          maxNewTokens: 160,
+          maxInputTokens: 1024
+        });
+      }
+
+      summary = normalizeSummaryText(summaryText);
     }
-
-    const summary = toBulletSummary(summaryText, 3);
 
     // Save summary to database
     article.summary = summary;
@@ -359,16 +432,6 @@ app.post('/api/news/:id/summarize', async (req, res) => {
       success: true,
       data: summary
     });
-
-    // ─────────────────────────────────────────────────────────────
-    // Legacy: Gemini/Gemma summarizer (disabled for now as requested)
-    // ─────────────────────────────────────────────────────────────
-    /*
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${GEMINI_API_KEY}`;
-    const prompt = `Summarize the following news article in 2-3 concise bullet points...`;
-    const response = await fetch(GEMINI_URL, {...});
-    */
 
   } catch (error) {
     res.status(500).json({
