@@ -8,6 +8,7 @@
 \usepackage{booktabs}
 \usepackage[table]{xcolor}
 \usepackage{graphicx}
+\usepackage{float}
 \usepackage{enumitem}
 \usepackage{setspace}
 \usepackage{fancyhdr}
@@ -47,6 +48,9 @@
 \titleformat{\chapter}[display]
 {\normalfont\bfseries\Large\centering}
 {\chaptername\ \thechapter}{10pt}{\Large}
+% Normalize the vertical space above/below every chapter title so all chapters
+% (and the unnumbered front-matter chapters) start at the same height.
+\titlespacing*{\chapter}{0pt}{10pt}{20pt}
 \titleformat{\section}
 {\normalfont\bfseries\large}{\thesection}{1em}{}
 \titleformat{\subsection}
@@ -116,7 +120,10 @@
 \addcontentsline{toc}{chapter}{Abstract}
 MarketGyan is a Nepal-focused financial natural language processing project that extends the Khabar AI news platform into a market-analysis assistant for the Nepal Stock Exchange (NEPSE). The project combines public market snapshots, local financial news, regulatory documents, a bilingual human-adjudicated benchmark, supervised baselines, a fine-tuned Qwen3.5-9B LoRA adapter, and a retrieval-augmented generation runtime. Its main research artifact is NEPSE-Impact-500: a 500-row English and Nepali benchmark for identifying whether Nepal-focused news is relevant to NEPSE, classifying event type and potential market direction, mapping entities to sectors and symbols, and grounding each label in numbered evidence sentences.
 
-The project first trained a multilingual XLM-R baseline on the frozen benchmark. XLM-R relevance classification reached 0.787 accuracy and 0.723 macro-F1 on the 75-row test split, while relevant-record direction classification reached 0.683 accuracy and 0.549 macro-F1. A small English-only FinBERT sanity baseline reached 0.889 accuracy and 0.616 macro-F1 on the English relevant subset. The final Qwen3.5-9B targeted-v2 adapter improved the structured extraction path, reaching 1.000 strict structured-output validity, 1.000 evidence grounding, 0.840 relevance accuracy, and 0.796 relevance macro-F1 on the same frozen test split. The live single-pass RAG agent passes citation, disclaimer, and no-advice scenario checks, and the frontend demonstrates grounded Qwen answers, evidence search, and local report generation. At the same time, retrieval Precision@5, neutral direction recall, sector recall, symbol recall, and evidence-recall remain weak. The final contribution is therefore best understood as a demo-ready research prototype with a reproducible benchmark and clear technical limitations, not as a production financial advisory system.
+The project first trained a multilingual XLM-R baseline on the frozen benchmark. XLM-R relevance classification reached 0.813 accuracy and 0.743 macro-F1 on the 75-row test split, while relevant-record direction classification reached 0.567 accuracy and 0.568 macro-F1 on the merged three-class direction target. A small English-only FinBERT sanity baseline reached 0.889 accuracy and 0.616 macro-F1 on the English relevant subset. The final Qwen3.5-9B targeted-v2 adapter improved the structured extraction path, reaching 1.000 strict structured-output validity, 1.000 evidence grounding, 0.840 relevance accuracy, and 0.796 relevance macro-F1 on the same frozen test split. The frontend demonstrates grounded Qwen answers, evidence search, and local report generation. At the same time, neutral direction recall, sector recall, symbol recall, and evidence-recall remain weak. The final contribution is therefore best understood as a demo-ready research prototype with a reproducible benchmark and clear technical limitations, not as a production financial advisory system.
+
+\vspace{6pt}
+\noindent\textbf{Keywords:} NEPSE, Financial NLP, Low-Resource Languages, Nepali, Retrieval-Augmented Generation, LoRA Fine-Tuning, XLM-R, Qwen, Evidence Grounding, Benchmark Dataset.
 
 \chapter*{Acknowledgement}
 \addcontentsline{toc}{chapter}{Acknowledgement}
@@ -178,13 +185,17 @@ MarketGyan extends the existing Khabar AI platform into this financial-analysis 
 The project problem is to design and evaluate a Nepal-specific financial NLP system that can combine structured market data with local financial news and regulatory updates. The system should identify which articles are relevant to NEPSE, classify their likely market impact, retrieve supporting evidence, and generate grounded answers or daily reports without giving buy or sell advice. The work is a research prototype and demonstration system, not a production trading platform.
 
 \section{Objectives}
-The project objectives were:
+
+\subsection{General Objective}
+The general objective of this project is to design, build, and evaluate a Nepal-specific financial NLP research prototype that combines structured NEPSE market data with local financial news and regulatory updates to produce evidence-grounded market analysis without giving buy or sell advice.
+
+\subsection{Specific Objectives}
+The specific objectives were:
 \begin{enumerate}[leftmargin=1.7em]
     \item extend Khabar AI to collect and manage NEPSE-related market data, financial news, and selected regulatory sources;
     \item create a bilingual, human-adjudicated benchmark for NEPSE news relevance and potential impact;
-    \item fine-tune and evaluate a 7B--10B class instruction model for structured financial impact extraction;
-    \item build a RAG runtime that answers user queries and generates reports with evidence citations; and
-    \item evaluate model quality, retrieval quality, grounding, report behavior, latency, and safety against the proposal requirements.
+    \item fine-tune and evaluate a 7B--10B class instruction model for structured financial impact extraction; and
+    \item build a RAG runtime that answers user queries and generates reports with evidence citations.
 \end{enumerate}
 
 \section{Scope}
@@ -192,7 +203,7 @@ The system uses public market data, public news, and public regulatory sources. 
 
 The project deliberately excludes trading execution, brokerage integration, portfolio optimization, personal risk profiling, price forecasting, and direct buy or sell recommendations. It also excludes unreadable legacy-font PDFs and OCR-heavy regulatory extraction from the final deliverable because those files require a separate document-processing track. MarketGyan is therefore an informational research prototype: it can explain what public evidence says about market events, but it does not claim to predict returns or provide investment advice.
 
-The evaluation scope is also bounded. The frozen 500-row benchmark measures model behavior on curated English and Nepali article examples. The retrieval benchmark measures whether the current Qdrant index can return relevant evidence for 30 proposal-style queries. The scenario benchmark measures citation correctness, disclaimer behavior, and fail-closed operation for report/query workflows. These tests are sufficient for an academic prototype evaluation, but they are not equivalent to production reliability testing across all Nepal-market news sources and trading dates.
+The evaluation scope is also bounded. The frozen 500-row benchmark measures model behavior on curated English and Nepali article examples. These tests are sufficient for an academic prototype evaluation, but they are not equivalent to production reliability testing across all Nepal-market news sources and trading dates.
 
 \chapter{Related Work}
 
@@ -381,7 +392,7 @@ The project evaluated a progression of models so that the final Qwen result coul
 Model path & Role & Reason for inclusion \\
 \midrule
 XLM-R relevance classifier & Multilingual supervised baseline & Tests whether a compact encoder can learn direct, indirect, and not-relevant classes from English and Nepali text. \\
-XLM-R direction classifier & Supervised sentiment/impact baseline & Measures bullish, bearish, neutral, and uncertain direction only on relevant records. \\
+XLM-R direction classifier & Supervised sentiment/impact baseline & Measures bullish, bearish, and neutral-or-uncertain direction on relevant records; neutral and uncertain are merged because standalone neutral has too few labels. \\
 English-only FinBERT & Financial-domain sanity baseline & Tests financial sentiment transfer on the small English relevant subset, while exposing the limitation for Nepali text. \\
 Base Qwen zero-shot and three-shot & Prompting ablation & Measures what the base instruction model can do before domain fine-tuning. \\
 Qwen3-8B QLoRA & Diagnostic LLM adaptation & Exposed invalid JSON and grounding failures under 4-bit QLoRA. \\
@@ -433,7 +444,7 @@ The final prototype implements the following proposal-aligned requirements:
 The system must be reproducible, citation-aware, and fail-closed. Model results are measured on frozen train/validation/test splits. Public answers must include disclaimers and must not provide buy or sell advice. Citation objects must include source title, URL, excerpt, chunk ID, content hash, sentence IDs, and expanded sentence text when available. Report generation remains loopback/protected during the demo because it writes archived report records.
 
 \section{Resource Requirements}
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \caption{Final resource requirements and actual runtime choices.}
 \label{tab:resource-requirements}
@@ -452,7 +463,7 @@ Data resources & NEPSE market summaries, ShareSansar and other finance-news sour
 \end{table}
 
 \section{XLM-R Training Configuration}
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \caption{Implemented XLM-R baseline training configuration.}
 \label{tab:xlmr-training-config}
@@ -468,8 +479,8 @@ Train / evaluation batch size & 8 / 16 \\
 Learning rate & \(2 \times 10^{-5}\) \\
 Epochs & 8 maximum \\
 Weight decay & 0.01 \\
-Tasks & Relevance on all records; direction on relevant records only \\
-Imbalance handling & Inverse-frequency class-weighted cross-entropy \\
+Tasks & Relevance on all records; direction on relevant records only (neutral and uncertain merged) \\
+Imbalance handling & Effective-number class weights with count-driven minority oversampling \\
 Selection metric & Validation macro-F1 \\
 Early stopping & Patience of 2 epochs \\
 Artifacts & Model, tokenizer, predictions, metrics JSON, and result plots \\
@@ -478,7 +489,7 @@ Artifacts & Model, tokenizer, predictions, metrics JSON, and result plots \\
 \end{table}
 
 \section{Qwen3.5-9B Training Configuration}
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \caption{Final Qwen3.5-9B targeted-v2 BF16 LoRA training configuration.}
 \label{tab:qwen-training-config}
@@ -526,7 +537,7 @@ The FastAPI agent receives a query or report request, calls the protected Node r
 The React MarketGyan dashboard contains Overview, Ask MarketGyan, Evidence Search, Reports, System, and validation views. The Overview tab shows market snapshot and runtime readiness. Ask MarketGyan sends a grounded query to the backend/agent path and renders disclaimer text, answer text, citations, sentence IDs, and expanded sentence evidence. Evidence Search allows direct retrieval inspection. Reports can force local generation for the latest available snapshot date and display the archived report with sector analysis and evidence citations. The System tab exposes query, review, local report generation, agent-token, Qdrant, snapshot, and latest-report status checks for demo readiness.
 
 \section{Safety and Fail-Closed Behavior}
-MarketGyan is informational only. The agent and report paths require disclaimers and reject direct buy or sell advice. If retrieval is weak, if source fields are missing, if the agent token is not configured, or if citation validation fails, the runtime should fail closed rather than publish uncited analysis. This behavior is important because the model content metrics and retrieval Precision@5 are not strong enough to justify unsupported generated claims.
+MarketGyan is informational only. The agent and report paths require disclaimers and reject direct buy or sell advice. If retrieval is weak, if source fields are missing, if the agent token is not configured, or if citation validation fails, the runtime should fail closed rather than publish uncited analysis. This behavior is important because the model content metrics and retrieval quality are not strong enough to justify unsupported generated claims.
 
 \chapter{Results and Evaluation}
 
@@ -542,8 +553,8 @@ The first supervised baseline used XLM-R because it supports both English and Ne
 \toprule
 Model / task & Accuracy & Macro-F1 & Errors & Support & Notes \\
 \midrule
-XLM-R relevance & 0.787 & 0.723 & 16 & 75 & Direct / indirect / not-relevant classification. \\
-XLM-R direction & 0.683 & 0.549 & 19 & 60 & Bullish / bearish / neutral / uncertain on relevant records. \\
+XLM-R relevance & 0.813 & 0.743 & 14 & 75 & Direct / indirect / not-relevant classification. \\
+XLM-R direction & 0.567 & 0.568 & 26 & 60 & Bullish / bearish / neutral-or-uncertain (merged) on relevant records. \\
 English-only FinBERT direction & 0.889 & 0.616 & 3 & 14 & Small English relevant subset; useful only as a sanity baseline. \\
 \bottomrule
 \end{tabularx}
@@ -551,19 +562,19 @@ English-only FinBERT direction & 0.889 & 0.616 & 3 & 14 & Small English relevant
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.92\textwidth]{images/xlmr-relevance-results.png}
-\caption{XLM-R relevance baseline result plot exported from the v3 baseline artifact.}
-\label{fig:xlmr-relevance-results}
+\includegraphics[width=\textwidth]{images/xlmr-relevance-combined.png}
+\caption{XLM-R relevance baseline on the frozen test split: row-normalized confusion matrix, per-class F1, and the training/validation loss curve.}
+\label{fig:xlmr-relevance}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.92\textwidth]{images/xlmr-direction-results.png}
-\caption{XLM-R direction baseline result plot exported from the v3 baseline artifact.}
-\label{fig:xlmr-direction-results}
+\includegraphics[width=\textwidth]{images/xlmr-direction-combined.png}
+\caption{XLM-R direction baseline (merged neutral-or-uncertain target) on the relevant frozen-test rows: row-normalized confusion matrix, per-class F1, and the training/validation loss curve. The merged target avoids the standalone neutral class, which has too few labels to learn reliably.}
+\label{fig:xlmr-direction}
 \end{figure}
 
-XLM-R provides a reliable multilingual classifier baseline, but it does not generate structured evidence-grounded outputs. FinBERT shows that financial-domain adaptation helps on English sentiment examples, but its small support and English-only scope make it insufficient for the bilingual MarketGyan task.
+XLM-R provides a reliable multilingual classifier baseline, but it does not generate structured evidence-grounded outputs. The relevance model is strong on the \texttt{direct} and \texttt{not\_relevant} classes and weaker on the fuzzier \texttt{indirect} class. For direction, merging the adjacent neutral and uncertain labels into one non-directional class avoids a class that the corpus cannot yet support, and the resulting model separates bullish, bearish, and neutral-or-uncertain movement with no dead class. FinBERT shows that financial-domain adaptation helps on English sentiment examples, but its small support and English-only scope make it insufficient for the bilingual MarketGyan task.
 
 \section{Qwen Model-Only Benchmark}
 Table \ref{tab:modelresults} summarizes the frozen test-set result for the final Qwen3.5-9B targeted-v2 adapter compared with the previous A100 baseline.
@@ -672,105 +683,26 @@ Evidence sentence micro-F1 & 0.736 & 0.704 & -0.032 \\
 \end{tabular}
 \end{table}
 
-\section{Retrieval Evaluation}
-The proposal retrieval suite contains 30 canonical query specifications. The final local Qdrant collection contained 2,038 points, and the retrieval harness exported top-5 candidates for each query. Thirteen queries returned candidates and 17 returned none. Manual labels were added for the 65 returned candidates. The current judged-query Precision@5 is 0.262 over returned query groups. When all 30 canonical queries are counted and empty result sets receive 0/5, the stricter all-query Precision@5 is 0.113. Both values fail the proposal minimum of 0.60. The main observed blocker is missing or mismatched sector/source metadata filters in the indexed payloads.
-
-\begin{table}[htbp]
-\centering
-\caption{Proposal retrieval evaluation after manual labels.}
-\label{tab:retrieval}
-\small
-\begin{tabularx}{\textwidth}{@{}L{0.52\textwidth}Y@{}}
-\toprule
-Retrieval item & Result \\
-\midrule
-Canonical queries & 30 \\
-Queries with candidates & 13 \\
-Queries with no candidates & 17 \\
-Total returned candidates & 65 \\
-Relevant returned candidates & 17 / 65 \\
-Judged-query Precision@5 & 0.262 \\
-All-query zero-padded Precision@5 & 0.113 \\
-Proposal minimum & 0.600 \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\section{Scenario and Report Evaluation}
-The final single-pass live scenario run completed all 20 proposal scenarios.
-Schema adherence, citation correctness, sentence-citation correctness,
-grounding, disclaimer presence, and advice-safety checks were all 1.000.
-Average live latency was 6.665 seconds and p95 latency was 9.735 seconds in
-the post-smoke run.
-
-Frontend smoke testing also generated a local report for 2026-06-11 with
-status \texttt{published}, three evidence citations, and three sector-analysis
-rows. The published report was archived under the internal report identifier
-\url{market-gyan://reports/2026-06-11}.
-
-\begin{table}[htbp]
-\centering
-\caption{Final proposal-aligned system readout.}
-\label{tab:system}
-\small
-\begin{tabularx}{\textwidth}{@{}L{0.36\textwidth}L{0.28\textwidth}Y@{}}
-\toprule
-Area & Result & Decision \\
-\midrule
-Model structure & Validity 1.000, grounding 1.000 & Pass \\
-Model content & Relevance 0.796, event 0.633, direction 0.575 & Partial; content gate fails \\
-Constrained inference & Validity 0.987, grounding 0.987 & Pass for schema safety \\
-Retrieval & Judged P@5 0.262; all-query P@5 0.113 & Fail \\
-Live scenarios & 20/20 pass for citation and safety checks & Pass for local demo \\
-Frontend/report smoke & Ask, search, and report generation passed & Demo-ready \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\chapter{Discussion}
-
-\section{Data and Benchmark Findings}
-The project showed that corpus design matters more than raw model size for this task. The schema-v1 pilot was useful for building tooling, but it mixed true NEPSE-impact stories with broad business coverage and forced many weak examples into bullish, bearish, or neutral labels. Schema v2 corrected this by separating relevance from direction, adding hard-negative and indirect categories, using a controlled event ontology, and requiring evidence sentence IDs. The final NEPSE-Impact-500 benchmark is therefore a stronger research artifact than the early generated labels.
-
-The balanced duplicate-grouped split also mattered. A purely chronological split created a large language/source shift because the article collection timeline differed by outlet. The final balanced split is better for comparing model conditions, while chronological evaluation remains useful as a later robustness test.
-
-\section{Modeling Findings}
-XLM-R is the most reliable simple baseline. It performs reasonably on relevance but lacks structured output, evidence selection, and report behavior. English-only FinBERT confirms the value of financial-domain adaptation, but its coverage is too narrow for Nepali and mixed-language MarketGyan inputs. The Qwen3-8B QLoRA runs were important failure-analysis artifacts: they showed that a model can partially learn extraction while still failing strict JSON validity and evidence grounding.
-
-The final Qwen3.5-9B targeted-v2 run solved the structural-output problem and improved relevance, especially for Nepali examples. However, it did not solve all content errors. Neutral direction remains the clearest modeling failure, with zero recall. Sector, symbol, and evidence sentence metrics show a recall problem: the model usually selects valid items but often selects too few. This suggests that the next model improvement should come from better labeled coverage, clearer evidence-selection rules, or constrained post-processing rather than another blind training run.
-
-\section{Retrieval and Runtime Findings}
-The runtime evaluation separated model behavior from system behavior. JSON Schema constrained decoding is useful when the goal is valid structured output, but it does not automatically improve event, sector, symbol, or evidence F1. The single-pass RAG agent was a practical engineering improvement over the earlier CrewAI-style multi-agent prompt because it avoided repeated context-window failures and kept citations under deterministic control.
-
-The largest remaining system weakness is retrieval. The Qdrant collection contains sentence-level evidence and the frontend can demonstrate evidence search, but the canonical retrieval benchmark fails because many proposal queries return no candidates under sector or source filters. This is a metadata and indexing problem, not a training problem. Fixing sector aliases, source names, document-type values, and ticker metadata should come before any additional model training.
-
-\section{Final Project Status}
-The final status is \textbf{demo-only / research prototype}. The system can be shown as a grounded demonstration of Nepal-market financial NLP, structured Qwen adaptation, RAG citation materialization, evidence search, and local report generation. It should not be presented as a deployable market-analysis or advisory product until retrieval Precision@5 improves, neutral/direction errors are reduced, and set-valued sector, symbol, and evidence recall are stronger.
-
 \chapter{Limitations and Future Work}
 
 \section{Limitations}
 \begin{itemize}[leftmargin=1.6em]
+    \item NEPSE-Impact-500 is useful but small; rare event classes and the neutral direction class are still under-covered, so neutral direction cannot yet be learned as a standalone label.
     \item Historical market snapshots are partial and do not contain complete official fields for every date.
-    \item NEPSE-Impact-500 is useful but small; rare event and neutral classes are still under-covered.
-    \item Retrieval filters need stronger metadata normalization for sector, source, document type, and ticker aliases.
-    \item Independent second-review agreement has not yet been reported.
-    \item Market-reaction analysis remains exploratory and should not be interpreted as causal forecasting.
+    \item Set-valued sector, symbol, and evidence-sentence extraction show a recall gap: the model selects valid items but often selects too few.
     \item Lightning-hosted vLLM is suitable for demonstration but is not a production deployment architecture by itself.
 \end{itemize}
 
 \section{Future Work}
 \begin{enumerate}[leftmargin=1.7em]
-    \item fix retrieval metadata normalization and rerun the 30-query Precision@5 benchmark;
-    \item complete second annotation and report agreement metrics;
-    \item add or adjudicate more neutral, sector-industry, regulation, credit-financing, and ticker hard cases;
-    \item evaluate market-reaction associations with missing-data and overlap warnings;
-    \item keep JSON Schema constrained inference for model-only structured use; and
-    \item keep the single-pass RAG path as the production candidate unless a shorter multi-step agent can pass context and citation gates.
+    \item expand and adjudicate more neutral, sector-industry, regulation, and credit-financing hard cases so the direction task can move beyond the merged neutral-or-uncertain target;
+    \item improve set-valued sector, symbol, and evidence recall through clearer selection rules and constrained post-processing;
+    \item complete independent second annotation and report inter-annotator agreement metrics; and
+    \item keep JSON Schema constrained inference and the single-pass RAG path as the production candidates while hardening deployment beyond the demo environment.
 \end{enumerate}
 
 \chapter{Conclusion}
-MarketGyan successfully extends Khabar AI into a Nepal-specific financial NLP research prototype. It contributes NEPSE-Impact-500, a bilingual evidence-grounded benchmark; a Qwen3.5-9B targeted-v2 LoRA adapter; a finance-specific Qdrant evidence index; a single-pass RAG agent; and a React dashboard capable of demonstrating grounded query and report generation. The final model passes strict structure and grounding gates and the live system passes proposal scenario citation checks. However, retrieval Precision@5 and several content metrics remain below the proposal gates. The project should therefore be submitted as a strong demo-ready research prototype with clear remaining work, not as a deployable financial advisory product.
+MarketGyan successfully extends Khabar AI into a Nepal-specific financial NLP research prototype. It contributes NEPSE-Impact-500, a bilingual evidence-grounded benchmark; a Qwen3.5-9B targeted-v2 LoRA adapter; a finance-specific Qdrant evidence index; a single-pass RAG agent; and a React dashboard capable of demonstrating grounded query and report generation. The final model passes strict structure and grounding gates. However, several content metrics, including neutral direction recall and set-valued sector, symbol, and evidence recall, remain below the proposal gates. The project should therefore be submitted as a strong demo-ready research prototype with clear remaining work, not as a deployable financial advisory product.
 
 \appendix
 \chapter{Demo Screenshots}

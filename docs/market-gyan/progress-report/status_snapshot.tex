@@ -1,316 +1,53 @@
-% Living MarketGyan status snapshot.
-% Update the macros below after each milestone, then append one dated entry to
-% \MarketGyanMilestoneHistory. Keep implementation details in main.tex stable.
+% Compact, evidence-backed snapshot used by main.tex.
+% Experiment outputs are historical artifacts. GPU training and live provider
+% calls were not rerun for this report build.
 
-\newcommand{\SnapshotDate}{July 3, 2026}
-\newcommand{\SnapshotTimestamp}{the July 3, 2026 Qwen3.5-9B targeted-v2, constrained-inference, retrieval, single-pass RAG, and frontend report-generation evaluation}
-\newcommand{\CurrentMilestone}{Qwen3.5-9B targeted-v2 proposal evaluation and demo readiness}
-\newcommand{\CurrentMilestoneState}{The served Qwen3.5-9B targeted-v2 adapter passes strict structure and live single-pass citation gates, but retrieval and several content metrics remain below proposal deployment targets; current status is demo-only}
+\newcommand{\ReportWindow}{July 1--8, 2026}
+\newcommand{\ReportEndDate}{July 8, 2026}
+\newcommand{\RepositoryURL}{https://github.com/bikashkumarsah/News_aggregation}
+\newcommand{\RepositoryShort}{bikashkumarsah/News\_aggregation}
+\newcommand{\BranchName}{codex/market-gyan}
+\newcommand{\HeadCommit}{4031ea7}
 
-\newcommand{\SnapshotCount}{224}
-\newcommand{\SnapshotStartDate}{June 11, 2025}
-\newcommand{\SnapshotEndDate}{June 11, 2026}
-\newcommand{\CompleteSnapshotCount}{0}
-\newcommand{\PartialSnapshotCount}{224}
+\newcommand{\DatasetSize}{500}
+\newcommand{\DirectCount}{300}
+\newcommand{\IndirectCount}{100}
+\newcommand{\NegativeCount}{100}
+\newcommand{\EnglishCount}{299}
+\newcommand{\NepaliCount}{200}
+\newcommand{\MixedCount}{1}
+\newcommand{\SymbolCount}{273}
+\newcommand{\LargestSourceCount}{295}
+\newcommand{\NeutralRelevantCount}{23}
+\newcommand{\TrainCount}{350}
+\newcommand{\ValidationCount}{75}
+\newcommand{\TestCount}{75}
 
-\newcommand{\FinancialNewsCount}{2,025}
-\newcommand{\EligibleDocumentCount}{2,046}
-\newcommand{\DocumentStartDate}{January 2, 2025}
-\newcommand{\DocumentEndDate}{June 14, 2026}
-\newcommand{\ShareSansarDocumentCount}{600}
-\newcommand{\OnlineKhabarDocumentCount}{1,400}
-\newcommand{\KathmanduPostDocumentCount}{25}
-\newcommand{\UsablePolicyDocumentCount}{21}
-\newcommand{\FailedPolicyDocumentCount}{60}
-\newcommand{\ActiveSecurityCount}{350}
+\newcommand{\XLMRRelevanceFOne}{0.743}
+\newcommand{\XLMRDirectionFOne}{0.568}
+\newcommand{\QwenValidity}{1.000}
+\newcommand{\QwenGrounding}{1.000}
+\newcommand{\QwenRelevanceFOne}{0.796}
+\newcommand{\QwenDirectionFOne}{0.575}
+\newcommand{\QwenEventFOne}{0.633}
+\newcommand{\QwenSectorFOne}{0.677}
+\newcommand{\QwenSymbolFOne}{0.793}
+\newcommand{\QwenEvidenceFOne}{0.736}
+\newcommand{\QwenNepaliAccuracy}{0.788}
+\newcommand{\ConstrainedValidity}{0.987}
+\newcommand{\ConstrainedGrounding}{0.987}
+\newcommand{\ConstrainedRelevanceFOne}{0.819}
+\newcommand{\ConstrainedDirectionFOne}{0.585}
 
-\newcommand{\QueuedCandidateCount}{17}
-\newcommand{\PendingCandidateCount}{414}
-\newcommand{\FailedCandidateCount}{83}
-\newcommand{\CandidateCollectionTarget}{500}
-\newcommand{\ApprovedRecordCount}{500}
-\newcommand{\ApprovedRecordTarget}{500}
-\newcommand{\PilotApprovedCount}{32}
-\newcommand{\PilotRejectedCount}{6}
-\newcommand{\PilotTotalCount}{552}
+\newcommand{\ScenarioCount}{20}
+\newcommand{\AverageLatency}{6.67}
+\newcommand{\LatencyNinetyFive}{9.74}
+\newcommand{\RetrievalJudgedPAtFive}{0.262}
+\newcommand{\RetrievalAllPAtFive}{0.113}
+\newcommand{\JudgedQueryCount}{13}
+\newcommand{\AllQueryCount}{30}
 
-\newcommand{\NeutralCandidateCount}{231}
-\newcommand{\BearishCandidateCount}{58}
-\newcommand{\BullishCandidateCount}{125}
-
-\newcommand{\NepaliCandidateCount}{181}
-\newcommand{\EnglishCandidateCount}{228}
-\newcommand{\MixedCandidateCount}{5}
-
-\newcommand{\ShareSansarCandidateCount}{215}
-\newcommand{\OnlineKhabarCandidateCount}{183}
-\newcommand{\KathmanduPostCandidateCount}{6}
-\newcommand{\RegulatoryCandidateCount}{10}
-
-\newcommand{\VTwoQueuedCount}{0}
-\newcommand{\VTwoProcessingCount}{0}
-\newcommand{\VTwoPendingCount}{0}
-\newcommand{\VTwoFailedCount}{50}
-\newcommand{\VTwoAdjudicatedCount}{500}
-\newcommand{\VTwoExcludedCount}{56}
-\newcommand{\VTwoTotalLabelCount}{606}
-\newcommand{\VTwoDirectSelectionCount}{300}
-\newcommand{\VTwoIndirectSelectionCount}{100}
-\newcommand{\VTwoNegativeSelectionCount}{100}
-\newcommand{\VTwoReserveSelectionCount}{0}
-\newcommand{\VTwoSymbolSelectionCount}{273}
-\newcommand{\VTwoEnglishSelectionCount}{299}
-\newcommand{\VTwoNepaliSelectionCount}{200}
-\newcommand{\VTwoMixedSelectionCount}{1}
-\newcommand{\VTwoLargestSourceCount}{295}
-\newcommand{\VTwoUniqueAvailableCount}{2,042}
-\newcommand{\VTwoExactDuplicateCount}{4}
-\newcommand{\SecondReviewTarget}{110}
-
-\newcommand{\TransientFailureCount}{7}
-\newcommand{\ValidationFailureCount}{43}
-\newcommand{\RetryableFailureCount}{7}
-
-\newcommand{\CodexReviewedCount}{233}
-\newcommand{\CodexCorrectedCount}{105}
-\newcommand{\CodexConfirmedCount}{128}
-\newcommand{\SubmittedAnnotationCount}{560}
-\newcommand{\RevalidationAuditCount}{57}
-\newcommand{\RevalidationMaxPriority}{8}
-
-\newcommand{\XLMRRelevanceAccuracy}{0.787}
-\newcommand{\XLMRRelevanceMacroFOne}{0.723}
-\newcommand{\XLMRRelevanceErrors}{16}
-\newcommand{\XLMRDirectionAccuracy}{0.683}
-\newcommand{\XLMRDirectionMacroFOne}{0.549}
-\newcommand{\XLMRDirectionErrors}{19}
-\newcommand{\FinBERTAccuracy}{0.889}
-\newcommand{\FinBERTMacroFOne}{0.616}
-\newcommand{\FinBERTErrors}{3}
-\newcommand{\QwenFirstRunAccuracy}{0.213}
-\newcommand{\QwenFirstRunMacroFOne}{0.250}
-\newcommand{\QwenStructuredValidity}{41.3\%}
-\newcommand{\QwenInvalidJsonCount}{44}
-\newcommand{\QwenValidJsonCount}{31}
-\newcommand{\QwenHardNegativeFalsePositiveCount}{10}
-\newcommand{\QwenSecondRunAccuracy}{0.333}
-\newcommand{\QwenSecondRunMacroFOne}{0.276}
-\newcommand{\QwenSecondRunDirectionMacroFOne}{0.421}
-\newcommand{\QwenSecondRunStructuredValidity}{34.7\%}
-\newcommand{\QwenSecondRunGrounding}{34.7\%}
-\newcommand{\QwenSecondRunRawOutputCount}{49}
-\newcommand{\QwenSecondRunNepaliAccuracy}{0.000}
-\newcommand{\QwenThirdRunStrictValidity}{36.0\%}
-\newcommand{\QwenThirdRunGrounding}{36.0\%}
-\newcommand{\QwenThirdRunRawOutputCount}{37}
-\newcommand{\QwenThirdRunRelevanceAccuracy}{0.333}
-\newcommand{\QwenThirdRunRelevanceMacroFOne}{0.384}
-\newcommand{\QwenThirdRunDirectionMacroFOne}{0.413}
-\newcommand{\QwenThirdRunNepaliAccuracy}{0.182}
-\newcommand{\QwenThirdRunTolerantValidity}{68.0\%}
-\newcommand{\QwenThirdRunTolerantGrounding}{68.0\%}
-\newcommand{\QwenThirdRunTolerantRelevanceAccuracy}{0.613}
-\newcommand{\QwenThirdRunTolerantRelevanceMacroFOne}{0.555}
-\newcommand{\QwenThirdRunTolerantDirectionMacroFOne}{0.629}
-\newcommand{\QwenThirdRunTolerantSymbolFOne}{0.790}
-\newcommand{\QwenThirdRunTolerantEvidenceFOne}{0.633}
-\newcommand{\TaxonomyAuditFlagCount}{57}
-\newcommand{\TaxonomyDividendFlagCount}{26}
-\newcommand{\TaxonomyIpoFlagCount}{23}
-\newcommand{\TaxonomyRightShareFlagCount}{5}
-\newcommand{\TaxonomyMarketSummaryFlagCount}{2}
-\newcommand{\TaxonomyDebtFlagCount}{1}
-
-\newcommand{\GemmaTokenCount}{1,786,130}
-\newcommand{\VTwoGemmaTokenCount}{3,642}
-\newcommand{\GemmaAverageTokenCount}{2,895}
-
-\newcommand{\FineTuningState}{Third XLM-R, FinBERT, and Qwen run analyzed; XLM-R remains the reliable baseline, Qwen remains below strict validity and grounding gates, and tolerant repair is diagnostic only}
-\newcommand{\RuntimeInferenceState}{Implemented for local demo with Lightning vLLM, JSON Schema constrained decoding, and single-pass RAG; deployment remains blocked by retrieval and content metrics}
-
-\newcommand{\MarketGyanMilestoneHistory}{%
-  \begin{description}[style=nextline]
-    \item[June 13, 2026] Data collection and API-assisted structuring reached
-    78 valid candidates. Human review and approval remained the blocking
-    condition for dataset export and model fine-tuning.
-    \item[June 13, 2026, 22:55 NPT] Six-month collection completed with
-    556 eligible documents. Structuring reached 204 valid candidates before
-    sustained provider HTTP 500 responses paused the worker. The remaining 262
-    queued jobs were resumable; the 450-candidate target and all human approval
-    remained incomplete.
-    \item[June 13, 2026, final collection audit] The Gemma worker resumed after
-    a successful live API check and reached 452
-    schema-valid, evidence-grounded candidates. This exceeds the
-    \CandidateCollectionTarget{}-candidate collection target. Duplicate
-    idempotency keys, invalid pending candidates, and over-length excerpts are
-    all zero. Human approval remained at 0, so model
-    training has not started.
-    \item[June 14, 2026] Added two linear training notebooks, strict approval
-    and class-coverage gates, a frozen split manifest, finance-specific Qdrant
-    indexing and retrieval, a protected CrewAI service boundary, local
-    OpenAI-compatible Qwen inference configuration, grounded report APIs,
-    idempotent post-market orchestration, and system-evaluation tooling.
-    These components are implemented but have not produced training or live
-    retrieval results because all \PendingCandidateCount{} candidates still
-    require human decisions. OCR and legacy-font conversion are explicitly
-    excluded from the project.
-    \item[June 15, 2026] Human review exposed a corpus-quality problem: several
-    schema-v1 approvals were general business stories without a defensible
-    NEPSE impact mechanism. The v1 corpus was frozen as a pilot audit with
-    \PilotApprovedCount{} approved, \PilotRejectedCount{} rejected,
-    \PendingCandidateCount{} pending, and \QueuedCandidateCount{} queued
-    records. Schema v2, prompt \texttt{market-impact-v2}, a versioned Nepal
-    market ontology, independent annotations, adjudication, sentence-ID
-    evidence, targeted selection, market-reaction records, and revised model
-    notebooks were implemented. No v2 candidates have yet been generated or
-    adjudicated. A read-only selector found \VTwoDirectSelectionCount{} direct,
-    \VTwoIndirectSelectionCount{} indirect, and
-    \VTwoNegativeSelectionCount{} hard-negative candidates; therefore archive
-    collection must continue into 2025 before the 350/100/100 corpus quota can
-    be claimed.
-    \item[June 15, 2026, 01:55 NPT] Targeted ShareSansar and resumable
-    OnlineKhabar archive collection expanded the eligible pool to
-    \EligibleDocumentCount{} documents. Exact-content deduplication removed
-    \VTwoExactDuplicateCount{} duplicate candidates before selection. The
-    resulting schema-v2 plan contains \VTwoDirectSelectionCount{} direct,
-    \VTwoIndirectSelectionCount{} indirect, and
-    \VTwoNegativeSelectionCount{} hard-negative records, with
-    \VTwoEnglishSelectionCount{} English, \VTwoNepaliSelectionCount{} Nepali,
-    \VTwoSymbolSelectionCount{} symbol-level records, at least 20 examples in
-    every core event category, and no source above
-    \VTwoLargestSourceCount{} records. All 500 valid candidates were queued, and a
-    database-backed live Gemma smoke produced one valid pending candidate.
-    Human annotation, adjudication, agreement measurement, reactions, and
-    model experiments remain incomplete.
-    \item[June 16, 2026, 12:15 NPT] The resumed Gemma worker increased
-    schema-v2 pending-review records to 500 and left 0 queued, 0 processing,
-    and 50 failed jobs. Of the failed jobs,
-    \ValidationFailureCount{} are schema or evidence-validation failures and
-    \RetryableFailureCount{} are retryable provider or response-format
-    failures. Before later cleanup, Codex pre-review had covered 422 pending
-    candidates, with 263 corrected suggestions and 159 confirmations. Human
-    primary annotations stood at 200, but no schema-v2 record had been adjudicated
-    into gold for training export.
-    \item[June 16, 2026, 15:35 NPT] The candidate corpus target was reduced
-    from 550 to \CandidateCollectionTarget{} adjudicated records. Four
-    additional valid samples were recovered from retryable or stored Gemma
-    outputs, bringing schema-v2 pending-review records to 500. The remaining
-    \VTwoFailedCount{} records are retained
-    as failed audit records and are outside the final candidate target.
-    \item[June 16, 2026, 18:14 NPT] Unsubmitted Codex pre-review corrections
-    were reverted at the database level. The 233 submitted primary annotations
-    were preserved, including their assistant-review audit where present. The
-    remaining unsubmitted queue now exposes raw Gemma candidates only, with
-    zero assistant suggestions attached to unsubmitted pending-review records.
-    \item[June 16, 2026, 20:17 NPT] All 500 submitted primary annotations were
-    validated and batch-adjudicated into schema-v2 gold labels. A rebalance audit
-    found the gold corpus at 252 direct, 95 indirect, and 153 not-relevant
-    records, so the 300/100/100 relevance gate still fails. Event floors also
-    remain short for earnings, credit/financing, regulation,
-    monetary/liquidity, and sector/industry. Training export remains blocked
-    until targeted replacements are reviewed and surplus hard negatives are
-    excluded.
-    \item[June 16, 2026, 20:40 NPT] Targeted rebalance completed. Fifty-three
-    surplus not-relevant records were excluded, 48 direct and 5 indirect
-    replacements were added, and 18 existing gold labels were reclassified to
-    close event gaps. The final gold corpus contains 300 direct, 100 indirect,
-    and 100 not-relevant records; 299 English, 200 Nepali, and 1 mixed-language
-    record; 273 symbol-level records; and no source above 60 percent
-    (ShareSansar 295, OnlineKhabar 201, Kathmandu Post 4). Event floors pass
-    with earnings 36, credit/financing 20, regulation 20, monetary/liquidity
-    20, and sector/industry 20. The approved JSONL was exported as
-    \texttt{nepse-impact-500.jsonl}; validation, the Python dataset gate, and
-    chronological duplicate-grouped train/validation/test splits of 350/75/75
-    all passed.
-    \item[June 17, 2026] The first baseline and Qwen training outputs were
-    audited. XLM-R reached \XLMRRelevanceMacroFOne{} relevance macro-F1 and
-    \XLMRDirectionMacroFOne{} direction macro-F1; English-only FinBERT reached
-    \FinBERTMacroFOne{} macro-F1 on a small English relevant subset. Qwen
-    QLoRA suffered from \QwenStructuredValidity{} JSON validity,
-    all-direct relevance bias, and verbose target truncation. The primary
-    benchmark split was changed from chronological to balanced
-    duplicate-grouped 70/15/15, and Qwen training was reframed around compact
-    labels rather than full gold JSON prose.
-    \item[June 17, 2026, revalidation loop] The model-error audit was joined
-    back to MongoDB labels and 40 high-priority records
-    were flagged for source-grounded revalidation. The validation queue now
-    filters \texttt{needsReview} records by audit priority, shows the model
-    disagreement reason, and clears the flag only when the record is submitted,
-    rejected, excluded, or adjudicated. This keeps dataset correction inside
-    the existing annotation workflow rather than manual JSONL edits.
-    \item[June 19, 2026] The 40 model-error revalidation records were reviewed
-    and submitted through the MarketGyan validation workflow. All active
-    revalidation flags are now cleared. The gold export was regenerated with
-    500 records and the same target composition: 300 direct, 100 indirect, and
-    100 not-relevant records. Placeholder text left by the targeted rebalance
-    generator was repaired in 53 gold labels and 57 stored annotations, and
-    3 retired excluded replacement records were cleaned outside the training
-    export. The
-    refreshed \texttt{nepse-impact-500.jsonl} passed dataset validation, the
-    500-record gate, and the balanced duplicate-grouped 350/75/75 split.
-    \item[June 20, 2026] The second training run was analyzed. XLM-R relevance
-    improved to \XLMRRelevanceAccuracy{} accuracy and
-    \XLMRRelevanceMacroFOne{} macro-F1, making it the current reliable
-    baseline. XLM-R direction reached \XLMRDirectionAccuracy{} accuracy and
-    \XLMRDirectionMacroFOne{} macro-F1, while English-only FinBERT reached
-    \FinBERTAccuracy{} accuracy and \FinBERTMacroFOne{} macro-F1 on the small
-    English relevant subset. Qwen3-8B QLoRA still failed the research and
-    deployment gates: strict JSON validity and evidence grounding were both
-    \QwenSecondRunStructuredValidity{}, relevance macro-F1 was
-    \QwenSecondRunMacroFOne{}, direction macro-F1 was
-    \QwenSecondRunDirectionMacroFOne{}, and
-    \QwenSecondRunRawOutputCount{} of 75 adapter outputs were raw or unparsed.
-    The run also exposed dividend-related taxonomy drift across earnings,
-    capital-action, and credit/financing labels. A targeted taxonomy-consistency
-    audit imported \TaxonomyAuditFlagCount{} UI revalidation flags:
-    \TaxonomyDividendFlagCount{} dividend decisions,
-    \TaxonomyIpoFlagCount{} IPO/listing/allotment records,
-    \TaxonomyRightShareFlagCount{} right-share records,
-    \TaxonomyMarketSummaryFlagCount{} market-summary records, and
-    \TaxonomyDebtFlagCount{} debenture record. These flags must be reviewed in
-    the existing validation workflow before regenerating the export and running
-    the third Qwen experiment.
-    \item[June 21, 2026] The Qwen failure analysis was incorporated into the
-    implementation plan. Fine-tuning remains treated as a compact
-    classifier/extractor experiment, but the next Qwen notebook now supports an
-    optional vLLM/OpenAI-compatible JSON Schema constrained-decoding path for
-    zero-shot and three-shot evaluation. The RAG path was hardened so retrieved
-    chunks and agent citations can carry sentence IDs, expanded sentence text,
-    chunk IDs, source metadata, dates, and content hashes. Sentence IDs are
-    therefore internal anchors only; user-facing reports must show source URLs
-    and quoted evidence text.
-    \item[June 21, 2026, v3 output audit] The third training output was
-    analyzed. XLM-R relevance remained the dependable baseline at
-    \XLMRRelevanceAccuracy{} accuracy and \XLMRRelevanceMacroFOne{}
-    macro-F1; XLM-R direction reached \XLMRDirectionAccuracy{} accuracy and
-    \XLMRDirectionMacroFOne{} macro-F1. Qwen3-8B QLoRA still failed the
-    official strict gate, with \QwenThirdRunStrictValidity{} strict validity
-    and \QwenThirdRunGrounding{} evidence grounding. However,
-    \QwenThirdRunRawOutputCount{} of 75 adapter outputs were raw, and many
-    were near-valid compact objects with unquoted keys. A tolerant diagnostic
-    parser would raise validity and grounding to
-    \QwenThirdRunTolerantValidity{}, relevance macro-F1 to
-    \QwenThirdRunTolerantRelevanceMacroFOne{}, direction macro-F1 to
-    \QwenThirdRunTolerantDirectionMacroFOne{}, symbol F1 to
-    \QwenThirdRunTolerantSymbolFOne{}, and evidence F1 to
-    \QwenThirdRunTolerantEvidenceFOne{}. These tolerant numbers are
-    failure-analysis diagnostics only and do not count toward deployment
-    readiness.
-    \item[July 3, 2026] The current runtime candidate was updated to the
-    served \texttt{Qwen/Qwen3.5-9B} targeted-v2 BF16 LoRA adapter. Lightning
-    vLLM reported \texttt{max\_model\_len=16384} with
-    \texttt{marketgyan-qwen35-9b-targeted-v2} loaded. Direct unconstrained
-    prompting remained diagnostic only because it can emit reasoning text;
-    JSON Schema constrained decoding returned valid compact JSON, and the
-    application path now uses a single-pass RAG agent that materializes
-    citations from retrieved rows.
-    \item[July 3, 2026, proposal evaluation] The targeted-v2 model-only
-    benchmark passed strict validity and grounding, while live single-pass
-    report/query scenarios passed schema, citation, sentence-citation,
-    grounding, disclaimer, and no-advice checks. Retrieval remained the main
-    blocker: the evaluator reported judged-query Precision@5 of 0.262 over
-    13 query groups with labeled returned candidates, while the stricter
-    all-30-query zero-padded Precision@5 was 0.113. The system is therefore a
-    grounded demo/research prototype, not a deployable market product.
-  \end{description}
-}
+\newcommand{\PythonTestPass}{74}
+\newcommand{\BackendTestPass}{98}
+\newcommand{\BackendTestSkip}{1}
+\newcommand{\FrontendTestPass}{13}
