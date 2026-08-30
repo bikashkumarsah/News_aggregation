@@ -1,33 +1,34 @@
-# MarketGyan Progress Report
+# MarketGyan Technical Progress Report
 
-This directory contains the living engineering report for MarketGyan:
+This directory contains a compact, job-application-ready sample weekly report.
+It emphasizes checked-in code, reproducible experiments, measured results,
+execution logs, limitations, and next actions.
 
-- `main.tex`: stable data-pipeline and model-development chapters.
-- `status_snapshot.tex`: current metrics, milestone state, and dated history.
-- `references.bib`: primary technical and source references.
+## Files
 
-The generated PDF is a verification artifact and is not committed.
+- `main.tex`: report layout and narrative.
+- `status_snapshot.tex`: verified metrics and report metadata.
+- `assets/`: experiment plots embedded in the PDF.
+- `marketgyan-technical-progress-report.pdf`: compiled showcase document.
+- `references.bib`: retained archival references from the long-form report;
+  the compact report does not require a bibliography.
 
 ## Build
 
 From this directory:
 
 ```bash
-tectonic --reruns 2 main.tex
+python3 /Users/bikashkumarsah/.codex/plugins/cache/openai-bundled/latex/0.2.6/scripts/compile_latex.py \
+  main.tex --output-directory build
+cp build/main.pdf marketgyan-technical-progress-report.pdf
 ```
 
-To keep generated files outside the repository:
+## Evidence policy
 
-```bash
-mkdir -p /tmp/market-gyan-report
-tectonic --reruns 2 --outdir /tmp/market-gyan-report main.tex
-```
-
-## Milestone Update
-
-When a new milestone is achieved:
-
-1. Re-query MongoDB and update the macros in `status_snapshot.tex`.
-2. Append one dated item to `\MarketGyanMilestoneHistory`.
-3. Add measured experiment results to `main.tex` only after artifacts exist.
-4. Compile with Tectonic and inspect warnings before committing the sources.
+- GPU training and live provider metrics come only from retained local JSON
+  metrics and report plots;
+  the report does not imply they were rerun locally.
+- The included validation logs cover dataset validation, dataset gating,
+  Python unit tests, backend tests, and the focused frontend suite.
+- Update `status_snapshot.tex` only when a corresponding artifact or fresh log
+  exists.

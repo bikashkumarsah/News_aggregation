@@ -99,7 +99,6 @@
         \setcounter{enumi}{5}
         \item Tools and implementation
         \item Results and evaluation
-        \item Demo features
         \item Limitations and future work
         \item Conclusion and references
       \end{enumerate}
@@ -152,7 +151,6 @@
     \item Create a bilingual, evidence-grounded NEPSE impact benchmark.
     \item Fine-tune and evaluate Qwen3.5-9B LoRA for compact structured impact extraction.
     \item Build a RAG runtime for grounded query answering and report generation.
-    \item Evaluate schema validity, grounding, F1 scores, retrieval precision, latency, and citation correctness.
   \end{enumerate}
 \end{frame}
 
@@ -227,29 +225,6 @@
   \end{alertblock}
 \end{frame}
 
-\begin{frame}{Literature Review: Efficient Adaptation}
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.48\textwidth}
-      \begin{block}{LoRA}
-        \begin{itemize}
-          \item Trains low-rank adapter matrices instead of all model weights.
-          \item Makes domain adaptation practical for a project-scale GPU budget.
-          \item Used for the final Qwen3.5-9B adapter.
-        \end{itemize}
-      \end{block}
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \begin{block}{QLoRA}
-        \begin{itemize}
-          \item Reduces memory through quantized base-model loading.
-          \item Useful for early diagnostic Qwen3-8B runs.
-          \item Not used as the official final candidate.
-        \end{itemize}
-      \end{block}
-    \end{column}
-  \end{columns}
-\end{frame}
-
 \begin{frame}{Proposed System Overview}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.52\textwidth}
@@ -287,7 +262,7 @@
     \node[process, right=of acq] (review) {Schema-v2 review and adjudication};
     \node[process, right=of review] (splits) {NEPSE-Impact-500 frozen splits};
     \node[model, below left=0.8cm and 0.4cm of splits] (train) {Train XLM-R and Qwen LoRA};
-    \node[output, below right=0.8cm and 0.4cm of splits] (eval) {Evaluate frozen test, retrieval, scenarios};
+    \node[output, below right=0.8cm and 0.4cm of splits] (eval) {Evaluate frozen test and model metrics};
     \node[output, below right=0.75cm and -0.15cm of train] (artifacts) {Metrics, plots, adapter, report tables};
     \draw[arrow] (sources) -- (acq);
     \draw[arrow] (acq) -- (review);
@@ -393,9 +368,9 @@
       \textbf{Evaluation}
       \begin{itemize}
         \item Frozen test split for model metrics.
+        \item Strict structured validity and evidence grounding gates.
+        \item Per-class F1 for relevance and merged direction.
         \item vLLM JSON Schema constrained inference check.
-        \item Retrieval Precision@5 over 30 proposal queries.
-        \item Live scenario and report-generation smoke tests.
       \end{itemize}
     \end{column}
   \end{columns}
@@ -479,25 +454,33 @@
   \end{columns}
 \end{frame}
 
-\begin{frame}{Results and Evaluation}
-  \small
+\begin{frame}{Results: 4-bit QLoRA vs 16-bit BF16 LoRA}
+  \scriptsize
+  \renewcommand{\arraystretch}{0.92}
   \begin{tabularx}{\textwidth}{@{}lccY@{}}
     \toprule
-    Metric & Target / Gate & Observed & Status \\
+    Metric & 4-bit QLoRA & 16-bit BF16 LoRA & Status \\
+     & (Qwen3-8B) & (Qwen3.5-9B v2) & \\
     \midrule
-    Structured validity & \(\geq 0.95\) & 1.000 & Pass \\
-    Evidence grounding & \(\geq 0.95\) & 1.000 & Pass \\
-    Relevance macro-F1 & \(\geq 0.78\) & 0.796 & Pass \\
-    Event macro-F1 & \(\geq 0.65\) & 0.633 & Below target \\
-    Direction macro-F1 & \(\geq 0.65\) & 0.575 & Below target \\
-    Sector F1 & \(\geq 0.76\) & 0.677 & Below target \\
-    Symbol F1 & \(\geq 0.81\) & 0.793 & Below target \\
-    Evidence sentence F1 & \(\geq 0.77\) & 0.736 & Below target \\
-    Live scenarios & 20/20 & 20/20 & Pass \\
-    Live latency & Reported & avg 6.665s, p95 9.735s & Demo-ready \\
-    Retrieval Precision@5 & \(\geq 0.60\) & 0.262 judged, 0.113 all-query & Fail \\
+    Structured validity & 0.360 & 1.000 & 16-bit passes 0.95 gate \\
+    Evidence grounding & 0.360 & 1.000 & 16-bit passes 0.95 gate \\
+    Relevance macro-F1 & 0.384 & 0.796 & Pass \\
+    Nepali relevance acc. & 0.182 & 0.788 & Large gain \\
+    Event macro-F1 & --- & 0.633 & Below 0.65 \\
+    Direction macro-F1 & 0.413 & 0.575 & Below 0.65 \\
+    Sector micro-F1 & --- & 0.677 & Below target \\
+    Symbol micro-F1 & --- & 0.793 & Near target \\
+    Evidence sentence F1 & --- & 0.736 & Below target \\
     \bottomrule
   \end{tabularx}
+
+  \vspace{0.08cm}
+  {\tiny 4-bit column is the final (v3) Qwen3-8B QLoRA diagnostic run; earlier runs scored 0.413 and 0.347 strict validity.}
+
+  \vspace{0.04cm}
+  \begin{alertblock}{Why 16-bit BF16 LoRA is the final candidate}
+    QLoRA stayed near 0.35--0.41 strict validity and grounding, below the 0.95 gate. BF16 LoRA reached 1.000 on both and improved Nepali relevance; event, direction, sector, and evidence metrics still need work.
+  \end{alertblock}
 \end{frame}
 
 \begin{frame}{Baseline and Qwen Ablation Results}
@@ -509,14 +492,14 @@
         \toprule
         Model / task & Acc. & Macro-F1 \\
         \midrule
-        XLM-R relevance & 0.787 & 0.723 \\
-        XLM-R direction & 0.683 & 0.549 \\
+        XLM-R relevance & 0.813 & 0.743 \\
+        XLM-R direction & 0.567 & 0.568 \\
         FinBERT direction & 0.889 & 0.616 \\
         \bottomrule
       \end{tabular}
       \vspace{0.18cm}
 
-      \scriptsize FinBERT support is small and English-only; XLM-R is the main multilingual classifier baseline.
+      \scriptsize XLM-R direction uses the merged neutral-or-uncertain target; FinBERT support is small and English-only.
     \end{column}
     \begin{column}{0.50\textwidth}
       \textbf{Qwen conditions}
@@ -536,20 +519,20 @@
   \end{columns}
 \end{frame}
 
-\begin{frame}{XLM-R Relevance Baseline Plot}
+\begin{frame}{XLM-R Relevance Baseline}
   \centering
-  \includegraphics[width=0.96\textwidth]{assets/xlmr-relevance-results.png}
+  \includegraphics[width=\textwidth]{assets/xlmr-relevance-combined.png}
 
   \vspace{0.12cm}
-  \small XLM-R relevance classifier: accuracy 0.787 and macro-F1 0.723 on the frozen test split.
+  \small XLM-R relevance: accuracy 0.813, macro-F1 0.743 on the frozen test split. Row-normalized confusion, per-class F1, and the training/validation loss curve.
 \end{frame}
 
-\begin{frame}{XLM-R Direction Baseline Plot}
+\begin{frame}{XLM-R Direction Baseline}
   \centering
-  \includegraphics[width=0.96\textwidth]{assets/xlmr-direction-results.png}
+  \includegraphics[width=\textwidth]{assets/xlmr-direction-combined.png}
 
   \vspace{0.12cm}
-  \small XLM-R direction classifier: accuracy 0.683 and macro-F1 0.549 on relevant frozen-test rows.
+  \small XLM-R direction (merged neutral-or-uncertain): accuracy 0.567, macro-F1 0.568 on relevant frozen-test rows. Merging avoids the unlearnable standalone neutral class and leaves no dead class.
 \end{frame}
 
 \begin{frame}{Qwen Targeted-v2 Loss Curve}
@@ -568,79 +551,25 @@
   \small Frozen-test diagnostic plot from the final Qwen3.5-9B targeted-v2 adapter artifact.
 \end{frame}
 
-\begin{frame}{Constrained Inference and Retrieval Readout}
-  \small
-  \begin{tabularx}{\textwidth}{@{}lccY@{}}
-    \toprule
-    Area & Primary result & Comparison & Interpretation \\
-    \midrule
-    Constrained validity & 0.987 & adapter 1.000 & Still above schema gate. \\
-    Constrained grounding & 0.987 & adapter 1.000 & Still above grounding gate. \\
-    Constrained relevance F1 & 0.819 & adapter 0.796 & Slight relevance gain. \\
-    Retrieval judged P@5 & 0.262 & target 0.600 & Proposal retrieval gate fails. \\
-    Retrieval all-query P@5 & 0.113 & target 0.600 & Empty filtered queries expose metadata/indexing gap. \\
-    \bottomrule
-  \end{tabularx}
-
-  \vspace{0.20cm}
-  \begin{alertblock}{Decision impact}
-    JSON Schema constrained decoding is useful for model-only structure, but retrieval metadata must improve before deployment.
-  \end{alertblock}
-\end{frame}
-
-\begin{frame}{Demo and Key Features}
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.33\textwidth}
-      \begin{block}{Ask MarketGyan}
-        \begin{itemize}
-          \item Grounded answer from single-pass RAG.
-          \item Disclaimer and no-advice boundary.
-          \item Citations with title, URL, excerpt, chunk ID, and sentence IDs.
-        \end{itemize}
-      \end{block}
-    \end{column}
-    \begin{column}{0.33\textwidth}
-      \begin{block}{Evidence Search}
-        \begin{itemize}
-          \item Query finance evidence directly.
-          \item Inspect source, sector, symbol, language, and date filters.
-          \item Verify expanded sentence evidence.
-        \end{itemize}
-      \end{block}
-    \end{column}
-    \begin{column}{0.30\textwidth}
-      \begin{block}{Reports}
-        \begin{itemize}
-          \item Generate local report for latest snapshot.
-          \item Published 2026-06-11 report.
-          \item 3 citations and 3 sector-analysis rows.
-        \end{itemize}
-      \end{block}
-    \end{column}
-  \end{columns}
-\end{frame}
-
 \begin{frame}{Limitations and Future Work}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.48\textwidth}
       \begin{alertblock}{Limitations}
         \begin{itemize}
-          \item Retrieval Precision@5 fails the proposal gate.
-          \item Neutral direction recall is 0.000.
-          \item Sector, symbol, and evidence recall need improvement.
-          \item Historical snapshots are partial.
-          \item Second-review agreement is not yet reported.
+          \item NEPSE-Impact-500 is small; rare events and neutral direction are under-covered, so standalone neutral cannot yet be learned.
+          \item Historical market snapshots are partial.
+          \item Set-valued sector, symbol, and evidence extraction show a recall gap.
+          \item Lightning-hosted vLLM suits demos, not production deployment.
         \end{itemize}
       \end{alertblock}
     \end{column}
     \begin{column}{0.48\textwidth}
       \begin{block}{Future work}
         \begin{itemize}
-          \item Normalize sector/source/ticker metadata in Qdrant payloads.
-          \item Rerun 30-query retrieval evaluation.
-          \item Add targeted neutral and ticker hard cases.
-          \item Complete second annotation and agreement metrics.
-          \item Keep single-pass RAG as the safer serving boundary.
+          \item Expand and adjudicate neutral, sector-industry, regulation, and credit-financing hard cases to move beyond the merged target.
+          \item Improve sector, symbol, and evidence recall via clearer selection rules and constrained post-processing.
+          \item Complete independent second annotation and agreement metrics.
+          \item Keep constrained inference and single-pass RAG while hardening deployment.
         \end{itemize}
       \end{block}
     \end{column}
@@ -649,14 +578,14 @@
 
 \begin{frame}{Conclusion}
   \begin{block}{Final contribution}
-    MarketGyan delivers a Nepal-specific, evidence-grounded financial NLP research prototype with NEPSE-Impact-500, Qwen3.5-9B targeted-v2 LoRA, Qdrant evidence retrieval, and a live React/FastAPI/Node demonstration path.
+    MarketGyan delivers a Nepal-specific, evidence-grounded financial NLP research prototype with NEPSE-Impact-500, a Qwen3.5-9B targeted-v2 LoRA adapter, Qdrant evidence retrieval, and a live React/FastAPI/Node demonstration path.
   \end{block}
 
   \begin{itemize}
-    \item The model passes strict JSON validity and evidence grounding.
-    \item The live single-pass RAG system passes citation, disclaimer, and no-advice scenario checks.
-    \item The frontend can demonstrate Ask, Evidence Search, and Reports.
-    \item Deployment is not recommended until retrieval and content metrics improve.
+    \item The final model passes strict JSON validity and evidence grounding gates.
+    \item Improved multilingual baselines: XLM-R relevance macro-F1 0.743 and merged-direction macro-F1 0.568 with no dead class.
+    \item The frontend can demonstrate Ask MarketGyan, Evidence Search, and Reports.
+    \item Deployment is not recommended until neutral direction and set-valued sector, symbol, and evidence recall improve.
   \end{itemize}
 
 \end{frame}
