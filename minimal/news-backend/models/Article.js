@@ -47,6 +47,5 @@ const articleSchema = new mongoose.Schema({
 // Create indexes for better performance
 articleSchema.index({ category: 1, publishedAt: -1 });
 articleSchema.index({ topics: 1, publishedAt: -1 });
-articleSchema.index({ url: 1 });
 
 module.exports = mongoose.model('Article', articleSchema);

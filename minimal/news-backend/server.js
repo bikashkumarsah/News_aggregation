@@ -2,9 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
-const path = require('path');
-const { spawn } = require('child_process');
-const fs = require('fs');
 
 // Load environment variables
 require('dotenv').config();
@@ -18,6 +15,15 @@ const marketGyanRoutes = require('./features/marketGyan/routes/marketGyanRoutes'
 
 // Import services
 const { startNewsletterScheduler } = require('./services/newsletterScheduler');
+const { runMbart } = require('./services/mbartService');
+const { summarizeArticle } = require('./services/summaryService');
+const { isLikelyNepali } = require('./services/languageService');
+const {
+  AUDIO_DIRECTORY,
+  audioExists,
+  getAudioTarget,
+  synthesizeAudio
+} = require('./services/ttsService');
 const {
   startMarketGyanPostMarketScheduler
 } = require('./features/marketGyan/scheduler/postMarketScheduler');
@@ -37,7 +43,7 @@ app.use(cors({
 app.use(express.json());
 
 // Serve static audio files
-app.use('/audio', express.static(path.join(__dirname, 'public/audio')));
+app.use('/audio', express.static(AUDIO_DIRECTORY));
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -60,7 +66,6 @@ withMongoRetry(
 
 // Import models
 const Article = require('./models/Article');
-const User = require('./models/User');
 
 // ============ API ROUTES ============
 
@@ -218,138 +223,6 @@ async function fetchFullContent(url) {
   }
 }
 
-// Helper: call local mBART (summarize / translate) via python
-const runMbart = ({ task, text, maxNewTokens, maxInputTokens } = {}) => new Promise((resolve, reject) => {
-  const py = spawn('python3', [path.join(__dirname, 'mbart_service.py')], {
-    stdio: ['pipe', 'pipe', 'pipe'],
-    env: {
-      ...process.env,
-      // default used by the notebook; can be overridden via env
-      MBART_MODEL: process.env.MBART_MODEL || 'sagunrai/mbart-large-50-nepali-finetuned-1'
-    }
-  });
-
-  let stdout = '';
-  let stderr = '';
-
-  py.stdout.on('data', (d) => { stdout += d.toString('utf8'); });
-  py.stderr.on('data', (d) => { stderr += d.toString('utf8'); });
-
-  py.on('error', (err) => reject(err));
-
-  py.on('close', (code) => {
-    try {
-      const resp = JSON.parse(stdout || '{}');
-      if (!resp.ok) {
-        return reject(new Error(resp.error || stderr || `mBART failed (exit ${code})`));
-      }
-      return resolve(resp.text || '');
-    } catch (err) {
-      return reject(new Error(`Failed to parse mBART output. stderr=${stderr || '(none)'} stdout=${stdout || '(empty)'}`));
-    }
-  });
-
-  const payload = {
-    task,
-    text,
-    ...(maxNewTokens ? { max_new_tokens: maxNewTokens } : {}),
-    ...(maxInputTokens ? { max_input_tokens: maxInputTokens } : {})
-  };
-
-  py.stdin.write(JSON.stringify(payload));
-  py.stdin.end();
-});
-
-const hasDevanagari = (text = '') => /[\u0900-\u097F]/u.test(text);
-
-const normalizeSummaryText = (text) => {
-  const raw = (text || '').toString().trim();
-  if (!raw) return '';
-
-  return raw
-    .replace(/\r/g, '\n')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => line.replace(/^[-*•]\s+/, ''))
-    .join(' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-};
-
-const extractGeneratedText = (payload) => {
-  const candidate = payload?.candidates?.[0];
-  if (!candidate) return '';
-
-  const parts = candidate?.content?.parts || [];
-  return parts
-    .map((part) => part?.text || '')
-    .join('')
-    .trim();
-};
-
-const generateSummaryWithApi = async ({ article, fullContent, outputLanguage }) => {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (!apiKey) {
-    throw new Error('Missing GEMINI_API_KEY or GOOGLE_API_KEY for API summarizer');
-  }
-
-  const model = process.env.GEMINI_MODEL || process.env.SUMMARY_API_MODEL || 'gemini-1.5-flash';
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-  const prompt = [
-    'You are summarizing a news article for a web app.',
-    `Write exactly 2-3 concise sentences in ${outputLanguage}.`,
-    'Return a single short paragraph.',
-    'Do not use bullet points, headings, or filler text.',
-    'Keep the summary faithful to the article and avoid adding outside facts.',
-    'When natural, highlight important names, places, dates, and numbers with Markdown bold using **double asterisks**.',
-    '',
-    `Title: ${article.title || ''}`,
-    `Description: ${article.description || ''}`,
-    '',
-    'Article text:',
-    (fullContent || '').slice(0, 8000)
-  ].join('\n');
-
-  const response = await fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: prompt }]
-        }
-      ],
-      generationConfig: {
-        temperature: 0.25,
-        topP: 0.9,
-        maxOutputTokens: 220
-      }
-    })
-  });
-
-  let payload = {};
-  try {
-    payload = await response.json();
-  } catch (error) {
-    throw new Error(`Summary API returned invalid JSON (${response.status})`);
-  }
-
-  if (!response.ok) {
-    throw new Error(payload?.error?.message || `Summary API request failed (${response.status})`);
-  }
-
-  const summary = normalizeSummaryText(extractGeneratedText(payload));
-  if (!summary) {
-    throw new Error('Summary API returned no text');
-  }
-
-  return summary;
-};
-
 // 5. Summarize article using API first, then fall back to local mBART
 app.post('/api/news/:id/summarize', async (req, res) => {
   try {
@@ -383,46 +256,7 @@ app.post('/api/news/:id/summarize', async (req, res) => {
       }
     }
 
-    const isNepaliSource = article.url.match(/(onlinekhabar\.com|ratopati\.com|setopati\.com|nagariknews\.com|\.np)/i);
-    const baseText = `${article.title || ''}\n${article.description || ''}\n${(fullContent || '')}`.trim();
-    const clipped = baseText.slice(0, 5000); // keep latency bounded
-    const outputLanguage = (isNepaliSource || hasDevanagari(baseText)) ? 'Nepali' : 'English';
-
-    let summary = '';
-    try {
-      summary = await generateSummaryWithApi({
-        article,
-        fullContent,
-        outputLanguage
-      });
-    } catch (apiError) {
-      console.warn(`API summarizer unavailable, falling back to local mBART: ${apiError.message}`);
-
-      let summaryText = '';
-      if (outputLanguage === 'Nepali') {
-        summaryText = await runMbart({
-          task: 'summarize',
-          text: clipped,
-          maxNewTokens: 160,
-          maxInputTokens: 1024
-        });
-      } else {
-        const translated = await runMbart({
-          task: 'translate_en_to_ne',
-          text: clipped,
-          maxNewTokens: 256,
-          maxInputTokens: 1024
-        });
-        summaryText = await runMbart({
-          task: 'summarize',
-          text: translated,
-          maxNewTokens: 160,
-          maxInputTokens: 1024
-        });
-      }
-
-      summary = normalizeSummaryText(summaryText);
-    }
+    const summary = await summarizeArticle({ article, fullContent });
 
     // Save summary to database
     article.summary = summary;
@@ -474,54 +308,25 @@ app.post('/api/news/:id/tts', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Summary not generated yet. Please summarize first.' });
     }
 
-    const audioDir = path.join(__dirname, 'public/audio');
-    if (!fs.existsSync(audioDir)) {
-      fs.mkdirSync(audioDir, { recursive: true });
-    }
-
     const fileName = `${article._id}.wav`;
-    const outputPath = path.join(audioDir, fileName);
-    const audioUrl = `/audio/${fileName}`;
-
-    // If audio already exists, just return the URL
-    if (fs.existsSync(outputPath)) {
-      return res.json({ success: true, audioUrl });
+    if (audioExists(fileName)) {
+      return res.json({ success: true, audioUrl: getAudioTarget(fileName).audioUrl });
     }
 
-    // Determine which model to use based on source/URL
-    // Prefer summary text language (fixes English-source articles whose summaries are translated to Nepali).
-    const hasDevanagari = /[\u0900-\u097F]/.test(article.summary || '');
-    const isNepali = hasDevanagari || article.url.match(/(onlinekhabar\.com|ratopati\.com|setopati\.com|nagariknews\.com|\.np)/i);
-    const modelPath = isNepali
-      ? path.join(__dirname, 'models', 'ne_NP-google-medium.onnx')
-      : path.join(__dirname, 'models', 'en_US-lessac-medium.onnx');
-
-    console.log(` Generating TTS for article: ${article.title} (${isNepali ? 'Nepali' : 'English'})`);
-
-    // Clean up markdown from summary for better TTS
-    const cleanText = article.summary.replace(/[*#\-_]/g, ' ').trim();
-
-    const pythonProcess = spawn('python3', [
-      path.join(__dirname, 'tts_service.py'),
-      cleanText,
-      outputPath,
-      modelPath
-    ]);
-
-    pythonProcess.stderr.on('data', (data) => {
-      console.error(`TTS Error: ${data}`);
+    const nepali = isLikelyNepali({
+      text: article.summary,
+      url: article.url
     });
+    console.log(`Generating TTS for article: ${article.title} (${nepali ? 'Nepali' : 'English'})`);
 
-    pythonProcess.on('close', (code) => {
-      if (code === 0) {
-        res.json({ success: true, audioUrl });
-      } else {
-        res.status(500).json({ success: false, error: 'TTS generation failed' });
-      }
+    const { audioUrl } = await synthesizeAudio({
+      text: article.summary,
+      fileName,
+      nepali
     });
-
+    return res.json({ success: true, audioUrl });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -536,45 +341,13 @@ app.post('/api/tts', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing "text" in request body' });
     }
 
-    // Keep bounded to avoid very long synthesis + CLI arg limits.
-    const clipped = text.slice(0, 2000);
-
-    const audioDir = path.join(__dirname, 'public/audio');
-    if (!fs.existsSync(audioDir)) {
-      fs.mkdirSync(audioDir, { recursive: true });
-    }
-
     const safeId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const fileName = `tts_${safeId}.wav`;
-    const outputPath = path.join(audioDir, fileName);
-    const audioUrl = `/audio/${fileName}`;
-
-    // Determine voice by text (Nepali if any Devanagari characters).
-    const hasDevanagari = /[\u0900-\u097F]/.test(clipped);
-    const modelPath = hasDevanagari
-      ? path.join(__dirname, 'models', 'ne_NP-google-medium.onnx')
-      : path.join(__dirname, 'models', 'en_US-lessac-medium.onnx');
-
-    // Clean up markdown-ish characters for better TTS
-    const cleanText = clipped.replace(/[*#\-_`]/g, ' ').replace(/\s+/g, ' ').trim();
-
-    const pythonProcess = spawn('python3', [
-      path.join(__dirname, 'tts_service.py'),
-      cleanText,
-      outputPath,
-      modelPath
-    ]);
-
-    pythonProcess.stderr.on('data', (data) => {
-      console.error(`TTS Error: ${data}`);
+    const { audioUrl } = await synthesizeAudio({
+      text,
+      fileName
     });
-
-    pythonProcess.on('close', (code) => {
-      if (code === 0) {
-        return res.json({ success: true, audioUrl });
-      }
-      return res.status(500).json({ success: false, error: 'TTS generation failed' });
-    });
+    return res.json({ success: true, audioUrl });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
