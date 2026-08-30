@@ -1,3 +1,36 @@
-ipynb file/
+# Operating-system and local-agent state
 .DS_Store
+.claude/settings.local.json
+
+# Dependencies, caches, and application builds
+node_modules/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+minimal/news-aggregator/build/
+
+# Runtime output
+minimal/news-backend/public/audio/*.wav
+tmp/
+
+# LaTeX and document QA output
+*.aux
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.nav
+*.out
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+docs/market-gyan/final-submission/**/rendered/
+docs/market-gyan/progress-report/build/
+docs/market-gyan/progress-report/main.pdf
+
+# Local archives and application material
 *.tar.gz
+*.zip
+/Bikashsah_CV_ML.pdf
