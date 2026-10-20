@@ -205,7 +205,11 @@ const marketLabelSchema = new mongoose.Schema({
         importedAt: Date,
         importedBy: String,
         resolvedAt: Date,
-        resolvedBy: String
+        resolvedBy: String,
+        resolvedSources: {
+            type: [String],
+            default: []
+        }
     },
     rejectionReason: String,
     model: {

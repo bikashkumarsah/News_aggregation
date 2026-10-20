@@ -288,6 +288,61 @@ class MetricsTest(unittest.TestCase):
             self.assertEqual(report["errorRows"], 1)
             self.assertEqual(report["errors"][0]["title"], "Notice 001")
 
+    def test_benchmark_scores_string_set_fields_as_empty_not_characters(self):
+        truth = [
+            row(1, "direct", "earnings", "bullish"),
+            row(3, "direct", "earnings", "bullish"),
+        ]
+        correct = compact_qwen_label(truth[0]["gold"])
+        malformed = compact_qwen_label(truth[1]["gold"])
+        malformed["sectors"] = "Banking"
+        malformed["symbols"] = "NABIL"
+
+        metrics = benchmark_predictions(truth, [
+            {"id": truth[0]["id"], "prediction": correct},
+            {"id": truth[1]["id"], "prediction": malformed},
+        ])
+
+        # One hit and one miss per field (2/3), not a pile of single-letter
+        # false positives from iterating the string.
+        self.assertAlmostEqual(metrics["sectorMicroF1"], 2 / 3)
+        self.assertAlmostEqual(metrics["symbolMicroF1"], 2 / 3)
+        self.assertEqual(metrics["invalidOutputCount"], 1)
+
+    def test_benchmark_survives_null_and_non_object_predictions(self):
+        truth = [
+            row(1, "direct", "earnings", "bullish"),
+            row(2, "direct", "earnings", "bearish"),
+            row(3, "not_relevant", "not_applicable", "not_applicable"),
+        ]
+        valid = compact_qwen_label(truth[2]["gold"])
+        valid["sectors"] = None
+
+        metrics = benchmark_predictions(truth, [
+            {"id": truth[0]["id"], "prediction": "direct earnings bullish"},
+            {"id": truth[1]["id"], "prediction": None},
+            {"id": truth[2]["id"], "prediction": valid},
+        ])
+
+        self.assertEqual(metrics["matched"], 3)
+        self.assertEqual(metrics["invalidOutputCount"], 3)
+        self.assertEqual(metrics["perLanguage"]["ne"]["count"], 1)
+        self.assertEqual(metrics["sectorMicroF1"], 0.0)
+        json.dumps(metrics)
+
+    def test_candidate_review_metrics_ignore_reordered_set_fields(self):
+        generated = label("direct", "bullish")
+        generated["sectors"] = ["Banking", "Finance"]
+        generated["evidenceSentenceIds"] = ["S1", "S2"]
+        gold = dict(generated)
+        gold["sectors"] = ["Finance", "Banking"]
+        gold["evidenceSentenceIds"] = ["S2", "S1"]
+
+        metrics = candidate_review_metrics([{"generated": generated, "gold": gold}])
+
+        self.assertEqual(metrics["acceptanceRate"], 1.0)
+        self.assertEqual(metrics["fieldEdits"], {})
+
 
 if __name__ == "__main__":
     unittest.main()

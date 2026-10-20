@@ -172,6 +172,17 @@ def agreement_metrics(rows):
     }
 
 
+_UNORDERED_REVIEW_FIELDS = {"sectors", "symbols", "tags", "evidenceSentenceIds"}
+
+
+def _review_value(field, value):
+    # Set-valued fields: a reviewer reordering sectors or evidence IDs did not
+    # edit the label, so order must not count against the generated proposal.
+    if field in _UNORDERED_REVIEW_FIELDS and isinstance(value, list):
+        return sorted(str(item) for item in value)
+    return value
+
+
 def candidate_review_metrics(rows):
     fields = (
         "language", "summary", "relevance", "eventType", "impactScope",
@@ -186,7 +197,10 @@ def candidate_review_metrics(rows):
         gold = row.get("gold", {})
         changed = False
         for field in fields:
-            if generated.get(field) != gold.get(field):
+            if (
+                _review_value(field, generated.get(field))
+                != _review_value(field, gold.get(field))
+            ):
                 field_edits[field] += 1
                 changed = True
         unchanged += not changed
@@ -420,14 +434,14 @@ def benchmark_predictions(truth_rows, prediction_rows):
         row.get("id"): row.get("prediction", row.get("candidate", {}))
         for row in prediction_rows
     }
-    matched = [
-        (row, predictions[row.get("id")])
+    normalized = [
+        (row, _prediction_dict(predictions[row.get("id")]), predictions[row.get("id")])
         for row in truth_rows if row.get("id") in predictions
     ]
-    normalized = [
-        (row, _prediction_dict(prediction), prediction)
-        for row, prediction in matched
-    ]
+    # Every score below reads the object form: a raw string or null prediction
+    # scores as empty instead of crashing, and a string-valued "sectors" is not
+    # iterated character by character.
+    matched = [(row, prediction) for row, prediction, _ in normalized]
     relevant = [
         (row, prediction) for row, prediction, _ in normalized
         if row["gold"]["relevance"] != "not_relevant"
@@ -485,16 +499,16 @@ def benchmark_predictions(truth_rows, prediction_rows):
             DIRECTION_LABELS,
         ),
         "sectorMicroF1": multilabel_micro_f1(
-            [row["gold"].get("sectors", []) for row, _ in matched],
-            [prediction.get("sectors", []) for _, prediction in matched],
+            [_string_list(row["gold"].get("sectors", [])) for row, _ in matched],
+            [_string_list(prediction.get("sectors", [])) for _, prediction in matched],
         ),
         "symbolMicroF1": multilabel_micro_f1(
-            [row["gold"].get("symbols", []) for row, _ in matched],
-            [prediction.get("symbols", []) for _, prediction in matched],
+            [_string_list(row["gold"].get("symbols", [])) for row, _ in matched],
+            [_string_list(prediction.get("symbols", [])) for _, prediction in matched],
         ),
         "evidenceSentenceF1": multilabel_micro_f1(
             [
-                row["gold"].get("evidenceSentenceIds", [])
+                _string_list(row["gold"].get("evidenceSentenceIds", []))
                 for row, _ in matched
             ],
             [

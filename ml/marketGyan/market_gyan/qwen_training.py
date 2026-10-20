@@ -3,6 +3,17 @@ import os
 from collections import Counter
 from pathlib import Path
 
+from .dataset import compact_qwen_label
+from .proposal_evaluation import TRAINING_SCHEMA_INSTRUCTIONS, prompt_for
+
+
+# "numbered-v1" is the prompt the notebook adapters were fine-tuned on and the
+# one evaluation sends: schema instructions plus numbered [S1] source sentences.
+# "legacy-title-text" is what train_qwen_qlora.py used before 2026-10-20. That
+# prompt never showed sentence IDs although the target cites them; keep it
+# only to reproduce adapters trained that way (it keeps the old truncation).
+QWEN_PROMPT_FORMATS = ("numbered-v1", "legacy-title-text")
+DEFAULT_QWEN_PROMPT_FORMAT = "numbered-v1"
 
 TARGETED_V2_SPLIT_HASH = (
     "ca8ff2bce62950442ec21d9c344aa91584b4c625ae1fc03112b4449827da394d"
@@ -43,7 +54,83 @@ QWEN_PROFILE_ENV_KEYS = (
     "MARKET_GYAN_SAVE_BEST_MODEL",
     "MARKET_GYAN_SPLIT_MANIFEST",
     "MARKET_GYAN_FAIL_ON_QWEN_SMOKE_GATE",
+    "MARKET_GYAN_QWEN_PROMPT_FORMAT",
 )
+
+
+def qwen_training_messages(row, prompt_format=DEFAULT_QWEN_PROMPT_FORMAT):
+    if prompt_format == "numbered-v1":
+        prompt = prompt_for(row, TRAINING_SCHEMA_INSTRUCTIONS)
+    elif prompt_format == "legacy-title-text":
+        prompt = (
+            "Return only compact NEPSE-Impact JSON. Do not give investment advice.\n"
+            "Title: %s\nText: %s" % (row["title"], row["excerpt"])
+        )
+    else:
+        raise ValueError("unknown Qwen prompt format: %s" % prompt_format)
+    return [
+        {"role": "user", "content": prompt},
+        {
+            "role": "assistant",
+            "content": json.dumps(
+                compact_qwen_label(row["gold"]),
+                ensure_ascii=False,
+                sort_keys=True,
+            ),
+        },
+    ]
+
+
+def fit_row_to_token_budget(row, count_tokens, max_tokens):
+    """Shorten a numbered-prompt example until it fits max_tokens.
+
+    Right-truncation at max_seq_length cuts the end of the sequence, which is
+    the JSON answer being trained. Instead, drop source sentences the gold
+    label does not cite, last first; the kept sentences keep their IDs.
+    Returns (row, status) with status "fits", "trimmed" or "too_long".
+    """
+    if count_tokens(row) <= max_tokens:
+        return row, "fits"
+    cited = set(row.get("gold", {}).get("evidenceSentenceIds", []))
+    sentences = list(row.get("sentences", []))
+    removable = [
+        index for index, sentence in enumerate(sentences)
+        if sentence.get("id") not in cited
+    ]
+    while removable:
+        del sentences[removable.pop()]
+        candidate = dict(row, sentences=list(sentences))
+        if count_tokens(candidate) <= max_tokens:
+            return candidate, "trimmed"
+    return row, "too_long"
+
+
+def fit_rows_to_token_budget(rows, count_tokens, max_tokens):
+    fitted = []
+    trimmed = []
+    too_long = []
+    for row in rows:
+        value, status = fit_row_to_token_budget(row, count_tokens, max_tokens)
+        if status == "too_long":
+            too_long.append(row.get("id"))
+        elif status == "trimmed":
+            trimmed.append(row.get("id"))
+        fitted.append(value)
+    if too_long:
+        raise ValueError(
+            "%d examples exceed max_seq_length=%d even without uncited "
+            "sentences (%s); raise the limit rather than train on truncated "
+            "answers" % (
+                len(too_long),
+                max_tokens,
+                ", ".join(str(value) for value in too_long[:10]),
+            )
+        )
+    return fitted, {
+        "maxTokens": max_tokens,
+        "trimmedRows": len(trimmed),
+        "trimmedIds": trimmed,
+    }
 
 
 def env_bool(name, default=False):

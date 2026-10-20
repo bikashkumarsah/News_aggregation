@@ -334,15 +334,30 @@ def command_proposal_collect_scenarios(args):
     print(json.dumps(report, indent=2, ensure_ascii=False))
 
 
+def xlmr_baseline_macro_f1(metrics):
+    """Held-out XLM-R macro-F1 from the notebook report or train_xlmr.py.
+
+    Raises instead of defaulting to 0.0: a missing baseline would make the
+    "Qwen within baseline margin" check pass for any Qwen score.
+    """
+    for value in (
+        (metrics.get("macro avg") or {}).get("f1-score"),
+        (metrics.get("test") or {}).get("macroF1"),
+        metrics.get("macroF1"),
+        metrics.get("eval_macro_f1"),
+    ):
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return float(value)
+    raise ValueError(
+        "XLM-R metrics have no held-out macro-F1 (expected a 'macro avg' "
+        "classification report or train_xlmr.py output run with --test)"
+    )
+
+
 def command_deployment_gate(args):
     xlmr = json.loads(Path(args.xlmr).read_text(encoding="utf-8"))
     qwen = json.loads(Path(args.qwen).read_text(encoding="utf-8"))
-    xlmr_macro = (
-        xlmr.get("macro avg", {}).get("f1-score")
-        or xlmr.get("macroF1")
-        or xlmr.get("eval_macro_f1")
-        or 0.0
-    )
+    xlmr_macro = xlmr_baseline_macro_f1(xlmr)
     direction = qwen.get("direction", {})
     per_class = {
         label: direction.get("perClass", {}).get(label, {}).get("f1", 0.0)

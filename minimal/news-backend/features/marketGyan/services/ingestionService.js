@@ -22,6 +22,15 @@ const { findMentionedSecurities } = require('./securityAliasService');
 const dayString = (value) => new Date(value).toISOString().slice(0, 10);
 const startOfDayUtc = (value) => new Date(`${dayString(value)}T00:00:00.000Z`);
 
+const HISTORY_SOURCE_URL = 'https://www.sharesansar.com/index-history-data';
+// A 'running' run older than this belongs to a worker that died (crash, kill,
+// reboot) and may be taken over instead of blocking its date range forever.
+const DEFAULT_STALE_RUN_MS = 6 * 60 * 60 * 1000;
+
+const isHumanReviewed = (document) => /:human-reviewed$/.test(
+    String(document?.sentiment?.model || '')
+);
+
 const buildRunKey = ({ mode, from, to }) => `${mode}:${dayString(from)}:${dayString(to)}`;
 
 // Load the active security registry (symbol, name, aliases, sector) once so
@@ -68,9 +77,11 @@ const upsertSecurityRegistry = async (sources) => {
         updateOne: {
             filter: { symbol: entry.symbol },
             update: {
+                // When ShareSansar is down only MeroLagani answers, and it has
+                // no names or sectors: never blank the registry's known values.
                 $set: {
-                    name: entry.name,
-                    sector: entry.sector,
+                    ...(entry.name ? { name: entry.name } : {}),
+                    ...(entry.sector ? { sector: entry.sector } : {}),
                     active: true,
                     lastSeenAt: new Date()
                 },
@@ -89,25 +100,45 @@ const upsertFinancialNews = async (items, runId) => {
     let updated = 0;
     const securities = await loadSecurityRegistry();
     for (const item of items) {
-        const existing = await Article.findOne({ url: item.url }).select('_id');
+        const [existing, existingDocument] = await Promise.all([
+            Article.findOne({ url: item.url }).select('_id content'),
+            MarketDocument.findOne({ 'source.url': item.url })
+                .select('text.cleaned sentiment.model')
+        ]);
+        // When a detail page fails, collectors fall back to the RSS or listing
+        // excerpt. A re-run must not replace full text from an earlier run
+        // with it (that would also change the labelled content hash).
+        const keepArticleText = Boolean(item.contentIsExcerpt && existing?.content);
+        const keepDocumentText = Boolean(
+            item.contentIsExcerpt && existingDocument?.text?.cleaned
+        );
         const article = await Article.findOneAndUpdate(
             { url: item.url },
             {
                 $set: {
                     title: item.title,
-                    description: item.description || item.content.slice(0, 500),
-                    content: item.content,
-                    topics: ['finance'],
-                    category: 'business',
+                    ...(keepArticleText ? {} : {
+                        description: item.description || item.content.slice(0, 500),
+                        content: item.content
+                    }),
                     source: item.sourceName,
                     publishedAt: item.publishedAt,
                     fetchedAt: new Date()
-                }
+                },
+                // The same OnlineKhabar/Kathmandu Post article may already be in
+                // the main news feed with its own topics and category.
+                $addToSet: { topics: 'finance' },
+                $setOnInsert: { category: 'business' }
             },
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
 
-        const { companies, sectors } = deriveDocumentTags(item, securities);
+        const { companies, sectors } = deriveDocumentTags(
+            keepDocumentText
+                ? { title: item.title, content: existingDocument.text.cleaned }
+                : item,
+            securities
+        );
 
         await MarketDocument.findOneAndUpdate(
             { 'source.url': item.url },
@@ -125,13 +156,19 @@ const upsertFinancialNews = async (items, runId) => {
                         publishedAt: item.publishedAt,
                         retrievedAt: new Date()
                     },
-                    text: {
-                        cleaned: item.content,
-                        extractionMethod: 'article_reference',
-                        contentHash: contentHash(item.title, item.content)
-                    },
-                    'metadata.companies': companies,
-                    'metadata.sectors': sectors,
+                    ...(keepDocumentText ? {} : {
+                        text: {
+                            cleaned: item.content,
+                            extractionMethod: 'article_reference',
+                            contentHash: contentHash(item.title, item.content)
+                        }
+                    }),
+                    // Approved v1 reviews write reviewed companies and sectors
+                    // onto the document; alias matching must not replace them.
+                    ...(isHumanReviewed(existingDocument) ? {} : {
+                        'metadata.companies': companies,
+                        'metadata.sectors': sectors
+                    }),
                     ingestion: {
                         status: 'complete',
                         sourceId: item.sourceId,
@@ -152,7 +189,20 @@ const upsertRegulatoryDocuments = async (items, runId) => {
     let updated = 0;
     let skipped = 0;
     for (const item of items) {
-        const exists = await MarketDocument.exists({ 'source.url': item.url });
+        const existing = await MarketDocument.findOne({ 'source.url': item.url })
+            .select('ingestion.status')
+            .lean();
+        if (
+            item.ingestionStatus === 'failed'
+            && existing
+            && existing.ingestion?.status !== 'failed'
+        ) {
+            // A transient download or PDF-parse failure on a re-run must not
+            // erase the text and status extracted by an earlier run.
+            skipped += 1;
+            continue;
+        }
+        const exists = Boolean(existing);
         await MarketDocument.findOneAndUpdate(
             { 'source.url': item.url },
             {
@@ -227,7 +277,30 @@ const backfillMarketHistory = async ({ from, to, historyCollector = collectShare
     const rows = await historyCollector({ from, to });
     if (!rows.length) return { fetched: 0, created: 0, updated: 0, skipped: 0 };
 
-    const operations = rows.map((row) => ({
+    // Daily snapshots reconcile the live NEPSE, ShareSansar and MeroLagani
+    // pages (sectors, breadth, leaders, volume). The index-history fallback
+    // only refreshes dates that have nothing better.
+    const preserved = await MarketSnapshot.find({
+        marketDate: { $in: rows.map((row) => row.marketDate) },
+        provenance: { $elemMatch: { sourceUrl: { $ne: HISTORY_SOURCE_URL } } }
+    }).select('marketDate').lean();
+    const preservedDates = new Set(
+        preserved.map((snapshot) => new Date(snapshot.marketDate).getTime())
+    );
+    const fallbackRows = rows.filter(
+        (row) => !preservedDates.has(new Date(row.marketDate).getTime())
+    );
+    if (!fallbackRows.length) {
+        return {
+            fetched: rows.length,
+            created: 0,
+            updated: 0,
+            skipped: 0,
+            preserved: preservedDates.size
+        };
+    }
+
+    const operations = fallbackRows.map((row) => ({
         updateOne: {
             filter: { marketDate: row.marketDate },
             update: {
@@ -282,7 +355,8 @@ const backfillMarketHistory = async ({ from, to, historyCollector = collectShare
         fetched: rows.length,
         created: result.upsertedCount || 0,
         updated: result.modifiedCount || 0,
-        skipped: 0
+        skipped: 0,
+        preserved: preservedDates.size
     };
 };
 
@@ -295,39 +369,65 @@ const runIngestion = async ({
     documentSources,
     documentOptions = {},
     force = false,
-    collectors = {}
+    staleAfterMs = DEFAULT_STALE_RUN_MS,
+    collectors = {},
+    connection = mongoose.connection
 }) => {
-    if (mongoose.connection.readyState !== 1) {
+    if (connection.readyState !== 1) {
         throw new Error('MongoDB must be connected before Market Gyan ingestion');
     }
 
     const runKey = buildRunKey({ mode, from, to });
-    let run = await MarketIngestionRun.findOne({ runKey });
-    if (run?.status === 'running') {
-        const error = new Error(`Ingestion run ${runKey} is already running`);
+    const alreadyRunning = () => {
+        const error = new Error(
+            `Ingestion run ${runKey} is already running; pass force to take over a run whose worker died`
+        );
         error.status = 409;
-        throw error;
-    }
+        return error;
+    };
+    const staleBefore = new Date(Date.now() - staleAfterMs);
+    const isActive = (candidate) => (
+        candidate?.status === 'running'
+        && !(new Date(candidate.startedAt) < staleBefore)
+    );
+    let run = await MarketIngestionRun.findOne({ runKey });
+    if (isActive(run) && !force) throw alreadyRunning();
     if (run?.status === 'complete' && !force) return run;
 
-    run = await MarketIngestionRun.findOneAndUpdate(
-        { runKey },
-        {
-            $set: {
-                mode,
-                from: startOfDayUtc(from),
-                to: startOfDayUtc(to),
-                status: 'running',
-                startedAt: new Date(),
-                sources: []
+    // Claim the run atomically: a fresh 'running' record does not match the
+    // filter, so the upsert collides with the unique runKey instead of
+    // starting a second concurrent run.
+    try {
+        run = await MarketIngestionRun.findOneAndUpdate(
+            force
+                ? { runKey }
+                : {
+                    runKey,
+                    $or: [
+                        { status: { $ne: 'running' } },
+                        { startedAt: { $lt: staleBefore } }
+                    ]
+                },
+            {
+                $set: {
+                    mode,
+                    from: startOfDayUtc(from),
+                    to: startOfDayUtc(to),
+                    status: 'running',
+                    startedAt: new Date(),
+                    sources: []
+                },
+                $unset: {
+                    completedAt: 1,
+                    error: 1
+                }
             },
-            $unset: {
-                completedAt: 1,
-                error: 1
-            }
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+    } catch (error) {
+        if (error?.code === 11000) throw alreadyRunning();
+        throw error;
+    }
 
     const results = [];
     try {

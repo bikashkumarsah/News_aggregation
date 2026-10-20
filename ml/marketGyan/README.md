@@ -33,6 +33,18 @@ classifier/extractor target: canonical labels, sectors, symbols, confidence,
 and evidence sentence IDs only. Evidence text, summaries, rationales, and
 report prose are rebuilt later from RAG evidence and deterministic market data.
 
+The script trainers follow the notebooks. `market_gyan.train_qwen_qlora`
+trains on the notebook prompt (`--prompt-format numbered-v1`: schema plus
+numbered `[S1]` sentences, the same text evaluation sends minus "Do not show
+thinking."). Its previous prompt showed no sentence IDs although the targets
+cite them; `--prompt-format legacy-title-text` reproduces adapters trained that
+way. Long examples drop uncited trailing sentences instead of being cut at
+`--max-seq-length`, which used to remove the JSON answer; examples that still
+do not fit stop the run. `training_profile.json` records the prompt format and
+which rows were shortened. `market_gyan.train_xlmr --test` now always writes
+held-out `test` metrics, which `deployment-gate` reads; the gate refuses an
+XLM-R file without held-out metrics instead of comparing against 0.0.
+
 The next recommended generator experiment is Qwen3.5-9B with bf16 LoRA. On an
 A100 runtime, the Qwen notebook auto-loads the checked-in 80 GB profile when it
 detects about 80 GB of VRAM, otherwise it falls back to the 40 GB profile. You

@@ -209,19 +209,27 @@ const importTaxonomyRows = async ({
             && row.revalidationAudit?.needsReview === true
         ))
         .map((row) => row._id.toString());
+    const skippedActiveIds = new Set(skippedActive);
     const skippedResolved = existing
         .filter((row) => (
             !force
-            && row.revalidationAudit?.source === AUDIT_SOURCE
+            && !skippedActiveIds.has(row._id.toString())
             && (
-                row.revalidationAudit?.needsReview === false
-                || (row.revisions || []).some(
-                    (revision) => revision.action === 'revalidation_resolved'
+                // Cleared for this audit before, even if a later audit from
+                // another source has since replaced `source`.
+                (row.revalidationAudit?.resolvedSources || []).includes(AUDIT_SOURCE)
+                || (
+                    row.revalidationAudit?.source === AUDIT_SOURCE
+                    && (
+                        row.revalidationAudit?.needsReview === false
+                        || (row.revisions || []).some(
+                            (revision) => revision.action === 'revalidation_resolved'
+                        )
+                    )
                 )
             )
         ))
         .map((row) => row._id.toString());
-    const skippedActiveIds = new Set(skippedActive);
     const skippedResolvedIds = new Set(skippedResolved);
     const existingIds = new Set(
         existing

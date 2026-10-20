@@ -31,6 +31,10 @@ const withinRange = (date, from, to) => {
 };
 
 const parseCalendarDate = (value) => {
+    // "2026-10-01" parses as UTC midnight, which reads as 30 September in any
+    // timezone west of UTC; take ISO calendar dates literally.
+    const isoDate = String(value ?? '').trim().match(/^\d{4}-\d{2}-\d{2}$/);
+    if (isoDate) return new Date(`${isoDate[0]}T00:00:00.000Z`);
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return parsed;
     return new Date(Date.UTC(
@@ -61,6 +65,11 @@ const extractParagraphText = (html, selectors) => {
 };
 
 const parseFeed = (xml) => parser.parseString(xml);
+
+// Paged feeds title themselves "बिजनेस – Page 24 – Online Khabar". The page
+// number is not part of the source and split one source into many names.
+const feedSourceName = (title, fallback) => cleanText(title)
+    .replace(/\s*[–-]\s*Page\s+\d+(?=\s*[–-])/i, '') || fallback;
 
 const oldestTimestamp = (items) => {
     const values = items
@@ -121,12 +130,17 @@ const collectOnlineKhabarBusiness = async ({
             item['content:encoded'] || item.content || item.contentSnippet || item.description
         );
         let content = fallbackContent;
+        let contentIsExcerpt = true;
         try {
             const html = await httpClient.request(item.link);
-            content = extractParagraphText(html, [
+            const articleText = extractParagraphText(html, [
                 '.ok18-single-post-content-wrap p',
                 '.entry-content p'
-            ]) || fallbackContent;
+            ]);
+            if (articleText) {
+                content = articleText;
+                contentIsExcerpt = false;
+            }
         } catch {
             // Keep the public RSS excerpt when a detail page is temporarily unavailable.
         }
@@ -135,12 +149,14 @@ const collectOnlineKhabarBusiness = async ({
             sourceId: item.guid || item.link,
             title: cleanText(item.title),
             url: item.link,
-            sourceName: feedTitle || 'OnlineKhabar Business',
+            sourceName: feedSourceName(feedTitle, 'OnlineKhabar Business'),
             section: 'Business',
             publishedAt: new Date(item.isoDate || item.pubDate),
             language: detectLanguage(`${item.title} ${content}`),
             description: cleanText(item.contentSnippet || item.description).slice(0, 500),
             content: content.slice(0, 10000),
+            // Ingestion keeps previously extracted full text over an excerpt.
+            contentIsExcerpt,
             extractionMethod: 'html'
         });
     }
@@ -231,10 +247,11 @@ const collectKathmanduPostMoney = async ({
             const content = extractParagraphText(articleHtml, ['.story-section p']);
             items.push({
                 ...item,
-                content: (content || item.content).slice(0, 10000)
+                content: (content || item.content).slice(0, 10000),
+                contentIsExcerpt: !content
             });
         } catch {
-            items.push(item);
+            items.push({ ...item, contentIsExcerpt: true });
         }
     }
     return items.filter((item) => (
@@ -494,10 +511,17 @@ const fetchRegulatoryPdfItems = async (item, httpClient) => {
     );
     const resolved = [];
     for (const attachment of attachments) {
-        const response = normalizeHttpResult(await httpClient.request(attachment.url, {
-            responseType: 'buffer',
-            returnMetadata: true
-        }), attachment.url);
+        let response;
+        try {
+            response = normalizeHttpResult(await httpClient.request(attachment.url, {
+                responseType: 'buffer',
+                returnMetadata: true
+            }), attachment.url);
+        } catch (error) {
+            // One unavailable attachment must not discard its siblings.
+            resolved.push({ ...attachment, error });
+            continue;
+        }
         if (!isPdfResponse(response)) continue;
         resolved.push({
             ...attachment,
@@ -558,12 +582,32 @@ const collectRegulatoryDocuments = async ({
 
     const unique = Array.from(new Map(items.map((item) => [item.url, item])).values())
         .slice(0, Number(limit));
+    const failedRecord = (record, error) => ({
+        ...record,
+        buffer: undefined,
+        error: undefined,
+        content: '',
+        ingestionStatus: 'failed',
+        extractionError: error.message
+    });
     const extracted = [];
     for (const item of unique) {
+        let pdfItems;
         try {
-            const pdfItems = await fetchRegulatoryPdfItems(item, httpClient);
+            pdfItems = await fetchRegulatoryPdfItems(item, httpClient);
             if (!pdfItems.length) throw new Error('No public PDF attachment was found');
-            for (const pdfItem of pdfItems) {
+        } catch (error) {
+            extracted.push(failedRecord(item, error));
+            continue;
+        }
+        // Each attachment is its own document: a download or parse failure is
+        // recorded against that attachment's URL, never the listing page.
+        for (const pdfItem of pdfItems) {
+            if (pdfItem.error) {
+                extracted.push(failedRecord(pdfItem, pdfItem.error));
+                continue;
+            }
+            try {
                 const text = await extractPdfText(pdfItem.buffer, { pdfParser });
                 const quality = assessPdfText(pdfItem.title, text);
                 extracted.push({
@@ -574,14 +618,9 @@ const collectRegulatoryDocuments = async ({
                     ingestionStatus: quality.usable ? 'complete' : 'failed',
                     extractionError: quality.error
                 });
+            } catch (error) {
+                extracted.push(failedRecord(pdfItem, error));
             }
-        } catch (error) {
-            extracted.push({
-                ...item,
-                content: '',
-                ingestionStatus: 'failed',
-                extractionError: error.message
-            });
         }
     }
     return extracted;
@@ -600,6 +639,7 @@ module.exports = {
     collectShareSansarNews,
     extractParagraphText,
     extractPdfText,
+    feedSourceName,
     fetchRegulatoryPdfItems,
     parseCalendarDate,
     parseDateFromUrl,

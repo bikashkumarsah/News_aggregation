@@ -279,6 +279,7 @@ const createGemmaClient = ({
             await pacer.wait();
 
             let response;
+            let text;
             try {
                 response = await fetchImpl(url, {
                     method: 'POST',
@@ -289,6 +290,10 @@ const createGemmaClient = ({
                     body: JSON.stringify(body),
                     timeout: config.requestTimeoutMs
                 });
+                // node-fetch applies the timeout to the body as well: a reset
+                // or timeout while streaming it is as transient as one before
+                // the headers arrive, so it is retried the same way.
+                text = await response.text();
             } catch (error) {
                 lastError = error;
                 if (attempt === config.gemmaMaxAttempts) throw error;
@@ -298,7 +303,6 @@ const createGemmaClient = ({
                 continue;
             }
 
-            const text = await response.text();
             let payload;
             try {
                 payload = text ? JSON.parse(text) : {};

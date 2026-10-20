@@ -261,22 +261,32 @@ const parseNepseHtml = (html) => {
     };
 };
 
+// Accepts "2026-06-10" as well as "2026-06-10 00:00:00"; anything else is not
+// a trading day. An invalid Date would otherwise crash the whole backfill when
+// rows are keyed by toISOString().
+const parseHistoryDate = (value) => {
+    const match = String(value || '').trim().match(/^(\d{4}-\d{2}-\d{2})(?:$|[T\s])/);
+    if (!match) return null;
+    const date = new Date(`${match[1]}T00:00:00.000Z`);
+    return Number.isNaN(date.getTime()) ? null : date;
+};
+
 const parseShareSansarHistory = (payload) => (
     Array.isArray(payload?.data) ? payload.data : []
 ).map((row) => ({
-    marketDate: new Date(`${row.published_date}T00:00:00.000Z`),
+    marketDate: parseHistoryDate(row?.published_date),
     sourceName: 'ShareSansar',
     sourceUrl: 'https://www.sharesansar.com/index-history-data',
     metrics: {
-        open: parseNumber(row.open),
-        high: parseNumber(row.high),
-        low: parseNumber(row.low),
-        close: parseNumber(row.current),
-        change: parseNumber(row.change_),
-        changePercent: parseNumber(row.per_change),
-        turnoverAmount: parseNumber(row.turnover)
+        open: parseNumber(row?.open),
+        high: parseNumber(row?.high),
+        low: parseNumber(row?.low),
+        close: parseNumber(row?.current),
+        change: parseNumber(row?.change_),
+        changePercent: parseNumber(row?.per_change),
+        turnoverAmount: parseNumber(row?.turnover)
     }
-}));
+})).filter((row) => row.marketDate);
 
 module.exports = {
     findLabeledNumber,

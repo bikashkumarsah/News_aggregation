@@ -218,6 +218,10 @@ def main():
 
     focal_gamma = args.focal_gamma if args.loss == "focal" else None
     label_smoothing = args.label_smoothing
+    test_data = (
+        to_dataset(test_rows).map(tokenize, batched=True)
+        if test_rows is not None else None
+    )
 
     class WeightedTrainer(Trainer):
         def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
@@ -277,15 +281,27 @@ def main():
         "metricForBestModel": args.metric_for_best_model,
     }
 
+    def logits_and_truth(dataset):
+        output_predictions = trainer.predict(dataset)
+        return (
+            output_predictions.predictions.tolist(),
+            output_predictions.label_ids.tolist(),
+        )
+
+    # Validation picked the checkpoint (and may tune the bias below), so only
+    # the held-out test split gives an unbiased score; report it whenever it
+    # is supplied. "test" is the deployed decision rule, which the
+    # deployment-gate command reads.
+    test_logits = test_truth = None
+    if test_data is not None:
+        test_logits, test_truth = logits_and_truth(test_data)
+        report["test"] = evaluate_with_bias(
+            test_logits, test_truth, labels, [0.0] * len(labels)
+        )
+        report["testDecisionRule"] = "argmax"
+
     # Post-hoc per-class logit-bias tuning: fit on validation, apply to test.
     if is_direction and args.tune_logit_bias:
-        def logits_and_truth(dataset):
-            output_predictions = trainer.predict(dataset)
-            return (
-                output_predictions.predictions.tolist(),
-                output_predictions.label_ids.tolist(),
-            )
-
         validation_logits, validation_truth = logits_and_truth(validation_data)
         bias, tuned_f1, tuned_metrics = tune_logit_bias(
             validation_logits,
@@ -298,15 +314,13 @@ def main():
             "macroF1": tuned_f1,
             "perClass": tuned_metrics["perClass"],
         }
-        if test_rows is not None:
-            test_data = to_dataset(test_rows).map(tokenize, batched=True)
-            test_logits, test_truth = logits_and_truth(test_data)
-            report["testArgmax"] = evaluate_with_bias(
-                test_logits, test_truth, labels, [0.0] * len(labels)
-            )
+        if test_data is not None:
+            report["testArgmax"] = report["test"]
             report["testTuned"] = evaluate_with_bias(
                 test_logits, test_truth, labels, bias
             )
+            report["test"] = report["testTuned"]
+            report["testDecisionRule"] = "tuned_logit_bias"
 
     (output / "metrics.json").write_text(
         json.dumps(report, indent=2),

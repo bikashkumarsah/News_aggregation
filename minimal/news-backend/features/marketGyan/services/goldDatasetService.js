@@ -81,6 +81,7 @@ const validateSubmittedAnnotations = async ({
     const valid = [];
     const invalid = [];
     const alreadyAdjudicated = [];
+    const alreadyExcluded = [];
     const missingLabels = [];
 
     for (const annotation of annotations) {
@@ -106,6 +107,10 @@ const validateSubmittedAnnotations = async ({
         };
         if (label.adjudication?.status === 'adjudicated') {
             alreadyAdjudicated.push(row);
+        } else if (label.adjudication?.status === 'excluded') {
+            // An adjudicator (or the rebalance patch) removed this record from
+            // the gold set on purpose; its primary annotation must not revive it.
+            alreadyExcluded.push(row);
         } else if (validation.valid) {
             valid.push(row);
         } else {
@@ -127,10 +132,12 @@ const validateSubmittedAnnotations = async ({
         valid: valid.length,
         invalid: invalid.length,
         alreadyAdjudicated: alreadyAdjudicated.length,
+        alreadyExcluded: alreadyExcluded.length,
         missingLabels: missingLabels.length,
         validRows: valid,
         invalidRows: invalid,
         alreadyAdjudicatedRows: alreadyAdjudicated,
+        alreadyExcludedRows: alreadyExcluded,
         missingLabelRows: missingLabels
     };
 };
@@ -160,11 +167,13 @@ const batchAdjudicateSubmitted = async ({
         valid: summary.valid,
         invalid: summary.invalid,
         alreadyAdjudicated: summary.alreadyAdjudicated,
+        alreadyExcluded: summary.alreadyExcluded,
         missingLabels: summary.missingLabels,
         adjudicatable: actionable.length,
         adjudicated: 0,
         skipped: {
             alreadyAdjudicated: force ? 0 : summary.alreadyAdjudicated,
+            excluded: summary.alreadyExcluded,
             invalid: summary.invalid,
             missingLabels: summary.missingLabels,
             withoutSubmittedAnnotation: Math.max(0, summary.totalLabels - summary.submitted)
@@ -194,7 +203,11 @@ const batchAdjudicateSubmitted = async ({
             {
                 _id: row.labelId,
                 'model.schemaVersion': summary.schemaVersion,
-                ...(force ? {} : { 'adjudication.status': { $ne: 'adjudicated' } })
+                // Exclusions are adjudicator decisions; even --force only
+                // re-applies annotations to records that are still gold.
+                'adjudication.status': force
+                    ? { $ne: 'excluded' }
+                    : { $nin: ['adjudicated', 'excluded'] }
             },
             {
                 $set: {
@@ -243,6 +256,12 @@ const rowDuplicateGroup = (row, basis) => (
     basis === 'submitted'
         ? row.label?.input?.duplicateGroupId || row.label?.input?.contentHash
         : row.input?.duplicateGroupId || row.input?.contentHash
+);
+
+// Recommendations must point at MarketLabel ids (what an adjudicator acts on),
+// not at the annotation documents used as rows for the submitted basis.
+const rowLabelId = (row, basis) => objectIdString(
+    basis === 'submitted' ? row.label : row._id
 );
 
 const rowTitle = (row, basis) => (
@@ -367,7 +386,7 @@ const selectExclusionCandidates = ({ rows, basis, coverage, requirements, target
             }
             if (!reasons.length) reasons.push('surplus hard negative');
             return {
-                id: objectIdString(row._id || row.label),
+                id: rowLabelId(row, basis),
                 title: rowTitle(row, basis),
                 source,
                 publishedAt: rowPublishedAt(row, basis),
@@ -406,7 +425,7 @@ const buildRebalanceRecommendations = ({ rows, basis, coverage, target, requirem
             return candidate.relevance !== 'not_relevant' && candidate.eventType === 'other';
         })
         .map((row) => ({
-            id: objectIdString(row._id || row.label),
+            id: rowLabelId(row, basis),
             title: rowTitle(row, basis),
             source: sourceKeyFromName(rowSource(row, basis)),
             publishedAt: rowPublishedAt(row, basis)

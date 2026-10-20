@@ -45,15 +45,13 @@ const {
     disconnectMongo,
     withMongoRetry
 } = require('../services/mongoConnectionService');
+const { kathmanduDate } = require('../collectors/marketCollectors');
+const { parseCliOptions } = require('./cliOptions');
 
 const args = process.argv.slice(2);
 const command = args[0];
-const options = Object.fromEntries(args.slice(1).map((argument) => {
-    const [key, ...rest] = argument.replace(/^--/, '').split('=');
-    return [key, rest.join('=') || true];
-}));
+const options = parseCliOptions(args.slice(1));
 
-const today = () => new Date().toISOString().slice(0, 10);
 const parseSources = (value) => String(value || '')
     .split(',')
     .map((source) => source.trim().toLowerCase())
@@ -148,7 +146,9 @@ const main = async () => {
 
     switch (command) {
         case 'ingest': {
-            const date = options.date || today();
+            // Trading days are Nepal dates; the UTC date lags until 05:45 NPT
+            // and daily market collection rejects any other date.
+            const date = options.date || kathmanduDate();
             writeJson(await runIngestion({
                 from: date,
                 to: date,

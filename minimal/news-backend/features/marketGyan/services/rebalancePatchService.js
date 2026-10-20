@@ -14,6 +14,8 @@ const MODEL_NAME = 'targeted-human-adjudication';
 const PROMPT_VERSION = 'market-impact-v2-rebalance-2026-06-16';
 const PROVIDER = 'marketgyan_rebalance';
 const TARGET_HARD_NEGATIVES = 100;
+const EXCLUSION_REASON = 'Surplus hard-negative excluded during NEPSE-Impact-500 rebalance';
+const RETIREMENT_REASON = 'Retired targeted replacement to restore Nepali language balance';
 
 const RETIRED_REPLACEMENT_DOCUMENTS = Object.freeze([
     '6a2f04658a1c034887d2f92e',
@@ -266,6 +268,12 @@ const plainGoldCandidate = (label) => (
 
 const candidatesEqual = (left, right) => (
     JSON.stringify(stripMongoKeys(left)) === JSON.stringify(stripMongoKeys(right))
+);
+
+// The patch is a one-off migration. Once it has touched a label, any later
+// change to that label is a reviewer decision that a re-run must not undo.
+const hasPatchRevision = (label, reason) => (label.revisions || []).some(
+    (revision) => revision.reason === reason
 );
 
 const buildCandidate = ({ definition, document, securities }) => {
@@ -546,14 +554,14 @@ const retireReplacement = async ({ label, reviewer, now, dryRun }) => {
     label.adjudication = {
         ...(label.adjudication?.toObject?.() || label.adjudication || {}),
         status: 'excluded',
-        reason: 'Retired targeted replacement to restore Nepali language balance',
+        reason: RETIREMENT_REASON,
         adjudicatedBy: reviewer,
         adjudicatedAt: now,
         goldCandidate: undefined
     };
     label.revisions.push({
         action: 'excluded',
-        reason: 'Retired targeted replacement to restore Nepali language balance',
+        reason: RETIREMENT_REASON,
         actor: reviewer,
         at: now
     });
@@ -583,20 +591,34 @@ const applyGoldRebalancePatch = async ({
         document
     ]));
     const labelById = new Map(labels.map((label) => [label._id.toString(), label]));
+    // Documents that already carry an adjudicated or excluded label. A
+    // replacement for them would either overwrite a reviewer's decision or
+    // put the same document into the gold set twice.
+    const decidedByDocument = new Map(labels.map((label) => [
+        label.document.toString(),
+        label
+    ]));
     const allowedSymbols = securities.map((security) => security.symbol);
     const exclusionTarget = Math.min(
         Number(excludeCount) || 53,
         hardNegativeSurplus(labels)
     );
-    const exclusions = selectHardNegativeExclusions(labels, exclusionTarget);
+    // A hard negative this patch already excluded and a reviewer later
+    // restored stays restored.
+    const exclusions = selectHardNegativeExclusions(
+        labels.filter((label) => !hasPatchRevision(label, EXCLUSION_REASON)),
+        exclusionTarget
+    );
     const retired = labels.filter((label) => (
         label.model?.provider === PROVIDER
         && label.adjudication?.status === 'adjudicated'
         && RETIRED_REPLACEMENT_DOCUMENTS.includes(label.document.toString())
+        && !hasPatchRevision(label, RETIREMENT_REASON)
     ));
     const reclassificationPatches = buildAutomaticReclassifications(labels);
     const reclassifications = [];
     const replacements = [];
+    const skipped = [];
 
     if (exclusions.length !== exclusionTarget) {
         throw new Error(`Expected ${exclusionTarget} hard-negative exclusions, found ${exclusions.length}`);
@@ -608,6 +630,26 @@ const applyGoldRebalancePatch = async ({
     for (const patch of reclassificationPatches) {
         const label = labelById.get(patch.id);
         if (!label) throw new Error(`Missing reclassification label ${patch.id}`);
+        if (label.adjudication?.status !== 'adjudicated') {
+            // An excluded record has no gold candidate to reclassify; patching
+            // it would fail validation halfway through the run.
+            skipped.push({
+                id: patch.id,
+                title: label.input?.title,
+                step: 'reclassification',
+                reason: `label is ${label.adjudication?.status || 'not adjudicated'}`
+            });
+            continue;
+        }
+        if (hasPatchRevision(label, patch.reason)) {
+            skipped.push({
+                id: patch.id,
+                title: label.input?.title,
+                step: 'reclassification',
+                reason: 'already applied'
+            });
+            continue;
+        }
         const candidate = await applyReclassification({
             label,
             patch,
@@ -628,7 +670,7 @@ const applyGoldRebalancePatch = async ({
         await applyExclusion({
             label,
             reviewer,
-            reason: 'Surplus hard-negative excluded during NEPSE-Impact-500 rebalance',
+            reason: EXCLUSION_REASON,
             now,
             dryRun
         });
@@ -646,6 +688,17 @@ const applyGoldRebalancePatch = async ({
     for (const definition of REPLACEMENTS) {
         const document = documentById.get(definition.documentId);
         if (!document) throw new Error(`Missing replacement document ${definition.documentId}`);
+        const decided = decidedByDocument.get(definition.documentId);
+        if (decided) {
+            replacements.push({
+                id: decided._id.toString(),
+                document: definition.documentId,
+                title: decided.input?.title,
+                candidate: plainGoldCandidate(decided),
+                kept: true
+            });
+            continue;
+        }
         const replacement = await upsertReplacement({
             definition,
             document,
@@ -677,22 +730,29 @@ const applyGoldRebalancePatch = async ({
             id: row.id || null,
             document: row.document,
             title: row.title,
-            relevance: row.candidate.relevance,
-            eventType: row.candidate.eventType,
-            source: row.candidate.relevance === 'direct' ? 'targeted-direct' : 'targeted-indirect'
+            relevance: row.candidate?.relevance || null,
+            eventType: row.candidate?.eventType || null,
+            source: row.candidate
+                ? (row.candidate.relevance === 'direct' ? 'targeted-direct' : 'targeted-indirect')
+                : null,
+            kept: Boolean(row.kept)
         })),
+        skipped,
         counts: {
             excluded: exclusions.length,
             retired: retired.length,
             reclassified: reclassifications.length,
             replacements: replacements.length,
-            directReplacements: replacements.filter((row) => row.candidate.relevance === 'direct').length,
-            indirectReplacements: replacements.filter((row) => row.candidate.relevance === 'indirect').length
+            keptReplacements: replacements.filter((row) => row.kept).length,
+            directReplacements: replacements.filter((row) => row.candidate?.relevance === 'direct').length,
+            indirectReplacements: replacements.filter((row) => row.candidate?.relevance === 'indirect').length,
+            skipped: skipped.length
         }
     };
 };
 
 module.exports = {
+    REPLACEMENTS,
     applyGoldRebalancePatch,
     buildAutomaticReclassifications,
     selectHardNegativeExclusions

@@ -1,5 +1,6 @@
 import hashlib
 import json
+import unicodedata
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -210,14 +211,23 @@ def validate_row(row):
 def validate_dataset(rows):
     issues = []
     ids = set()
-    content_hashes = defaultdict(list)
+    # One gold record per document and per exact text: a repeat would be
+    # double-weighted in training and counted twice against the quotas.
+    first_seen = {"documentId": {}, "contentHash": {}}
     for index, row in enumerate(rows):
         errors = validate_row(row)
         row_id = row.get("id")
         if row_id in ids:
             errors.append("id is duplicated")
         ids.add(row_id)
-        content_hashes[row.get("contentHash")].append(row_id)
+        for field, seen in first_seen.items():
+            value = row.get(field)
+            if not value:
+                continue
+            if value in seen:
+                errors.append("%s duplicates row %s" % (field, seen[value]))
+            else:
+                seen[value] = row_id
         if errors:
             issues.append({"index": index, "id": row_id, "errors": errors})
     return issues
@@ -238,14 +248,60 @@ def compact_qwen_label(label):
     return output
 
 
+def normalized_title_key(title):
+    """First 14 title words after NFKC + lowercasing, keeping letters, marks
+    and digits: the backend's near-duplicate definition (duplicateGroupIdForTitle).
+    """
+    text = unicodedata.normalize("NFKC", str(title or "")).lower()
+    kept = "".join(
+        character if unicodedata.category(character)[0] in "LMN" else " "
+        for character in text
+    )
+    return " ".join(kept.split()[:14])
+
+
+def _group_keys(row):
+    keys = []
+    for field in ("duplicateGroupId", "contentHash", "documentId"):
+        if row.get(field):
+            keys.append((field, str(row[field])))
+    title = normalized_title_key(row.get("title"))
+    if title:
+        keys.append(("title", title))
+    return keys
+
+
 def _group_rows(rows):
+    """Group rows that must land in the same split.
+
+    Rows are linked, transitively, when they share a duplicate group, an exact
+    content hash, a document, or a normalized title. Older backend queueing
+    paths computed different duplicateGroupId values for the same Nepali
+    title, so that ID alone cannot keep copies of a story out of both train
+    and test.
+    """
+    parent = list(range(len(rows)))
+
+    def find(index):
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    first_index_for_key = {}
+    for index, row in enumerate(rows):
+        for key in _group_keys(row):
+            if key not in first_index_for_key:
+                first_index_for_key[key] = index
+                continue
+            left, right = find(first_index_for_key[key]), find(index)
+            if left != right:
+                parent[max(left, right)] = min(left, right)
+
     groups = defaultdict(list)
-    for row in rows:
-        groups[row.get("duplicateGroupId") or row["contentHash"]].append(row)
-    return [
-        sorted(group, key=lambda row: (_parse_date(row.get("publishedAt")), row["id"]))
-        for group in groups.values()
-    ]
+    for index, row in enumerate(rows):
+        groups[find(index)].append(row)
+    return [sorted(group, key=_row_sort_key) for group in groups.values()]
 
 
 def _row_sort_key(row):
@@ -394,10 +450,33 @@ def balanced_group_split(rows, train_ratio=0.70, validation_ratio=0.15):
     return splits
 
 
+def source_bucket(name):
+    """Mirror of the backend's sourceKeyFromName.
+
+    OnlineKhabar documents carry paged feed titles such as
+    "बिजनेस – Page 24 – Online Khabar", so raw names split one source into
+    many and per-source caps must count buckets.
+    """
+    value = str(name or "").lower()
+    compact = "".join(value.split())
+    if "sharesansar" in compact:
+        return "sharesansar"
+    if "onlinekhabar" in compact:
+        return "onlinekhabar"
+    if "kathmandupost" in compact:
+        return "kathmandupost"
+    if "sebon" in value or "rastra bank" in value:
+        return "regulatory"
+    return "other"
+
+
 def coverage_report(rows):
     gold = [row.get("gold", {}) for row in rows]
     source_counts = Counter(
         row.get("source", {}).get("name", "missing") for row in rows
+    )
+    source_bucket_counts = Counter(
+        source_bucket(row.get("source", {}).get("name")) for row in rows
     )
     return {
         "records": len(rows),
@@ -413,6 +492,7 @@ def coverage_report(rows):
             sector for label in gold for sector in label.get("sectors", [])
         )),
         "sources": dict(source_counts),
+        "sourceBuckets": dict(source_bucket_counts),
         "symbolLevel": sum(bool(label.get("symbols")) for label in gold),
     }
 
@@ -458,7 +538,7 @@ def dataset_readiness(rows, min_records=500, **_legacy):
         count = coverage["eventTypes"].get(event_type, 0)
         if count < 20:
             errors.append("%s records %d is below 20" % (event_type, count))
-    max_source = max(coverage["sources"].values(), default=0)
+    max_source = max(coverage["sourceBuckets"].values(), default=0)
     if max_source > int(min_records * 0.60):
         errors.append(
             "largest source count %d exceeds the 60 percent cap" % max_source

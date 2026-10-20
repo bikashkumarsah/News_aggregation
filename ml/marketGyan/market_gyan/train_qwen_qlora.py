@@ -4,27 +4,36 @@ import os
 import shutil
 from pathlib import Path
 
+from .qwen_training import (
+    DEFAULT_QWEN_PROMPT_FORMAT,
+    QWEN_PROMPT_FORMATS,
+    fit_rows_to_token_budget,
+    qwen_training_messages,
+)
 
-def format_example(row, tokenizer, compact_label):
-    prompt = (
-        "Return only compact NEPSE-Impact JSON. Do not give investment advice.\n"
-        "Title: %s\nText: %s" % (row["title"], row["excerpt"])
-    )
-    response = json.dumps(
-        compact_label(row["gold"]),
-        ensure_ascii=False,
-        sort_keys=True,
-    )
-    messages = [
-        {"role": "user", "content": prompt},
-        {"role": "assistant", "content": response},
-    ]
+
+def format_example(row, tokenizer, prompt_format=DEFAULT_QWEN_PROMPT_FORMAT):
     return tokenizer.apply_chat_template(
-        messages,
+        qwen_training_messages(row, prompt_format),
         tokenize=False,
         add_generation_prompt=False,
         enable_thinking=False,
     )
+
+
+def fit_examples(rows, tokenizer, prompt_format, max_seq_length):
+    """Make every example fit max_seq_length without cutting its JSON answer."""
+    if prompt_format == "legacy-title-text":
+        return rows, {
+            "applied": False,
+            "reason": "legacy-title-text reproduces the original right-truncation",
+        }
+
+    def count_tokens(row):
+        return len(tokenizer(format_example(row, tokenizer, prompt_format))["input_ids"])
+
+    fitted, report = fit_rows_to_token_budget(rows, count_tokens, max_seq_length)
+    return fitted, dict(report, applied=True)
 
 
 def main():
@@ -140,6 +149,16 @@ def main():
         type=float,
         default=float(os.getenv("MARKET_GYAN_LORA_DROPOUT", "0.05")),
     )
+    parser.add_argument(
+        "--prompt-format",
+        choices=QWEN_PROMPT_FORMATS,
+        default=os.getenv("MARKET_GYAN_QWEN_PROMPT_FORMAT", DEFAULT_QWEN_PROMPT_FORMAT),
+        help=(
+            "numbered-v1 matches the notebook adapters and evaluation; "
+            "legacy-title-text reproduces adapters this script trained "
+            "before 2026-10-20."
+        ),
+    )
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
@@ -155,7 +174,7 @@ def main():
         TrainingArguments,
         set_seed,
     )
-    from .dataset import compact_qwen_label, read_jsonl
+    from .dataset import read_jsonl
 
     set_seed(args.seed)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
@@ -164,8 +183,18 @@ def main():
     use_bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
     compute_dtype = torch.bfloat16 if use_bf16 else torch.float16
 
-    train_rows = read_jsonl(args.train)
-    validation_rows = read_jsonl(args.validation)
+    train_rows, train_fit = fit_examples(
+        read_jsonl(args.train),
+        tokenizer,
+        args.prompt_format,
+        args.max_seq_length,
+    )
+    validation_rows, validation_fit = fit_examples(
+        read_jsonl(args.validation),
+        tokenizer,
+        args.prompt_format,
+        args.max_seq_length,
+    )
     weighted_train_rows = oversample_training_rows(
         train_rows,
         profile=args.oversample_profile,
@@ -181,7 +210,7 @@ def main():
 
     def prepare_rows(rows):
         dataset = Dataset.from_list([{
-            "text": format_example(row, tokenizer, compact_qwen_label)
+            "text": format_example(row, tokenizer, args.prompt_format)
         } for row in rows])
 
         def tokenize(batch):
@@ -286,6 +315,11 @@ def main():
             "saveBestModel": args.save_best_model,
             "optimizer": args.optim,
             "seed": args.seed,
+            "promptFormat": args.prompt_format,
+            "lengthFitting": {
+                "train": train_fit,
+                "validation": validation_fit,
+            },
         },
     )
     (output / "training_profile.json").write_text(

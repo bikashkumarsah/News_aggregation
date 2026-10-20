@@ -14,9 +14,11 @@ const PREFERRED_TARGETS = Object.freeze({
 
 const sourceKeyFromName = (name) => {
     const value = String(name || '').toLowerCase();
-    if (value.includes('sharesansar')) return 'sharesansar';
-    if (value.includes('online khabar')) return 'onlinekhabar';
-    if (value.includes('kathmandu post')) return 'kathmandupost';
+    // Collector fallbacks spell names without spaces ("OnlineKhabar Business").
+    const compact = value.replace(/\s+/g, '');
+    if (compact.includes('sharesansar')) return 'sharesansar';
+    if (compact.includes('onlinekhabar')) return 'onlinekhabar';
+    if (compact.includes('kathmandupost')) return 'kathmandupost';
     if (value.includes('sebon') || value.includes('rastra bank')) return 'regulatory';
     return 'other';
 };
@@ -28,11 +30,11 @@ const sourceNameFilter = (source) => {
     const patterns = sources.map((value) => {
         switch (String(value).trim().toLowerCase()) {
             case 'sharesansar':
-                return /ShareSansar/i;
+                return /Share\s*Sansar/i;
             case 'onlinekhabar':
-                return /Online Khabar/i;
+                return /Online\s*Khabar/i;
             case 'kathmandupost':
-                return /Kathmandu Post/i;
+                return /Kathmandu\s*Post/i;
             case 'regulatory':
                 return /SEBON|Rastra Bank/i;
             default:

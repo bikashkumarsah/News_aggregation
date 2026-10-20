@@ -53,10 +53,18 @@ const NEGATIVE_PATTERNS = /\b(advertisement|vacancy|recruitment|workshop|trainin
 const inferEventHint = (text, patterns) => Object.entries(patterns)
     .find(([, pattern]) => pattern.test(text))?.[0] || null;
 
-const duplicateGroupIdForDocument = (document) => {
-    const title = normalizeAlias(document.title).split(/\s+/).slice(0, 14).join(' ');
-    return contentHash(title || document.text?.contentHash || document._id).slice(0, 24);
+// Near-duplicate key: the first 14 normalized title words. The label queue
+// uses this same function so every queueing path groups a story identically
+// and the train/validation/test split keeps its copies together.
+const duplicateGroupIdForTitle = (title, fallback) => {
+    const words = normalizeAlias(title).split(/\s+/).slice(0, 14).join(' ');
+    return contentHash(words || fallback).slice(0, 24);
 };
+
+const duplicateGroupIdForDocument = (document) => duplicateGroupIdForTitle(
+    document.title,
+    document.text?.contentHash || document._id
+);
 
 const classifyDocumentForSelection = (document, securities = []) => {
     const text = `${document.title || ''} ${document.text?.cleaned || document.text?.original || ''}`;
@@ -300,20 +308,24 @@ const selectImpactCorpus = (classified, {
 };
 
 const planImpactCorpusFromDatabase = async (options = {}) => {
-    const [documents, securities] = await Promise.all([
-        MarketDocument.find({
-            'ingestion.status': { $in: ['complete', 'partial'] },
-            'source.publishedAt': {
-                $gte: new Date(options.from || '2025-01-01T00:00:00.000Z'),
-                $lte: new Date(options.to || '2026-06-15T23:59:59.999Z')
-            }
-        }).select('_id title language source text').lean(),
-        MarketSecurity.find({ active: true }).select('symbol name sector aliases').lean()
-    ]);
-    return selectImpactCorpus(
-        documents.map((document) => classifyDocumentForSelection(document, securities)),
-        options
-    );
+    const securities = await MarketSecurity.find({ active: true })
+        .select('symbol name sector aliases')
+        .lean();
+    // Stream the corpus and keep only the small classification rows: regulatory
+    // PDFs carry up to 50k characters twice (original and cleaned), so loading
+    // every document at once grows memory with the whole archive.
+    const cursor = MarketDocument.find({
+        'ingestion.status': { $in: ['complete', 'partial'] },
+        'source.publishedAt': {
+            $gte: new Date(options.from || '2025-01-01T00:00:00.000Z'),
+            $lte: new Date(options.to || '2026-06-15T23:59:59.999Z')
+        }
+    }).select('_id title language source text').lean().cursor();
+    const classified = [];
+    for await (const document of cursor) {
+        classified.push(classifyDocumentForSelection(document, securities));
+    }
+    return selectImpactCorpus(classified, options);
 };
 
 module.exports = {
@@ -324,6 +336,7 @@ module.exports = {
     NEGATIVE_PATTERNS,
     TARGETS,
     classifyDocumentForSelection,
+    duplicateGroupIdForTitle,
     planImpactCorpusFromDatabase,
     selectImpactCorpus
 };

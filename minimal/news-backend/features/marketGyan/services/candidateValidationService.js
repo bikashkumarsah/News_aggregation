@@ -29,6 +29,10 @@ const sanitizeStringArray = (values, limit) => Array.from(new Set(
         .filter(Boolean)
 )).slice(0, limit);
 
+// Deduplicate after case/alias normalization too, so "banking" + "Banking"
+// or "nabil" + "NABIL" cannot store the same value twice in a gold label.
+const unique = (values) => Array.from(new Set(values));
+
 const normalizeCandidateV2 = (candidate) => {
     const value = candidate && typeof candidate === 'object' ? candidate : {};
     return {
@@ -40,16 +44,16 @@ const normalizeCandidateV2 = (candidate) => {
         impactDirection: normalizeEnumValue(value.impactDirection),
         impactHorizon: normalizeEnumValue(value.impactHorizon),
         impactMechanism: normalizeEnumValue(value.impactMechanism),
-        sectors: sanitizeStringArray(value.sectors, 8)
+        sectors: unique(sanitizeStringArray(value.sectors, 8)
             .map(normalizeSector)
-            .filter(Boolean),
-        symbols: sanitizeStringArray(value.symbols, 12).map(normalizeSymbol),
-        tags: sanitizeStringArray(value.tags, 12)
-            .map((tag) => tag.toLowerCase().slice(0, 60)),
+            .filter(Boolean)),
+        symbols: unique(sanitizeStringArray(value.symbols, 12).map(normalizeSymbol)),
+        tags: unique(sanitizeStringArray(value.tags, 12)
+            .map((tag) => tag.toLowerCase().slice(0, 60))),
         confidenceBand: String(value.confidenceBand || '').trim().toLowerCase(),
         rationale: String(value.rationale || '').trim().slice(0, 1000),
-        evidenceSentenceIds: sanitizeStringArray(value.evidenceSentenceIds, 8)
-            .map((id) => id.toUpperCase()),
+        evidenceSentenceIds: unique(sanitizeStringArray(value.evidenceSentenceIds, 8)
+            .map((id) => id.toUpperCase())),
         evidence: []
     };
 };
@@ -60,12 +64,12 @@ const normalizeCandidate = (candidate) => {
         language: String(value.language || '').trim().toLowerCase(),
         summary: String(value.summary || '').trim().slice(0, 600),
         sentiment: String(value.sentiment || '').trim().toLowerCase(),
-        sectors: sanitizeStringArray(value.sectors, 8)
+        sectors: unique(sanitizeStringArray(value.sectors, 8)
             .map(normalizeSector)
-            .filter(Boolean),
-        symbols: sanitizeStringArray(value.symbols, 12).map(normalizeSymbol),
-        tags: sanitizeStringArray(value.tags, 12)
-            .map((tag) => tag.toLowerCase().slice(0, 60)),
+            .filter(Boolean)),
+        symbols: unique(sanitizeStringArray(value.symbols, 12).map(normalizeSymbol)),
+        tags: unique(sanitizeStringArray(value.tags, 12)
+            .map((tag) => tag.toLowerCase().slice(0, 60))),
         confidenceBand: String(value.confidenceBand || '').trim().toLowerCase(),
         rationale: String(value.rationale || '').trim().slice(0, 1000),
         evidence: sanitizeStringArray(value.evidence, 5)

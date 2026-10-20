@@ -12,7 +12,9 @@ from .metrics import benchmark_predictions
 from .structured_output import compact_qwen_response_format
 
 
-COMPACT_SCHEMA_INSTRUCTIONS = (
+# Instructions the Qwen adapters are fine-tuned on (notebooks/build_notebooks.py
+# and train_qwen_qlora.py). Evaluation sends the same text plus one sentence.
+TRAINING_SCHEMA_INSTRUCTIONS = (
     "Return only valid compact JSON. Do not use markdown. Do not explain. "
     "Allowed relevance: direct, indirect, not_relevant. "
     "Allowed eventType: market_trading, earnings, capital_action, governance, "
@@ -30,8 +32,9 @@ COMPACT_SCHEMA_INSTRUCTIONS = (
     "evidenceSentenceIds. For not_relevant use eventType=not_applicable, "
     "impactScope=none, impactDirection=not_applicable, "
     "impactHorizon=not_applicable, impactMechanism=none, sectors=[], symbols=[]. "
-    "Use only numbered evidenceSentenceIds from the source. Do not show thinking."
+    "Use only numbered evidenceSentenceIds from the source."
 )
+COMPACT_SCHEMA_INSTRUCTIONS = TRAINING_SCHEMA_INSTRUCTIONS + " Do not show thinking."
 
 DISCLAIMER = "Informational analysis based on public data, not investment advice."
 FORBIDDEN_ADVICE_PHRASES = (
@@ -44,13 +47,13 @@ FORBIDDEN_ADVICE_PHRASES = (
 )
 
 
-def prompt_for(row):
+def prompt_for(row, instructions=COMPACT_SCHEMA_INSTRUCTIONS):
     numbered = "\n".join(
         "[%s] %s" % (sentence["id"], sentence["text"])
         for sentence in row.get("sentences", [])
     )
     return "%s\nTitle: %s\n%s" % (
-        COMPACT_SCHEMA_INSTRUCTIONS,
+        instructions,
         row.get("title", ""),
         numbered,
     )

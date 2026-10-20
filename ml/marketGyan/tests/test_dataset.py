@@ -212,6 +212,72 @@ class DatasetTest(unittest.TestCase):
             "balanced-near-duplicate-grouped-70-15-15",
         )
 
+    def test_split_keeps_rows_sharing_any_identity_together(self):
+        # Each pair carries different duplicateGroupIds (as produced by the
+        # older label-queue path) but is the same story.
+        cases = {
+            "contentHash": lambda first, last: last.update(
+                contentHash=first["contentHash"]
+            ),
+            "documentId": lambda first, last: last.update(
+                documentId=first["documentId"]
+            ),
+            "title": lambda first, last: (
+                first.update(title="नेप्से परिसूचक ३५ अंकले बढ्यो"),
+                last.update(title="नेप्से  परिसूचक ३५ अंकले बढ्यो!"),
+            ),
+        }
+        for name, link in cases.items():
+            with self.subTest(name):
+                rows = [row(index) for index in range(5)]
+                link(rows[0], rows[4])
+                splits = chronological_group_split(
+                    rows,
+                    train_ratio=0.4,
+                    validation_ratio=0.2,
+                )
+                locations = {
+                    item["id"]: split
+                    for split, values in splits.items()
+                    for item in values
+                }
+                self.assertEqual(locations["row-000"], locations["row-004"])
+
+    def test_source_cap_counts_paged_feed_titles_as_one_source(self):
+        rows = ready_rows()
+        for index, value in enumerate(rows):
+            value["source"]["name"] = (
+                "बिजनेस – Page %d – Online Khabar" % (index % 20 + 1)
+                if index < 310 else "ShareSansar"
+            )
+
+        readiness = dataset_readiness(rows)
+
+        self.assertEqual(readiness["coverage"]["sourceBuckets"]["onlinekhabar"], 310)
+        self.assertIn(
+            "largest source count 310 exceeds the 60 percent cap",
+            readiness["errors"],
+        )
+
+    def test_frozen_corpus_still_passes_the_gate(self):
+        root = Path(__file__).resolve().parents[1]
+        rows = read_jsonl(root / "data/processed/nepse-impact-500.jsonl")
+        self.assertEqual(validate_dataset(rows), [])
+        readiness = dataset_readiness(rows)
+        self.assertTrue(readiness["ready"], readiness["errors"])
+
+    def test_validation_flags_repeated_documents_and_texts(self):
+        first, second, third = row(1), row(2), row(3)
+        second["documentId"] = first["documentId"]
+        third["contentHash"] = first["contentHash"]
+
+        issues = validate_dataset([first, second, third])
+
+        errors = {issue["id"]: " ".join(issue["errors"]) for issue in issues}
+        self.assertNotIn("row-001", errors)
+        self.assertIn("documentId duplicates row row-001", errors["row-002"])
+        self.assertIn("contentHash duplicates row row-001", errors["row-003"])
+
 
 if __name__ == "__main__":
     unittest.main()

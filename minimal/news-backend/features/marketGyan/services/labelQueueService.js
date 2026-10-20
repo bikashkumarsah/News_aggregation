@@ -24,6 +24,7 @@ const {
 const { splitNumberedSentences } = require('./sentenceService');
 const { findMentionedSecurities } = require('./securityAliasService');
 const { withMongoRetry } = require('./mongoConnectionService');
+const { duplicateGroupIdForTitle } = require('./corpusSelectionService');
 
 const MAX_EXCERPT_LENGTH = 1500;
 const PROCESSING_TIMEOUT_MS = 15 * 60 * 1000;
@@ -38,7 +39,14 @@ const markRevalidationResolved = (job, reviewer) => {
         ...currentAudit,
         needsReview: false,
         resolvedAt: new Date(),
-        resolvedBy: reviewer
+        resolvedBy: reviewer,
+        // Remember every audit this label was cleared for: a later audit from
+        // another source overwrites `source`, and re-importing the first
+        // audit must not ask for the same review again.
+        resolvedSources: Array.from(new Set([
+            ...(currentAudit.resolvedSources || []),
+            currentAudit.source
+        ].filter(Boolean)))
     };
     job.revisions.push({
         action: 'revalidation_resolved',
@@ -52,17 +60,6 @@ const modelScope = (config = marketGyanConfig) => ({
     'model.promptVersion': config.promptVersion,
     'model.schemaVersion': Number(config.schemaVersion)
 });
-
-const duplicateGroupId = (title, hash) => {
-    const normalizedTitle = cleanText(title)
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}]+/gu, ' ')
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 14)
-        .join(' ');
-    return contentHash(normalizedTitle || hash).slice(0, 24);
-};
 
 const trainingGateFromCounts = ({
     approved = 0,
@@ -135,7 +132,7 @@ const getDocumentInput = (document) => {
         publishedAt: document.source?.publishedAt || article?.publishedAt,
         marketContext: document.marketContext || null,
         sentences: splitNumberedSentences(excerpt),
-        duplicateGroupId: duplicateGroupId(
+        duplicateGroupId: duplicateGroupIdForTitle(
             title,
             document.text?.contentHash || contentHash(title, excerpt)
         )
@@ -163,15 +160,34 @@ const queueDocuments = async ({
     config = marketGyanConfig,
     selectionById = {}
 } = {}) => {
+    const result = {
+        considered: 0,
+        queued: 0,
+        existing: 0,
+        skipped: []
+    };
+    // An explicit (possibly empty) selection must never widen into "queue
+    // any unlabelled document".
+    const explicitSelection = Array.isArray(documentIds);
+    if (explicitSelection && !documentIds.length) return result;
+
     const query = {
         'ingestion.status': { $in: ['complete', 'partial'] }
     };
-    if (documentIds?.length) query._id = { $in: documentIds };
     const sourceFilter = sourceNameFilter(source);
     if (sourceFilter) query['source.name'] = sourceFilter;
 
+    // One label per document and model scope: re-ingested text has a new
+    // content hash, which must not create a second, independent label.
     const existingDocumentIds = await MarketLabel.distinct('document', modelScope(config));
-    if (!documentIds?.length && existingDocumentIds.length) {
+    let alreadyLabelled = 0;
+    if (explicitSelection) {
+        const labelled = new Set(existingDocumentIds.map(String));
+        const requested = Array.from(new Set(documentIds.map(String)));
+        const unlabelled = requested.filter((id) => !labelled.has(id));
+        alreadyLabelled = requested.length - unlabelled.length;
+        query._id = { $in: unlabelled };
+    } else if (existingDocumentIds.length) {
         query._id = { $nin: existingDocumentIds };
     }
 
@@ -180,12 +196,8 @@ const queueDocuments = async ({
         .sort({ 'source.publishedAt': 1, _id: 1 })
         .limit(Math.min(Math.max(Number(limit) || 100, 1), 1000));
 
-    const result = {
-        considered: documents.length,
-        queued: 0,
-        existing: 0,
-        skipped: []
-    };
+    result.considered = documents.length + alreadyLabelled;
+    result.existing = alreadyLabelled;
 
     for (const document of documents) {
         let input;
@@ -1030,8 +1042,12 @@ const getReviewStats = async ({ schemaVersion = marketGyanConfig.schemaVersion }
             gemmaFailures: counts.failed || 0
         };
     }
+    // Same routing as reviewLabel: anything that is not schema v2 is a v1
+    // sentiment label. Counting v2 records here skewed every v1 rate.
+    const v1Match = { 'model.schemaVersion': { $ne: 2 } };
     const [rows, sentimentRows] = await Promise.all([
         MarketLabel.aggregate([
+            { $match: v1Match },
             {
                 $group: {
                     _id: '$status',
@@ -1040,7 +1056,7 @@ const getReviewStats = async ({ schemaVersion = marketGyanConfig.schemaVersion }
             }
         ]),
         MarketLabel.aggregate([
-            { $match: { status: 'approved' } },
+            { $match: { ...v1Match, status: 'approved' } },
             {
                 $group: {
                     _id: '$candidate.sentiment',
@@ -1055,7 +1071,10 @@ const getReviewStats = async ({ schemaVersion = marketGyanConfig.schemaVersion }
     );
     const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
     const reviewed = (counts.approved || 0) + (counts.rejected || 0);
+    // editedRate is a share of reviewed records, so only count those.
     const edited = await MarketLabel.countDocuments({
+        ...v1Match,
+        status: { $in: ['approved', 'rejected'] },
         revisions: { $elemMatch: { action: 'edited' } }
     });
 
