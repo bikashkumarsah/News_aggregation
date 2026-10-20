@@ -6,9 +6,11 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "start:app": "node server.js --serve-frontend",
     "test": "npm run test:core && npm run test:market-gyan",
     "test:core": "node --test tests/*.test.js",
     "test:market-gyan": "node --test features/marketGyan/tests/*.test.js",
+    "test:integration": "node --test tests/api.integration.test.js",
     "market-gyan:ingest": "node features/marketGyan/scripts/marketGyan.js ingest",
     "market-gyan:backfill": "node features/marketGyan/scripts/marketGyan.js backfill",
     "market-gyan:queue": "node features/marketGyan/scripts/marketGyan.js queue",
@@ -36,7 +38,8 @@
     "schedule-news": "node scheduleNews.js",
     "cleanup-old": "node cleanupOldNews.js",
     "index-qdrant": "node scripts/indexQdrant.js",
-    "backfill-topics": "node scripts/backfillTopics.js"
+    "backfill-topics": "node scripts/backfillTopics.js",
+    "seed": "node addSampleData.js"
   },
   "keywords": [
     "news",
@@ -52,6 +55,7 @@
     "@xenova/transformers": "^2.17.2",
     "bcryptjs": "^3.0.3",
     "cheerio": "^1.1.2",
+    "compression": "^1.8.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
@@ -66,5 +70,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
+  },
+  "engines": {
+    "node": ">=18.18"
   }
 }

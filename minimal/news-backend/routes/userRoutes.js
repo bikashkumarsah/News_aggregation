@@ -1,42 +1,86 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const User = require('../models/User');
+const Article = require('../models/Article');
 const { protect } = require('../middleware/authMiddleware');
+const { createRateLimiter } = require('../middleware/rateLimit');
+const { clamp, isValidObjectId, toInteger } = require('../utils/validation');
 const { updateUserPreferences, getRecommendations } = require('../services/preferenceService');
 const { triggerNewsletterForUser } = require('../services/newsletterScheduler');
 
 const router = express.Router();
 
+const HISTORY_LIMIT = 100;
+const FEED_CATEGORIES = ['technology', 'business', 'sports', 'entertainment', 'health', 'science'];
+const DIGEST_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// Sending mail is the one user-triggered action with an external side effect;
+// cap it per account so the test endpoint cannot be used to flood an inbox.
+const newsletterLimiter = createRateLimiter({
+    windowMs: 10 * 60 * 1000,
+    max: 3,
+    keyGenerator: (req) => `user:${req.user?._id}`,
+    message: 'A newsletter was sent recently. Please wait a few minutes before trying again.'
+});
+
+const badRequest = (res, error) => res.status(400).json({ success: false, error });
+
+const serverError = (res, error, context) => {
+    console.error(`${context} error:`, error);
+    return res.status(500).json({
+        success: false,
+        error: 'Something went wrong. Please try again.'
+    });
+};
+
+const userNotFound = (res) => res.status(404).json({ success: false, error: 'User not found' });
+
+const requireArticleId = (req, res) => {
+    const { articleId } = req.params;
+    if (!isValidObjectId(articleId)) {
+        badRequest(res, 'Invalid article id');
+        return null;
+    }
+    return articleId;
+};
+
+const isHttpUrl = (value) => {
+    try {
+        const url = new URL(value);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+        return false;
+    }
+};
+
 // ============ BOOKMARKS ============
 
 // @route   POST /api/user/bookmarks/:articleId
-// @desc    Add article to bookmarks
+// @desc    Add article to bookmarks (idempotent)
 // @access  Private
 router.post('/bookmarks/:articleId', protect, async (req, res) => {
-    try {
-        const { articleId } = req.params;
-        const user = await User.findById(req.user._id);
+    const articleId = requireArticleId(req, res);
+    if (!articleId) return undefined;
 
-        // Check if already bookmarked
-        if (user.bookmarks.includes(articleId)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Article already bookmarked'
-            });
+    try {
+        if (!(await Article.exists({ _id: articleId }))) {
+            return res.status(404).json({ success: false, error: 'Article not found' });
         }
 
-        user.bookmarks.push(articleId);
-        await user.save();
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            { $addToSet: { bookmarks: articleId } },
+            { new: true }
+        ).select('bookmarks').lean();
+        if (!user) return userNotFound(res);
 
-        res.json({
+        return res.json({
             success: true,
             message: 'Article bookmarked',
-            bookmarks: user.bookmarks
+            bookmarks: user.bookmarks.map(String)
         });
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            error: error.message
-        });
+        return serverError(res, error, 'Add bookmark');
     }
 });
 
@@ -44,43 +88,46 @@ router.post('/bookmarks/:articleId', protect, async (req, res) => {
 // @desc    Remove article from bookmarks
 // @access  Private
 router.delete('/bookmarks/:articleId', protect, async (req, res) => {
+    const articleId = requireArticleId(req, res);
+    if (!articleId) return undefined;
+
     try {
-        const { articleId } = req.params;
-        const user = await User.findById(req.user._id);
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            { $pull: { bookmarks: articleId } },
+            { new: true }
+        ).select('bookmarks').lean();
+        if (!user) return userNotFound(res);
 
-        user.bookmarks = user.bookmarks.filter(id => id.toString() !== articleId);
-        await user.save();
-
-        res.json({
+        return res.json({
             success: true,
             message: 'Bookmark removed',
-            bookmarks: user.bookmarks
+            bookmarks: user.bookmarks.map(String)
         });
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            error: error.message
-        });
+        return serverError(res, error, 'Remove bookmark');
     }
 });
 
 // @route   GET /api/user/bookmarks
-// @desc    Get all bookmarked articles
+// @desc    Get all bookmarked articles, newest bookmark first
 // @access  Private
 router.get('/bookmarks', protect, async (req, res) => {
     try {
-        const user = await User.findById(req.user._id).populate('bookmarks');
+        const user = await User.findById(req.user._id)
+            .select('bookmarks')
+            .populate('bookmarks')
+            .lean();
+        if (!user) return userNotFound(res);
 
-        res.json({
+        const bookmarks = (user.bookmarks || []).filter(Boolean).reverse();
+        return res.json({
             success: true,
-            count: user.bookmarks.length,
-            data: user.bookmarks
+            count: bookmarks.length,
+            data: bookmarks
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        return serverError(res, error, 'Load bookmarks');
     }
 });
 
@@ -90,37 +137,53 @@ router.get('/bookmarks', protect, async (req, res) => {
 // @desc    Add article to reading history
 // @access  Private
 router.post('/history/:articleId', protect, async (req, res) => {
+    const articleId = requireArticleId(req, res);
+    if (!articleId) return undefined;
+
     try {
-        const { articleId } = req.params;
-        const user = await User.findById(req.user._id);
-
-        // Remove if already in history (will re-add with new timestamp)
-        user.readHistory = user.readHistory.filter(
-            item => item.article.toString() !== articleId
-        );
-
-        // Add to beginning of history
-        user.readHistory.unshift({
-            article: articleId,
-            readAt: new Date()
-        });
-
-        // Keep only last 100 items
-        if (user.readHistory.length > 100) {
-            user.readHistory = user.readHistory.slice(0, 100);
+        if (!(await Article.exists({ _id: articleId }))) {
+            return res.status(404).json({ success: false, error: 'Article not found' });
         }
 
-        await user.save();
+        const article = new mongoose.Types.ObjectId(articleId);
+        const entry = {
+            _id: new mongoose.Types.ObjectId(),
+            article,
+            readAt: new Date()
+        };
 
-        res.json({
+        // One atomic pipeline update: drop any previous entry for the article,
+        // prepend the new read, and keep the newest HISTORY_LIMIT entries.
+        // Concurrent reads from several tabs can no longer overwrite each other.
+        const result = await User.updateOne({ _id: req.user._id }, [{
+            $set: {
+                readHistory: {
+                    $slice: [
+                        {
+                            $concatArrays: [
+                                { $literal: [entry] },
+                                {
+                                    $filter: {
+                                        input: { $ifNull: ['$readHistory', []] },
+                                        as: 'item',
+                                        cond: { $ne: ['$$item.article', article] }
+                                    }
+                                }
+                            ]
+                        },
+                        HISTORY_LIMIT
+                    ]
+                }
+            }
+        }]);
+        if (!result.matchedCount) return userNotFound(res);
+
+        return res.json({
             success: true,
             message: 'Added to reading history'
         });
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            error: error.message
-        });
+        return serverError(res, error, 'Add history');
     }
 });
 
@@ -129,24 +192,22 @@ router.post('/history/:articleId', protect, async (req, res) => {
 // @access  Private
 router.get('/history', protect, async (req, res) => {
     try {
-        const { limit = 20 } = req.query;
+        const limit = clamp(toInteger(req.query.limit, 20), 1, HISTORY_LIMIT);
         const user = await User.findById(req.user._id)
-            .populate('readHistory.article');
+            .select({ readHistory: { $slice: limit } })
+            .populate('readHistory.article')
+            .lean();
+        if (!user) return userNotFound(res);
 
-        const history = user.readHistory
-            .filter(item => item.article) // Filter out deleted articles
-            .slice(0, parseInt(limit));
+        const history = (user.readHistory || []).filter((item) => item.article);
 
-        res.json({
+        return res.json({
             success: true,
             count: history.length,
             data: history
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        return serverError(res, error, 'Load history');
     }
 });
 
@@ -155,19 +216,18 @@ router.get('/history', protect, async (req, res) => {
 // @access  Private
 router.delete('/history', protect, async (req, res) => {
     try {
-        const user = await User.findById(req.user._id);
-        user.readHistory = [];
-        await user.save();
+        const result = await User.updateOne(
+            { _id: req.user._id },
+            { $set: { readHistory: [] } }
+        );
+        if (!result.matchedCount) return userNotFound(res);
 
-        res.json({
+        return res.json({
             success: true,
             message: 'Reading history cleared'
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        return serverError(res, error, 'Clear history');
     }
 });
 
@@ -178,44 +238,43 @@ router.delete('/history', protect, async (req, res) => {
 // @access  Private
 router.post('/feeds', protect, async (req, res) => {
     try {
-        const { url, name, category } = req.body;
+        const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+        const name = typeof req.body?.name === 'string' ? req.body.name.trim().slice(0, 100) : '';
+        const category = typeof req.body?.category === 'string' ? req.body.category : '';
 
-        if (!url) {
-            return res.status(400).json({
-                success: false,
-                error: 'Feed URL is required'
-            });
+        if (!url) return badRequest(res, 'Feed URL is required');
+        if (url.length > 2048 || !isHttpUrl(url)) {
+            return badRequest(res, 'Feed URL must be a valid http(s) URL');
+        }
+        if (category && !FEED_CATEGORIES.includes(category)) {
+            return badRequest(res, `Category must be one of: ${FEED_CATEGORIES.join(', ')}`);
         }
 
-        const user = await User.findById(req.user._id);
-
-        // Check if feed already exists
-        const exists = user.customFeeds.some(feed => feed.url === url);
-        if (exists) {
-            return res.status(400).json({
-                success: false,
-                error: 'Feed already added'
-            });
+        const result = await User.updateOne(
+            { _id: req.user._id, 'customFeeds.url': { $ne: url } },
+            {
+                $push: {
+                    customFeeds: {
+                        url,
+                        name: name || 'Custom Feed',
+                        category: category || 'technology'
+                    }
+                }
+            }
+        );
+        if (!result.modifiedCount) {
+            if (!(await User.exists({ _id: req.user._id }))) return userNotFound(res);
+            return badRequest(res, 'Feed already added');
         }
 
-        user.customFeeds.push({
-            url,
-            name: name || 'Custom Feed',
-            category: category || 'technology'
-        });
-
-        await user.save();
-
-        res.json({
+        const user = await User.findById(req.user._id).select('customFeeds').lean();
+        return res.json({
             success: true,
             message: 'Feed added',
-            data: user.customFeeds
+            data: user?.customFeeds || []
         });
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            error: error.message
-        });
+        return serverError(res, error, 'Add feed');
     }
 });
 
@@ -224,18 +283,16 @@ router.post('/feeds', protect, async (req, res) => {
 // @access  Private
 router.get('/feeds', protect, async (req, res) => {
     try {
-        const user = await User.findById(req.user._id);
+        const user = await User.findById(req.user._id).select('customFeeds').lean();
+        if (!user) return userNotFound(res);
 
-        res.json({
+        return res.json({
             success: true,
             count: user.customFeeds.length,
             data: user.customFeeds
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        return serverError(res, error, 'Load feeds');
     }
 });
 
@@ -243,26 +300,24 @@ router.get('/feeds', protect, async (req, res) => {
 // @desc    Remove custom RSS feed
 // @access  Private
 router.delete('/feeds/:feedId', protect, async (req, res) => {
+    const { feedId } = req.params;
+    if (!isValidObjectId(feedId)) return badRequest(res, 'Invalid feed id');
+
     try {
-        const { feedId } = req.params;
-        const user = await User.findById(req.user._id);
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            { $pull: { customFeeds: { _id: feedId } } },
+            { new: true }
+        ).select('customFeeds').lean();
+        if (!user) return userNotFound(res);
 
-        user.customFeeds = user.customFeeds.filter(
-            feed => feed._id.toString() !== feedId
-        );
-
-        await user.save();
-
-        res.json({
+        return res.json({
             success: true,
             message: 'Feed removed',
             data: user.customFeeds
         });
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            error: error.message
-        });
+        return serverError(res, error, 'Remove feed');
     }
 });
 
@@ -273,30 +328,32 @@ router.delete('/feeds/:feedId', protect, async (req, res) => {
 // @access  Private
 router.put('/email-preferences', protect, async (req, res) => {
     try {
-        const { dailyDigest, weeklyDigest, breakingNews } = req.body;
-        const user = await User.findById(req.user._id);
+        const { dailyDigest, weeklyDigest, breakingNews, digestTime } = req.body || {};
+        const updates = {};
 
-        if (typeof dailyDigest === 'boolean') {
-            user.emailPreferences.dailyDigest = dailyDigest;
-        }
-        if (typeof weeklyDigest === 'boolean') {
-            user.emailPreferences.weeklyDigest = weeklyDigest;
-        }
-        if (typeof breakingNews === 'boolean') {
-            user.emailPreferences.breakingNews = breakingNews;
+        if (typeof dailyDigest === 'boolean') updates['emailPreferences.dailyDigest'] = dailyDigest;
+        if (typeof weeklyDigest === 'boolean') updates['emailPreferences.weeklyDigest'] = weeklyDigest;
+        if (typeof breakingNews === 'boolean') updates['emailPreferences.breakingNews'] = breakingNews;
+        if (digestTime !== undefined) {
+            if (typeof digestTime !== 'string' || !DIGEST_TIME_PATTERN.test(digestTime)) {
+                return badRequest(res, 'digestTime must use 24-hour HH:MM format');
+            }
+            updates['emailPreferences.digestTime'] = digestTime;
         }
 
-        await user.save();
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            { $set: updates },
+            { new: true }
+        ).select('emailPreferences').lean();
+        if (!user) return userNotFound(res);
 
-        res.json({
+        return res.json({
             success: true,
             data: user.emailPreferences
         });
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            error: error.message
-        });
+        return serverError(res, error, 'Update email preferences');
     }
 });
 
@@ -305,17 +362,15 @@ router.put('/email-preferences', protect, async (req, res) => {
 // @access  Private
 router.get('/email-preferences', protect, async (req, res) => {
     try {
-        const user = await User.findById(req.user._id);
+        const user = await User.findById(req.user._id).select('emailPreferences').lean();
+        if (!user) return userNotFound(res);
 
-        res.json({
+        return res.json({
             success: true,
             data: user.emailPreferences
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        return serverError(res, error, 'Load email preferences');
     }
 });
 
@@ -327,41 +382,36 @@ router.get('/email-preferences', protect, async (req, res) => {
 router.post('/test/update-preferences', protect, async (req, res) => {
     try {
         const preferences = await updateUserPreferences(req.user._id);
-        res.json({
+        return res.json({
             success: true,
-            message: 'Preferences updated based on reading history',
+            message: preferences
+                ? 'Preferences updated based on reading history'
+                : 'No recent reading history to learn from yet',
             data: preferences
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        return serverError(res, error, 'Update preferences');
     }
 });
 
 // @route   POST /api/user/test/send-newsletter
 // @desc    Manually trigger personalized newsletter (Testing)
 // @access  Private
-router.post('/test/send-newsletter', protect, async (req, res) => {
+router.post('/test/send-newsletter', protect, newsletterLimiter, async (req, res) => {
     try {
         const success = await triggerNewsletterForUser(req.user._id);
         if (success) {
-            res.json({
+            return res.json({
                 success: true,
                 message: 'Personalized newsletter sent successfully'
             });
-        } else {
-            res.status(500).json({
-                success: false,
-                error: 'Failed to send newsletter. Check server logs.'
-            });
         }
-    } catch (error) {
-        res.status(500).json({
+        return res.status(502).json({
             success: false,
-            error: error.message
+            error: 'Failed to send newsletter. Check server logs.'
         });
+    } catch (error) {
+        return serverError(res, error, 'Send newsletter');
     }
 });
 
@@ -371,15 +421,12 @@ router.post('/test/send-newsletter', protect, async (req, res) => {
 router.get('/recommendations', protect, async (req, res) => {
     try {
         const recommendations = await getRecommendations(req.user._id);
-        res.json({
+        return res.json({
             success: true,
             data: recommendations
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        return serverError(res, error, 'Load recommendations');
     }
 });
 

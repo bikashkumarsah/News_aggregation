@@ -1,4 +1,5 @@
 const { marketGyanConfig } = require('../config');
+const { isProxiedRequest } = require('../../../utils/security');
 
 const isLoopbackAddress = (address) => {
     const value = String(address || '').trim().toLowerCase();
@@ -9,6 +10,8 @@ const isLoopbackAddress = (address) => {
         || value.startsWith('::ffff:127.');
 };
 
+// A reverse proxy on the same machine connects from loopback, so requests it
+// relays (identified by forwarding headers) are never treated as local.
 const isReviewRequestAllowed = (req, {
     enabled = marketGyanConfig.reviewEnabled,
     nodeEnv = process.env.NODE_ENV
@@ -16,6 +19,7 @@ const isReviewRequestAllowed = (req, {
     enabled
     && nodeEnv !== 'production'
     && isLoopbackAddress(req?.socket?.remoteAddress || req?.ip)
+    && !isProxiedRequest(req)
 );
 
 const requireLocalReviewAccess = (req, res, next) => {

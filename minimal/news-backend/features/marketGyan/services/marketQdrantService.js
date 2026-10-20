@@ -179,15 +179,36 @@ const buildSearchFilter = ({
 const createMarketQdrantClient = ({
     fetchImpl = fetch,
     embedTextImpl = embedText,
-    config = marketGyanConfig
+    config = marketGyanConfig,
+    timeoutMs = 15000
 } = {}) => {
+    // Collection checks are cached per client; the shared client below lets
+    // the API pay for the check once instead of on every search.
+    const ensuredCollections = new Map();
+
     const requestJson = async (method, path, body) => {
-        const response = await fetchImpl(`${config.qdrantUrl}${path}`, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: body ? JSON.stringify(body) : undefined
-        });
-        const text = await response.text();
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        let response;
+        let text;
+        try {
+            response = await fetchImpl(`${config.qdrantUrl}${path}`, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: body ? JSON.stringify(body) : undefined,
+                signal: controller.signal
+            });
+            text = await response.text();
+        } catch (error) {
+            if (error?.name === 'AbortError') {
+                const timeoutError = new Error(`Qdrant ${method} ${path} timed out after ${timeoutMs} ms`);
+                timeoutError.status = 504;
+                throw timeoutError;
+            }
+            throw error;
+        } finally {
+            clearTimeout(timer);
+        }
         let parsed = {};
         try {
             parsed = text ? JSON.parse(text) : {};
@@ -204,7 +225,7 @@ const createMarketQdrantClient = ({
         return parsed;
     };
 
-    const ensureCollection = async (vectorSize) => {
+    const ensureCollectionUncached = async (vectorSize) => {
         try {
             const current = await requestJson(
                 'GET',
@@ -224,6 +245,16 @@ const createMarketQdrantClient = ({
                 { vectors: { size: vectorSize, distance: 'Cosine' } }
             );
         }
+    };
+
+    const ensureCollection = async (vectorSize) => {
+        if (!ensuredCollections.has(vectorSize)) {
+            ensuredCollections.set(vectorSize, ensureCollectionUncached(vectorSize).catch((error) => {
+                ensuredCollections.delete(vectorSize);
+                throw error;
+            }));
+        }
+        return ensuredCollections.get(vectorSize);
     };
 
     const upsertChunks = async (chunks) => {
@@ -303,6 +334,13 @@ const createMarketQdrantClient = ({
     };
 };
 
+let sharedClient = null;
+
+const getMarketQdrantClient = () => {
+    if (!sharedClient) sharedClient = createMarketQdrantClient();
+    return sharedClient;
+};
+
 const indexMarketDocuments = async ({
     limit = 100,
     force = false,
@@ -359,6 +397,7 @@ module.exports = {
     buildSearchFilter,
     chunkText,
     createMarketQdrantClient,
+    getMarketQdrantClient,
     indexMarketDocuments,
     stablePointId
 };

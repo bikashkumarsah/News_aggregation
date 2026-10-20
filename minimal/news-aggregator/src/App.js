@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Newspaper,
   Cpu,
@@ -40,6 +40,31 @@ import AuthModal from './components/AuthModal';
 import MarketGyanDashboard from './components/MarketGyanDashboard';
 import { API_URL, API_BASE_URL } from './config';
 
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1000&auto=format&fit=crop';
+
+// Parse a JSON API response without throwing on proxy error pages.
+const readJson = async (response) => {
+  try {
+    return await response.json();
+  } catch {
+    return { success: false, error: `Unexpected server response (${response.status})` };
+  }
+};
+
+// Append a page without duplicating articles already on screen (new articles
+// can shift offsets between page loads).
+const appendUnique = (current, incoming) => {
+  const seen = new Set(current.map((article) => article._id));
+  return [...current, ...(incoming || []).filter((article) => article && !seen.has(article._id))];
+};
+
+const playAudioElement = (elementId, onFailure) => {
+  const audio = document.getElementById(elementId);
+  if (!audio) return false;
+  const playback = audio.play();
+  if (playback && typeof playback.catch === 'function') playback.catch(onFailure);
+  return true;
+};
 
 const RatingButtons = ({ value, onChange, disabled }) => (
   <div className="flex items-center gap-1">
@@ -91,7 +116,11 @@ const NewsApp = () => {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState(null);
+  // The article being summarized; summaries can be requested from feed cards
+  // while no article is open.
+  const [summaryArticle, setSummaryArticle] = useState(null);
   const [summary, setSummary] = useState('');
+  const [summaryError, setSummaryError] = useState('');
   const [summarizing, setSummarizing] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summaryRatings, setSummaryRatings] = useState({ fluency: null, adequacy: null, coverage: null });
@@ -101,8 +130,10 @@ const NewsApp = () => {
 
   // Translation UI + feedback
   const [showTranslationModal, setShowTranslationModal] = useState(false);
+  const [translationArticle, setTranslationArticle] = useState(null);
   const [translating, setTranslating] = useState(false);
   const [translatedText, setTranslatedText] = useState('');
+  const [translationError, setTranslationError] = useState('');
   const [translationRating, setTranslationRating] = useState(null);
   const [submittingTranslationFeedback, setSubmittingTranslationFeedback] = useState(false);
   const [translationFeedbackSaved, setTranslationFeedbackSaved] = useState(false);
@@ -137,6 +168,18 @@ const NewsApp = () => {
   // Track search state changes so we can reload when filters are cleared
   const prevHasSearchFiltersRef = useRef(false);
   const prevCategoryRef = useRef(selectedCategory);
+
+  // Each request records a sequence number; responses for anything but the
+  // latest request are ignored so a slow response cannot overwrite newer data.
+  const articlesRequestRef = useRef(0);
+  const summaryRequestRef = useRef(0);
+  const translationRequestRef = useRef(0);
+
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
 
   // Swipe to close state
@@ -232,9 +275,12 @@ const NewsApp = () => {
     setSearchEngine(null);
 
     if (selectedCategory === 'market-gyan') {
+      articlesRequestRef.current += 1; // discard any feed request still in flight
       setSelectedArticle(null);
       setArticles([]);
       setHasMore(false);
+      setLoading(false);
+      setLoadingMore(false);
       return;
     }
 
@@ -290,24 +336,28 @@ const NewsApp = () => {
   ]);
 
   const loadUserContent = async () => {
-    if (!user) {
+    if (!user || !token) {
       showToast('Please login to view this section', 'error');
       setSelectedCategory('all');
       return;
     }
 
+    const requestId = ++articlesRequestRef.current;
+    const isCurrent = () => requestId === articlesRequestRef.current;
     setLoading(true);
-    const token = localStorage.getItem('token');
+    setArticles([]);
+    setHasMore(false);
 
     try {
       const endpoint = selectedCategory === 'bookmarks'
         ? `${API_URL}/user/bookmarks`
-        : `${API_URL}/user/history`;
+        : `${API_URL}/user/history?limit=100`;
 
       const response = await fetch(endpoint, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const result = await response.json();
+      const result = await readJson(response);
+      if (!isCurrent()) return;
 
       if (result.success) {
         if (selectedCategory === 'history') {
@@ -315,18 +365,22 @@ const NewsApp = () => {
         } else {
           setArticles(result.data);
         }
-        setHasMore(false);
+      } else {
+        showToast(result.error || 'Failed to load content', 'error');
       }
     } catch (error) {
-      showToast('Failed to load content', 'error');
+      if (isCurrent()) showToast('Failed to load content', 'error');
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   };
 
   const loadArticles = async (pageNum = 1, isNewCategory = false) => {
+    const requestId = ++articlesRequestRef.current;
+    const isCurrent = () => requestId === articlesRequestRef.current;
     if (pageNum === 1) setLoading(true);
     else setLoadingMore(true);
+    let loaded = false;
 
     try {
       // Use advanced search endpoint when filters are active (semantic search + topic filters)
@@ -346,53 +400,67 @@ const NewsApp = () => {
         if (fromDate) params.set('from', fromDate.toISOString());
 
         const response = await fetch(`${API_URL}/search?${params.toString()}`);
-        const result = await response.json();
+        const result = await readJson(response);
+        if (!isCurrent()) return;
 
         if (result.success) {
           setSearchEngine(result.engine || 'mongo');
 
-          if (isNewCategory) setArticles(result.data);
-          else setArticles((prev) => [...prev, ...result.data]);
+          if (isNewCategory) setArticles(result.data || []);
+          else setArticles((prev) => appendUnique(prev, result.data));
 
-          // Qdrant doesn't return total; Mongo does. Fall back to "hasMore if we got a full page".
-          if (typeof result.total === 'number') {
+          if (typeof result.hasMore === 'boolean') {
+            setHasMore(result.hasMore);
+          } else if (typeof result.total === 'number') {
             const currentOffset = (pageNum - 1) * 12;
             setHasMore(currentOffset + (result.data?.length || 0) < result.total);
           } else {
             setHasMore((result.data || []).length === 12);
           }
+          loaded = true;
         } else {
           showToast(result.error || 'Search failed', 'error');
         }
       } else {
         setSearchEngine(null);
-        const response = await fetch(`${API_URL}/news?category=${selectedCategory}&page=${pageNum}&limit=12`);
-        const result = await response.json();
+        const params = new URLSearchParams({
+          category: selectedCategory,
+          page: String(pageNum),
+          limit: '12'
+        });
+        const response = await fetch(`${API_URL}/news?${params.toString()}`);
+        const result = await readJson(response);
+        if (!isCurrent()) return;
 
         if (result.success) {
           if (isNewCategory) {
-            setArticles(result.data);
+            setArticles(result.data || []);
           } else {
-            setArticles(prev => [...prev, ...result.data]);
+            setArticles((prev) => appendUnique(prev, result.data));
           }
-          setHasMore(result.hasMore);
+          setHasMore(Boolean(result.hasMore));
+          loaded = true;
         } else {
           showToast(result.error || 'Failed to fetch articles', 'error');
         }
       }
     } catch (error) {
+      if (!isCurrent()) return;
       console.error('Failed to fetch articles:', error);
       showToast('Connection error. Please try again.', 'error');
     } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      if (isCurrent()) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
+    return loaded;
   };
 
-  const handleLoadMore = () => {
+  const handleLoadMore = async () => {
     const nextPage = page + 1;
-    setPage(nextPage);
-    loadArticles(nextPage);
+    // Only advance the page once it actually loaded, so a failed request can be retried.
+    if (await loadArticles(nextPage)) setPage(nextPage);
   };
 
   const handleArticleClick = (article) => {
@@ -424,10 +492,32 @@ const NewsApp = () => {
     }
   };
 
+  const resetSummaryAudio = () => {
+    const audio = document.getElementById('tts-audio');
+    if (audio) audio.pause();
+    setAudioUrl(null);
+    setIsPlaying(false);
+    setIsSynthesizing(false);
+    setAudioError(null);
+  };
+
+  const closeSummaryModal = () => {
+    summaryRequestRef.current += 1; // ignore a summary or audio request still in flight
+    resetSummaryAudio();
+    setSummarizing(false);
+    setShowSummaryModal(false);
+  };
+
   const handleSummarize = async (e, article) => {
     e.stopPropagation();
+    const requestId = ++summaryRequestRef.current;
+    const isCurrent = () => requestId === summaryRequestRef.current;
+
+    resetSummaryAudio();
+    setSummaryArticle(article);
     setSummarizing(true);
     setSummary('');
+    setSummaryError('');
     setSummaryRatings({ fluency: null, adequacy: null, coverage: null });
     setSummaryFeedbackSaved(false);
     setShowSummaryRatingPanel(false);
@@ -437,23 +527,25 @@ const NewsApp = () => {
       const response = await fetch(`${API_URL}/news/${article._id}/summarize`, {
         method: 'POST'
       });
-      const result = await response.json();
-      if (result.success) {
+      const result = await readJson(response);
+      if (!isCurrent()) return;
+      if (result.success && result.data) {
         setSummary(result.data);
       } else {
-        setSummary('Error generating summary. Please try again.');
+        setSummaryError(result.error || 'Error generating summary. Please try again.');
         showToast('Failed to generate summary', 'error');
       }
     } catch (error) {
-      setSummary('Failed to reach backend server.');
+      if (!isCurrent()) return;
+      setSummaryError('Failed to reach backend server.');
       showToast('Connection error', 'error');
     } finally {
-      setSummarizing(false);
+      if (isCurrent()) setSummarizing(false);
     }
   };
 
   const submitSummaryFeedback = async () => {
-    if (!selectedArticle?._id) return;
+    if (!summaryArticle?._id || !summary) return;
     if (!user || !token) {
       showToast('Please login to rate summaries', 'error');
       setShowAuthModal(true);
@@ -468,7 +560,7 @@ const NewsApp = () => {
 
     setSubmittingSummaryFeedback(true);
     try {
-      const inputText = `${selectedArticle.title || ''}\n${selectedArticle.description || ''}`.trim();
+      const inputText = `${summaryArticle.title || ''}\n${summaryArticle.description || ''}`.trim();
       const resp = await fetch(`${API_URL}/feedback/summary`, {
         method: 'POST',
         headers: {
@@ -476,7 +568,7 @@ const NewsApp = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          articleId: selectedArticle._id,
+          articleId: summaryArticle._id,
           fluency,
           adequacy,
           coverage,
@@ -484,7 +576,7 @@ const NewsApp = () => {
           outputText: summary
         })
       });
-      const data = await resp.json();
+      const data = await readJson(resp);
       if (data.success) {
         setSummaryFeedbackSaved(true);
         showToast('✅ Summary feedback saved', 'success');
@@ -500,27 +592,45 @@ const NewsApp = () => {
 
   const isLikelyNepaliText = (text) => /[\u0900-\u097F]/.test((text || '').toString());
 
+  const resetTranslationAudio = () => {
+    const audio = document.getElementById('translation-tts-audio');
+    if (audio) audio.pause();
+    setTranslationAudioUrl(null);
+    setTranslationIsPlaying(false);
+    setTranslationIsSynthesizing(false);
+    setTranslationAudioError(null);
+  };
+
+  const closeTranslationModal = () => {
+    translationRequestRef.current += 1; // ignore a translation or audio request still in flight
+    resetTranslationAudio();
+    setTranslating(false);
+    setShowTranslationModal(false);
+  };
+
   const handleTranslate = async (e, article) => {
     e.stopPropagation();
+    const requestId = ++translationRequestRef.current;
+    const isCurrent = () => requestId === translationRequestRef.current;
 
     // This model is trained for English -> Nepali. If the article already looks Nepali, skip.
     const looksNepali = isLikelyNepaliText(`${article?.title || ''} ${article?.description || ''}`);
+    resetTranslationAudio();
+    setTranslationArticle(article);
     setShowTranslationModal(true);
     setTranslationRating(null);
     setTranslationFeedbackSaved(false);
     setShowTranslationRatingPanel(false);
-    setTranslationAudioUrl(null);
-    setTranslationIsPlaying(false);
-    setTranslationAudioError(null);
+    setTranslatedText('');
+    setTranslationError('');
 
     if (looksNepali) {
-      setTranslatedText('This article already appears to be Nepali.');
+      setTranslationError('This article already appears to be Nepali.');
       setTranslating(false);
       return;
     }
 
     setTranslating(true);
-    setTranslatedText('');
 
     try {
       const inputText = `${article?.title || ''}\n${article?.description || ''}\n${article?.content || ''}`.trim().slice(0, 5000);
@@ -531,18 +641,20 @@ const NewsApp = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: inputText })
       });
-      const data = await resp.json();
-      if (data.success) {
-        setTranslatedText(data.data || '');
+      const data = await readJson(resp);
+      if (!isCurrent()) return;
+      if (data.success && data.data) {
+        setTranslatedText(data.data);
       } else {
-        setTranslatedText('Error translating article. Please try again.');
+        setTranslationError(data.error || 'Error translating article. Please try again.');
         showToast('Translation failed', 'error');
       }
     } catch (err) {
-      setTranslatedText('Failed to reach backend server.');
+      if (!isCurrent()) return;
+      setTranslationError('Failed to reach backend server.');
       showToast('Connection error', 'error');
     } finally {
-      setTranslating(false);
+      if (isCurrent()) setTranslating(false);
     }
   };
 
@@ -551,18 +663,19 @@ const NewsApp = () => {
 
     if (translationAudioUrl) {
       const audio = document.getElementById('translation-tts-audio');
-      if (audio) {
-        if (translationIsPlaying) {
-          audio.pause();
-          setTranslationIsPlaying(false);
-        } else {
-          audio.play();
-          setTranslationIsPlaying(true);
-        }
+      if (!audio) return;
+      if (translationIsPlaying) {
+        audio.pause();
+        setTranslationIsPlaying(false);
+      } else {
+        playAudioElement('translation-tts-audio', () => setTranslationIsPlaying(false));
+        setTranslationIsPlaying(true);
       }
       return;
     }
 
+    const requestId = translationRequestRef.current;
+    const isCurrent = () => requestId === translationRequestRef.current;
     try {
       setTranslationIsSynthesizing(true);
       setTranslationAudioError(null);
@@ -573,13 +686,12 @@ const NewsApp = () => {
         body: JSON.stringify({ text: translatedText })
       });
 
-      const data = await resp.json();
+      const data = await readJson(resp);
+      if (!isCurrent()) return;
       if (data.success) {
         setTranslationAudioUrl(`${API_BASE_URL}${data.audioUrl}`);
         setTimeout(() => {
-          const audio = document.getElementById('translation-tts-audio');
-          if (audio) {
-            audio.play();
+          if (playAudioElement('translation-tts-audio', () => setTranslationIsPlaying(false))) {
             setTranslationIsPlaying(true);
           }
         }, 100);
@@ -588,15 +700,16 @@ const NewsApp = () => {
         showToast('TTS generation failed', 'error');
       }
     } catch (err) {
+      if (!isCurrent()) return;
       setTranslationAudioError('Error connecting to TTS service');
       showToast('TTS connection error', 'error');
     } finally {
-      setTranslationIsSynthesizing(false);
+      if (isCurrent()) setTranslationIsSynthesizing(false);
     }
   };
 
   const submitTranslationFeedback = async () => {
-    if (!selectedArticle?._id) return;
+    if (!translationArticle?._id) return;
     if (!user || !token) {
       showToast('Please login to rate translations', 'error');
       setShowAuthModal(true);
@@ -617,13 +730,13 @@ const NewsApp = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          articleId: selectedArticle._id,
+          articleId: translationArticle._id,
           rating: translationRating,
           inputText: lastTranslationInput,
           outputText: translatedText
         })
       });
-      const data = await resp.json();
+      const data = await readJson(resp);
       if (data.success) {
         setTranslationFeedbackSaved(true);
         showToast('✅ Translation feedback saved', 'success');
@@ -638,34 +751,38 @@ const NewsApp = () => {
   };
 
   const handleTTS = async () => {
+    if (!summaryArticle?._id || !summary) return;
+
     if (audioUrl) {
       const audio = document.getElementById('tts-audio');
+      if (!audio) return;
       if (isPlaying) {
         audio.pause();
         setIsPlaying(false);
       } else {
-        audio.play();
+        playAudioElement('tts-audio', () => setIsPlaying(false));
         setIsPlaying(true);
       }
       return;
     }
 
+    const requestId = summaryRequestRef.current;
+    const isCurrent = () => requestId === summaryRequestRef.current;
     try {
       setIsSynthesizing(true);
       setAudioError(null);
 
-      const response = await fetch(`${API_URL}/news/${selectedArticle._id}/tts`, {
+      const response = await fetch(`${API_URL}/news/${summaryArticle._id}/tts`, {
         method: 'POST'
       });
 
-      const data = await response.json();
+      const data = await readJson(response);
+      if (!isCurrent()) return;
 
       if (data.success) {
         setAudioUrl(`${API_BASE_URL}${data.audioUrl}`);
         setTimeout(() => {
-          const audio = document.getElementById('tts-audio');
-          if (audio) {
-            audio.play();
+          if (playAudioElement('tts-audio', () => setIsPlaying(false))) {
             setIsPlaying(true);
           }
         }, 100);
@@ -674,14 +791,32 @@ const NewsApp = () => {
         showToast('TTS generation failed', 'error');
       }
     } catch (err) {
+      if (!isCurrent()) return;
       setAudioError('Error connecting to TTS service');
       showToast('TTS connection error', 'error');
       console.error(err);
     } finally {
-      setIsSynthesizing(false);
+      if (isCurrent()) setIsSynthesizing(false);
     }
   };
 
+  const selectSection = useCallback((sectionId) => {
+    setSelectedCategory(sectionId);
+    setSelectedArticle(null);
+    setShowUserMenu(false);
+  }, []);
+
+  // Escape closes the top-most overlay.
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key !== 'Escape') return;
+      if (showSummaryModal) closeSummaryModal();
+      else if (showTranslationModal) closeTranslationModal();
+      else if (showUserMenu) setShowUserMenu(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -707,7 +842,7 @@ const NewsApp = () => {
     const isDownSwipe = distance < -minSwipeDistance;
 
     if (isDownSwipe) {
-      setShowSummaryModal(false);
+      closeSummaryModal();
     }
   };
 
@@ -735,7 +870,7 @@ const NewsApp = () => {
           <span className="text-xl font-bold tracking-tight gradient-text">Khabar AI</span>
         </div>
 
-        <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
+        <nav className="flex-1 px-4 space-y-2 overflow-y-auto" aria-label="Primary">
           <p className="text-xs font-bold uppercase tracking-widest px-4 pt-2 pb-1" style={{ color: 'var(--text-muted)' }}>Intelligence</p>
           {platformItems.map((item) => (
             <button
@@ -860,9 +995,11 @@ const NewsApp = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1">
+      {/* min-w-0 lets the flex item shrink so wide children (the section bar) scroll instead of widening the page */}
+      <main className="flex-1 min-w-0">
         {/* Header (Mobile & Tablet) */}
-        <header className="nav-blur p-4 lg:px-12 flex items-center justify-between">
+        <header className="nav-blur">
+          <div className="p-4 lg:px-12 flex items-center justify-between">
           <div className="flex items-center gap-3 lg:hidden">
             <Newspaper className="w-7 h-7 text-blue-600" />
             <span className="text-lg font-bold gradient-text">Khabar AI</span>
@@ -888,7 +1025,7 @@ const NewsApp = () => {
 
             <div className="text-sm font-medium px-3 py-1.5 rounded-lg border flex items-center gap-2" style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
               <Clock className="w-4 h-4" />
-              {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
 
             {/* Mobile User Button */}
@@ -896,18 +1033,75 @@ const NewsApp = () => {
               <button
                 onClick={() => setShowAuthModal(true)}
                 className="p-2 rounded-lg bg-blue-600 text-white lg:hidden"
+                aria-label="Sign in"
               >
                 <User className="w-5 h-5" />
               </button>
             ) : (
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm lg:hidden"
-              >
-                {user.name?.charAt(0).toUpperCase()}
-              </button>
+              <div className="relative lg:hidden">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                  aria-label="Account menu"
+                  aria-expanded={showUserMenu}
+                >
+                  {user.name?.charAt(0).toUpperCase()}
+                </button>
+
+                {showUserMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
+                    <div className="absolute right-0 top-full mt-2 w-64 z-50 rounded-xl shadow-xl border p-2" style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}>
+                      <div className="px-3 py-2 border-b mb-1" style={{ borderColor: 'var(--border)' }}>
+                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-main)' }}>{user.name}</p>
+                        <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{user.email}</p>
+                      </div>
+                      {userMenuItems.slice(0, 2).map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => selectSection(item.id)}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
+                          style={{ color: 'var(--text-main)' }}
+                        >
+                          {item.icon}
+                          {item.name}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => { logout(); setShowUserMenu(false); }}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
+          </div>
+
+          {/* Section navigation for screens without the sidebar */}
+          <nav className="lg:hidden px-4 pb-3 overflow-x-auto no-scrollbar" aria-label="Sections">
+            <div className="flex gap-2 w-max">
+              {[...platformItems, ...categories, ...(user ? userMenuItems.slice(0, 2) : [])].map((item) => {
+                const active = selectedCategory === item.id && !selectedArticle;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => selectSection(item.id)}
+                    aria-current={active ? 'page' : undefined}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold border whitespace-nowrap transition-colors ${active ? 'bg-blue-600 text-white border-blue-600' : ''}`}
+                    style={active ? undefined : { backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+                  >
+                    {React.cloneElement(item.icon, { className: 'w-4 h-4' })}
+                    {item.name}
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
         </header>
 
         <div className="p-4 lg:p-12 max-w-7xl mx-auto">
@@ -969,8 +1163,10 @@ const NewsApp = () => {
                     <img
                       src={selectedArticle.urlToImage}
                       alt={selectedArticle.title}
+                      decoding="async"
+                      referrerPolicy="no-referrer"
                       className="w-full aspect-video object-cover rounded-[1.5rem] shadow-2xl relative"
-                      onError={(e) => e.target.style.display = 'none'}
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                   </div>
                 )}
@@ -1181,8 +1377,14 @@ const NewsApp = () => {
                   >
                     <div className="relative mb-5 overflow-hidden rounded-xl aspect-[16/10]">
                       <img
-                        src={article.urlToImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1000&auto=format&fit=crop'}
+                        src={article.urlToImage || FALLBACK_IMAGE}
                         alt=""
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          if (e.currentTarget.src !== FALLBACK_IMAGE) e.currentTarget.src = FALLBACK_IMAGE;
+                        }}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       />
                       <div className="absolute top-4 left-4">
@@ -1287,14 +1489,12 @@ const NewsApp = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-8">
           <div
             className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
-            onClick={() => {
-              setShowSummaryModal(false);
-              setAudioUrl(null);
-              setIsPlaying(false);
-              setAudioError(null);
-            }}
+            onClick={closeSummaryModal}
           />
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="summary-dialog-title"
             className="rounded-[2rem] w-full max-w-2xl shadow-2xl relative animate-fade-in flex flex-col max-h-[85vh]"
             style={{ backgroundColor: 'var(--card)' }}
             onTouchStart={onTouchStart}
@@ -1312,17 +1512,12 @@ const NewsApp = () => {
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-bold" style={{ color: 'var(--text-main)' }}>AI Quick Summary</h3>
-                  <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest"></p>
+                  <h3 id="summary-dialog-title" className="font-bold" style={{ color: 'var(--text-main)' }}>AI Quick Summary</h3>
+                  <p className="text-xs font-semibold line-clamp-1 max-w-[16rem] sm:max-w-md" style={{ color: 'var(--text-muted)' }}>{summaryArticle?.title}</p>
                 </div>
               </div>
               <button
-                onClick={() => {
-                  setShowSummaryModal(false);
-                  setAudioUrl(null);
-                  setIsPlaying(false);
-                  setAudioError(null);
-                }}
+                onClick={closeSummaryModal}
                 className="p-2 rounded-lg transition-colors hover:bg-slate-200 dark:hover:bg-slate-700"
                 aria-label="Close modal"
               >
@@ -1345,6 +1540,9 @@ const NewsApp = () => {
                 <div className="prose prose-slate dark:prose-invert max-w-none">
                   <div className="text-lg leading-relaxed p-6 rounded-2xl border" style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--text-main)' }}>
                     <MessageSquare className="w-8 h-8 mb-4" style={{ color: 'var(--text-muted)' }} />
+                    {summaryError && (
+                      <p className="m-0 font-semibold text-red-600 dark:text-red-400" role="alert">{summaryError}</p>
+                    )}
                     <div className="space-y-4">
                       {summary.split('\n').filter(line => line.trim()).map((line, idx) => {
                         const isBullet = line.trim().startsWith('-') || line.trim().startsWith('*');
@@ -1472,12 +1670,7 @@ const NewsApp = () => {
                 )}
 
                 <button
-                  onClick={() => {
-                    setShowSummaryModal(false);
-                    setAudioUrl(null);
-                    setIsPlaying(false);
-                    setAudioError(null);
-                  }}
+                  onClick={closeSummaryModal}
                   className="btn-primary flex-1"
                 >
                   Got it, thanks!
@@ -1494,9 +1687,12 @@ const NewsApp = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-8">
           <div
             className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
-            onClick={() => setShowTranslationModal(false)}
+            onClick={closeTranslationModal}
           />
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="translation-dialog-title"
             className="rounded-[2rem] w-full max-w-2xl shadow-2xl relative animate-fade-in flex flex-col max-h-[85vh]"
             style={{ backgroundColor: 'var(--card)' }}
           >
@@ -1506,12 +1702,12 @@ const NewsApp = () => {
                   <Languages className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-bold" style={{ color: 'var(--text-main)' }}>Translate (EN → NE)</h3>
+                  <h3 id="translation-dialog-title" className="font-bold" style={{ color: 'var(--text-main)' }}>Translate (EN → NE)</h3>
                   <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">mBART</p>
                 </div>
               </div>
               <button
-                onClick={() => setShowTranslationModal(false)}
+                onClick={closeTranslationModal}
                 className="p-2 rounded-lg transition-colors hover:bg-slate-200 dark:hover:bg-slate-700"
                 aria-label="Close modal"
               >
@@ -1534,7 +1730,11 @@ const NewsApp = () => {
                 <div className="prose prose-slate dark:prose-invert max-w-none">
                   <div className="text-lg leading-relaxed p-6 rounded-2xl border" style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)', color: 'var(--text-main)' }}>
                     <MessageSquare className="w-8 h-8 mb-4" style={{ color: 'var(--text-muted)' }} />
-                    <p className="m-0 whitespace-pre-wrap">{translatedText || 'No translation available.'}</p>
+                    {translationError ? (
+                      <p className="m-0 font-semibold" role="status" style={{ color: 'var(--text-muted)' }}>{translationError}</p>
+                    ) : (
+                      <p className="m-0 whitespace-pre-wrap">{translatedText || 'No translation available.'}</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -1625,12 +1825,7 @@ const NewsApp = () => {
                 )}
 
                 <button
-                  onClick={() => {
-                    setShowTranslationModal(false);
-                    setTranslationAudioUrl(null);
-                    setTranslationIsPlaying(false);
-                    setTranslationAudioError(null);
-                  }}
+                  onClick={closeTranslationModal}
                   className="btn-primary flex-1"
                 >
                   Close

@@ -405,6 +405,81 @@ class AgentServiceTest(unittest.TestCase):
                 model_version="test-model",
             )
 
+    def _evidence(self, count):
+        return [
+            {
+                "documentId": "doc-%d" % index,
+                "title": "Evidence %d" % index,
+                "url": "https://example.com/%d" % index,
+                "excerpt": "Excerpt %d." % index,
+                "score": 0.5,
+            }
+            for index in range(count)
+        ]
+
+    def test_single_pass_report_remaps_sector_evidence_to_cited_positions(self):
+        request = workflow.AnalysisRequest(mode="report", reportDate="2026-06-13")
+        result = materialize_single_pass_result(
+            {
+                "mode": "report",
+                "headline": "Banks lead turnover",
+                "summary": "Evidence is limited.",
+                "citationIndexes": [2],
+                "sectorAnalysis": [{
+                    "sector": "Banking",
+                    "sentiment": "neutral",
+                    "summary": "Turnover rose.",
+                    "confidence": 0.6,
+                    "evidenceIndexes": [2, 0],
+                }],
+            },
+            request,
+            self._evidence(3),
+            model_version="test-model",
+        )
+
+        # Evidence used by sector analysis is always cited, and the sector
+        # indexes point at positions in the published citation list.
+        self.assertEqual([c.documentId for c in result.citations], ["doc-2", "doc-0"])
+        self.assertEqual(result.sectorAnalysis[0].evidenceIndexes, [0, 1])
+        cited = result.citations[result.sectorAnalysis[0].evidenceIndexes[1]]
+        self.assertEqual(cited.documentId, "doc-0")
+
+    def test_single_pass_rejects_out_of_range_sector_evidence_and_booleans(self):
+        request = workflow.AnalysisRequest(mode="report", reportDate="2026-06-13")
+        for bad_indexes in ([5], [True]):
+            with self.assertRaisesRegex(ValueError, "invalid citation index"):
+                materialize_single_pass_result(
+                    {
+                        "mode": "report",
+                        "headline": "Headline",
+                        "summary": "Summary",
+                        "citationIndexes": [0],
+                        "sectorAnalysis": [{
+                            "sector": "Banking",
+                            "sentiment": "neutral",
+                            "summary": "Summary",
+                            "confidence": 0.5,
+                            "evidenceIndexes": bad_indexes,
+                        }],
+                    },
+                    request,
+                    self._evidence(2),
+                    model_version="test-model",
+                )
+
+    def test_citation_scores_are_clamped_to_unit_interval(self):
+        base = {
+            "documentId": "doc-1",
+            "title": "Daily market",
+            "url": "https://example.com/market",
+            "text": "NEPSE closed higher.",
+        }
+        self.assertEqual(workflow._citation_from_row({**base, "score": -0.12})["score"], 0.0)
+        self.assertEqual(workflow._citation_from_row({**base, "score": 1.0000002})["score"], 1.0)
+        self.assertEqual(workflow._citation_from_row({**base, "score": "n/a"})["score"], 0.0)
+        self.assertEqual(workflow._citation_from_row({**base, "score": 0.42})["score"], 0.42)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -116,6 +116,40 @@ const archivePublishedReport = async (report) => {
     );
 };
 
+const generationInProgress = () => {
+    const error = new Error('A Market Gyan report for this date is already being generated');
+    error.status = 409;
+    return error;
+};
+
+// Atomically mark the report as generating. A report that is already being
+// generated (and not stale) is left alone, so two triggers for the same date
+// never run the agent twice.
+const claimReportGeneration = async (normalizedDate, now = new Date()) => {
+    const staleBefore = new Date(now.getTime() - (marketGyanConfig.agentTimeoutMs + 60000));
+    try {
+        return await MarketReport.findOneAndUpdate(
+            {
+                reportDate: normalizedDate,
+                $or: [
+                    { status: { $ne: 'generating' } },
+                    { updatedAt: { $lt: staleBefore } }
+                ]
+            },
+            {
+                $set: { status: 'generating' },
+                $unset: { generationError: 1 }
+            },
+            { new: true, upsert: true, setDefaultsOnInsert: true }
+        );
+    } catch (error) {
+        // The upsert collides with the unique reportDate when another
+        // generation holds the claim.
+        if (error?.code === 11000) throw generationInProgress();
+        throw error;
+    }
+};
+
 const generateDailyReport = async ({
     date = new Date(),
     force = false,
@@ -128,10 +162,7 @@ const generateDailyReport = async ({
         return { report: existing, reused: true };
     }
 
-    const report = existing || new MarketReport({ reportDate: normalizedDate });
-    report.status = 'generating';
-    report.generationError = undefined;
-    await report.save();
+    const report = await claimReportGeneration(normalizedDate);
 
     try {
         const snapshot = await MarketSnapshot.findOne({

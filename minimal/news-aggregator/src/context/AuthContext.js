@@ -1,15 +1,46 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { API_URL } from '../config';
 
 const AuthContext = createContext(null);
 
+const readStorage = (key) => {
+    try {
+        return localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+};
+
+const writeStorage = (key, value) => {
+    try {
+        if (value === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+    } catch {
+        // Storage can be unavailable (private mode); the session still works in memory.
+    }
+};
+
+// Parse a JSON API response without throwing on proxy error pages.
+const readJson = async (res) => {
+    try {
+        return await res.json();
+    } catch {
+        return { success: false, error: `Unexpected server response (${res.status})` };
+    }
+};
+
+const bookmarkId = (item) => String(item?._id || item);
+
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem('token'));
+    const [token, setToken] = useState(() => readStorage('token'));
     const [loading, setLoading] = useState(true);
     const [darkMode, setDarkMode] = useState(() => {
-        const saved = localStorage.getItem('darkMode');
-        return saved ? JSON.parse(saved) : false;
+        try {
+            return JSON.parse(readStorage('darkMode')) === true;
+        } catch {
+            return false;
+        }
     });
 
     // Apply dark mode class to document
@@ -19,40 +50,64 @@ export const AuthProvider = ({ children }) => {
         } else {
             document.documentElement.classList.remove('dark');
         }
-        localStorage.setItem('darkMode', JSON.stringify(darkMode));
+        writeStorage('darkMode', JSON.stringify(darkMode));
     }, [darkMode]);
 
-    // Load user on mount if token exists
+    const clearSession = useCallback(() => {
+        setUser(null);
+        setToken(null);
+        writeStorage('token', null);
+    }, []);
+
+    // Load user on mount and whenever the token changes
     useEffect(() => {
+        let cancelled = false;
+
         const loadUser = async () => {
-            if (token) {
-                try {
-                    const res = await fetch(`${API_URL}/auth/me`, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        setUser(data.data);
-                        // Sync dark mode from user preferences
-                        if (data.data.darkMode !== undefined) {
-                            setDarkMode(data.data.darkMode);
-                        }
-                    } else {
-                        // Invalid token
-                        localStorage.removeItem('token');
-                        setToken(null);
-                    }
-                } catch (error) {
-                    console.error('Error loading user:', error);
-                }
+            if (!token) {
+                setLoading(false);
+                return;
             }
-            setLoading(false);
+            try {
+                const res = await fetch(`${API_URL}/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const data = await readJson(res);
+                if (cancelled) return;
+                if (data.success) {
+                    setUser(data.data);
+                    // Sync dark mode from user preferences
+                    if (typeof data.data.darkMode === 'boolean') {
+                        setDarkMode(data.data.darkMode);
+                    }
+                } else if (res.status === 401 || res.status === 404) {
+                    // Token expired or account removed
+                    clearSession();
+                }
+            } catch (error) {
+                // Network error: keep the token and retry on the next load.
+                console.error('Error loading user:', error);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
         };
 
         loadUser();
-    }, [token]);
+        return () => {
+            cancelled = true;
+        };
+    }, [token, clearSession]);
+
+    const startSession = (data) => {
+        setUser(data);
+        setToken(data.token);
+        writeStorage('token', data.token);
+        if (typeof data.darkMode === 'boolean') {
+            setDarkMode(data.darkMode);
+        }
+    };
 
     const login = async (email, password) => {
         const res = await fetch(`${API_URL}/auth/login`, {
@@ -60,15 +115,10 @@ export const AuthProvider = ({ children }) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
         });
-        const data = await res.json();
+        const data = await readJson(res);
 
         if (data.success) {
-            setUser(data.data);
-            setToken(data.data.token);
-            localStorage.setItem('token', data.data.token);
-            if (data.data.darkMode !== undefined) {
-                setDarkMode(data.data.darkMode);
-            }
+            startSession(data.data);
             return { success: true };
         }
         return { success: false, error: data.error };
@@ -80,21 +130,17 @@ export const AuthProvider = ({ children }) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, email, password })
         });
-        const data = await res.json();
+        const data = await readJson(res);
 
         if (data.success) {
-            setUser(data.data);
-            setToken(data.data.token);
-            localStorage.setItem('token', data.data.token);
+            startSession(data.data);
             return { success: true };
         }
         return { success: false, error: data.error };
     };
 
     const logout = () => {
-        setUser(null);
-        setToken(null);
-        localStorage.removeItem('token');
+        clearSession();
     };
 
     const toggleDarkMode = async () => {
@@ -118,41 +164,35 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const updateBookmarks = async (articleId, method) => {
+        if (!token) return { success: false, error: 'Not logged in' };
+
+        try {
+            const res = await fetch(`${API_URL}/user/bookmarks/${articleId}`, {
+                method,
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await readJson(res);
+
+            if (data.success) {
+                setUser((current) => (current ? { ...current, bookmarks: data.bookmarks } : current));
+            }
+            return data;
+        } catch (error) {
+            return { success: false, error: 'Connection error. Please try again.' };
+        }
+    };
+
     // Bookmark functions
-    const addBookmark = async (articleId) => {
-        if (!token) return { success: false, error: 'Not logged in' };
+    const addBookmark = (articleId) => updateBookmarks(articleId, 'POST');
+    const removeBookmark = (articleId) => updateBookmarks(articleId, 'DELETE');
 
-        const res = await fetch(`${API_URL}/user/bookmarks/${articleId}`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
+    const bookmarkedIds = useMemo(
+        () => new Set((user?.bookmarks || []).map(bookmarkId)),
+        [user]
+    );
 
-        if (data.success && user) {
-            setUser({ ...user, bookmarks: data.bookmarks });
-        }
-        return data;
-    };
-
-    const removeBookmark = async (articleId) => {
-        if (!token) return { success: false, error: 'Not logged in' };
-
-        const res = await fetch(`${API_URL}/user/bookmarks/${articleId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-
-        if (data.success && user) {
-            setUser({ ...user, bookmarks: data.bookmarks });
-        }
-        return data;
-    };
-
-    const isBookmarked = (articleId) => {
-        if (!user || !user.bookmarks) return false;
-        return user.bookmarks.some(id => id === articleId || id._id === articleId);
-    };
+    const isBookmarked = (articleId) => bookmarkedIds.has(String(articleId));
 
     // Reading history
     const addToHistory = async (articleId) => {

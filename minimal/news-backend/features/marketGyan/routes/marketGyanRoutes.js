@@ -5,7 +5,7 @@ const { requireInternalAccess } = require('../middleware/internalAccess');
 const { createRateLimiter } = require('../middleware/rateLimit');
 const { sendError } = require('../middleware/errorResponse');
 const { marketGyanConfig } = require('../config');
-const { createMarketQdrantClient } = require('../services/marketQdrantService');
+const { getMarketQdrantClient } = require('../services/marketQdrantService');
 const MarketReport = require('../models/MarketReport');
 const {
     answerMarketQuery,
@@ -38,7 +38,7 @@ router.get('/search', inferenceRateLimit, async (req, res) => {
         return res.status(404).json({ success: false, error: 'Market Gyan query is disabled' });
     }
     try {
-        const results = await createMarketQdrantClient().search(req.query.q, req.query);
+        const results = await getMarketQdrantClient().search(req.query.q, req.query);
         return res.json({ success: true, data: results });
     } catch (error) {
         return sendError(res, error, 'Market Gyan search is unavailable');
@@ -96,7 +96,7 @@ router.post('/reports/generate', async (req, res) => {
 
 router.get('/internal/search', requireInternalAccess, async (req, res) => {
     try {
-        const results = await createMarketQdrantClient().search(req.query.q, req.query);
+        const results = await getMarketQdrantClient().search(req.query.q, req.query);
         return res.json({ success: true, data: results });
     } catch (error) {
         return sendError(res, error, 'Market Gyan search is unavailable');

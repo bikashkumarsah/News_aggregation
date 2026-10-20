@@ -179,6 +179,17 @@ def research_query(request):
     )
 
 
+def _relevance_score(value):
+    # Qdrant cosine scores range over [-1, 1]; citations expose a [0, 1] score.
+    try:
+        score = float(value or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+    if score != score:  # NaN
+        return 0.0
+    return min(max(score, 0.0), 1.0)
+
+
 def _citation_from_row(row):
     sentences = row.get("sentences") if isinstance(row.get("sentences"), list) else []
     sentence_ids = row.get("sentenceIds") if isinstance(row.get("sentenceIds"), list) else []
@@ -207,7 +218,7 @@ def _citation_from_row(row):
         "title": str(row.get("title") or "Untitled MarketGyan evidence"),
         "url": str(row.get("url") or row.get("sourceUrl") or ""),
         "excerpt": excerpt,
-        "score": float(row.get("score") or 0.0),
+        "score": _relevance_score(row.get("score")),
         "source": row.get("source"),
         "publishedAt": row.get("publishedAtIso") or row.get("publishedAt"),
         "chunkId": row.get("chunkId") or row.get("pointId"),
@@ -455,19 +466,36 @@ def chat_completion_json(settings, messages, response_format):
         raise ValueError("Inference response was not valid JSON") from error
 
 
+def _is_evidence_index(value, count):
+    # bool is a subclass of int; true/false are not valid indexes.
+    return isinstance(value, int) and not isinstance(value, bool) and 0 <= value < count
+
+
 def materialize_single_pass_result(payload, request, citations, model_version):
     indexes = payload.get("citationIndexes") or []
     if not indexes:
         raise ValueError("Generated output did not select citations")
-    if any(not isinstance(index, int) or index < 0 or index >= len(citations) for index in indexes):
+    sector_analysis = []
+    if request.mode != "query":
+        sector_analysis = [
+            item for item in (payload.get("sectorAnalysis") or [])
+            if isinstance(item, dict)
+        ]
+    referenced = list(indexes)
+    for item in sector_analysis:
+        referenced.extend(item.get("evidenceIndexes") or [])
+    if any(not _is_evidence_index(index, len(citations)) for index in referenced):
         raise ValueError("Generated output selected an invalid citation index")
-    selected = []
-    seen = set()
-    for index in indexes:
-        if index in seen:
-            continue
-        selected.append(citations[index])
-        seen.add(index)
+
+    # The model indexes the evidence list, but the published report keeps only
+    # cited evidence. Every index used by a sector item is cited too, and the
+    # sector indexes are remapped to positions in the final citation list.
+    order = []
+    for index in referenced:
+        if index not in order:
+            order.append(index)
+    position = {index: offset for offset, index in enumerate(order)}
+    selected = [citations[index] for index in order]
 
     result_payload = {
         "mode": request.mode,
@@ -480,7 +508,15 @@ def materialize_single_pass_result(payload, request, citations, model_version):
     else:
         result_payload["headline"] = payload.get("headline")
         result_payload["summary"] = payload.get("summary")
-        result_payload["sectorAnalysis"] = payload.get("sectorAnalysis") or []
+        result_payload["sectorAnalysis"] = [
+            {
+                **item,
+                "evidenceIndexes": [
+                    position[index] for index in (item.get("evidenceIndexes") or [])
+                ],
+            }
+            for item in sector_analysis
+        ]
     return parse_result(result_payload)
 
 

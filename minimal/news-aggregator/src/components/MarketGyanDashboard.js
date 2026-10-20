@@ -69,6 +69,9 @@ const sentimentClass = (sentiment = '') => {
   return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
 };
 
+// Only web links are clickable; archived reports use internal market-gyan:// URLs.
+const externalUrl = (value) => (/^https?:\/\//i.test(String(value || '')) ? value : null);
+
 const readJson = async (response, fallbackMessage) => {
   let payload = {};
   try {
@@ -309,11 +312,11 @@ const CitationList = ({ citations = [] }) => {
   return (
     <div className="space-y-4">
       {citations.map((citation, index) => {
-        const url = citation.url || citation.sourceUrl;
+        const url = externalUrl(citation.url || citation.sourceUrl);
         const score = citation.score ?? citation.relevanceScore;
         return (
           <article
-            key={`${url || citation.title}-${index}`}
+            key={`${citation.url || citation.sourceUrl || citation.title}-${index}`}
             className="rounded-2xl border p-4"
             style={{ borderColor: 'var(--border)', backgroundColor: 'var(--background)' }}
           >
@@ -1096,15 +1099,21 @@ const MarketGyanDashboard = () => {
               <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
                 {overviewStories.slice(0, 6).map((story) => (
                   <article key={story.url || story.id} className="rounded-xl border p-4" style={{ borderColor: 'var(--border)' }}>
-                    <a
-                      href={story.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="line-clamp-2 font-bold hover:text-blue-600"
-                      style={{ color: 'var(--text-main)' }}
-                    >
-                      {story.title}
-                    </a>
+                    {externalUrl(story.url) ? (
+                      <a
+                        href={story.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="line-clamp-2 font-bold hover:text-blue-600"
+                        style={{ color: 'var(--text-main)' }}
+                      >
+                        {story.title}
+                      </a>
+                    ) : (
+                      <p className="line-clamp-2 font-bold" style={{ color: 'var(--text-main)' }}>
+                        {story.title}
+                      </p>
+                    )}
                     <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                       {[story.source, formatDate(story.publishedAt)].filter(Boolean).join(' • ') || 'MarketGyan evidence'}
                     </p>

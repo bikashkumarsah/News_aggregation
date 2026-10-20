@@ -3,14 +3,18 @@
  * Backfill MongoDB articles into Qdrant for semantic search.
  *
  * Usage:
- *   node scripts/indexQdrant.js
+ *   node scripts/indexQdrant.js            # index articles, then prune orphaned points
+ *   node scripts/indexQdrant.js --no-prune # index only
  *
  * Notes:
  * - Requires Qdrant running (default: http://localhost:6333)
- * - Uses local hashing vectors (no external embedding API required)
+ * - Vectors come from EMBEDDING_PROVIDER (multilingual model by default, or
+ *   EMBEDDING_PROVIDER=hash for offline hashing vectors)
+ * - Pruning removes points whose article no longer exists in MongoDB, so
+ *   search never returns deleted articles
  */
 
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 const mongoose = require('mongoose');
 const Article = require('../models/Article');
@@ -21,6 +25,7 @@ const {
   EMBEDDING_PROVIDER,
   isQdrantReachable,
   ensureCollection,
+  pruneOrphanPoints,
   upsertArticles
 } = require('../services/qdrantService');
 
@@ -125,6 +130,14 @@ async function main() {
   }
 
   console.log(`\n✅ Indexing complete. Total indexed: ${total}`);
+
+  if (!process.argv.includes('--no-prune')) {
+    const { scanned, removed } = await pruneOrphanPoints(async (ids) => {
+      const docs = await Article.find({ _id: { $in: ids } }).select('_id').lean();
+      return new Set(docs.map((doc) => doc._id.toString()));
+    });
+    console.log(`🧹 Pruned ${removed} orphaned points (scanned ${scanned}).`);
+  }
 }
 
 main()
@@ -136,5 +149,7 @@ main()
     try {
       await mongoose.disconnect();
     } catch {}
+    // The embedding runtime can keep worker threads alive; this is a one-shot CLI.
+    process.exit(process.exitCode || 0);
   });
 

@@ -1,15 +1,29 @@
 const fetch = require('node-fetch');
-const { DEFAULT_MODEL } = require('./embeddingService');
-const { getTopicsForArticle, getTopicsForArticleEnhanced } = require('./topicService');
+const { DEFAULT_MODEL, embedText } = require('./embeddingService');
+const { getTopicsForArticleEnhanced } = require('./topicService');
 
 /**
  * Qdrant integration (REST).
  *
- * This implementation supports a real multilingual embedding model (English + Nepali)
- * via Transformers.js, with a safe fallback to hashing vectors.
+ * Vectors come from the multilingual embedding model (EMBEDDING_PROVIDER=transformers,
+ * the default) or from a local hashing vectorizer (EMBEDDING_PROVIDER=hash). The two
+ * vector spaces are incompatible, so each provider uses its own collection and a
+ * model failure is reported instead of silently switching to hash vectors.
  */
 
-const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
+const positiveInt = (value, fallback) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const QDRANT_URL = (process.env.QDRANT_URL || 'http://localhost:6333').replace(/\/+$/, '');
+const QDRANT_API_KEY = process.env.QDRANT_API_KEY || '';
+const REQUEST_TIMEOUT_MS = positiveInt(process.env.QDRANT_TIMEOUT_MS, 10000);
+const HEALTH_TTL_MS = positiveInt(process.env.QDRANT_HEALTH_TTL_MS, 15000);
+const MAX_SEARCH_LIMIT = 200;
+
+const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER || 'transformers').toLowerCase();
+const USE_MODEL_EMBEDDINGS = EMBEDDING_PROVIDER === 'transformers';
 
 const modelToTag = (modelName) => {
   const raw = (modelName || '').toString();
@@ -29,41 +43,58 @@ const guessVectorSizeFromModel = (modelName) => {
   return undefined;
 };
 
-const MODEL_VECTOR_SIZE = guessVectorSizeFromModel(DEFAULT_MODEL);
-const envVectorSizeRaw = process.env.QDRANT_VECTOR_SIZE;
-const envVectorSize = parseInt(envVectorSizeRaw || '', 10);
+const envVectorSize = Number.parseInt(process.env.QDRANT_VECTOR_SIZE || '', 10);
 
 // Prefer the embedding model's true output dimension; tolerate stale env configs.
 const VECTOR_SIZE = (() => {
-  if (!Number.isNaN(envVectorSize) && envVectorSize > 0) {
-    if (MODEL_VECTOR_SIZE && envVectorSize !== MODEL_VECTOR_SIZE) {
-      console.warn(
-        `⚠️ QDRANT_VECTOR_SIZE=${envVectorSize} does not match EMBEDDING_MODEL (${DEFAULT_MODEL}) which is ${MODEL_VECTOR_SIZE}d. ` +
-        `Using ${MODEL_VECTOR_SIZE} to match the model.`
-      );
-      return MODEL_VECTOR_SIZE;
-    }
-    return envVectorSize;
+  const configured = Number.isFinite(envVectorSize) && envVectorSize > 0 ? envVectorSize : undefined;
+  if (!USE_MODEL_EMBEDDINGS) return configured || 384;
+
+  const modelSize = guessVectorSizeFromModel(DEFAULT_MODEL);
+  if (configured && modelSize && configured !== modelSize) {
+    console.warn(
+      `⚠️ QDRANT_VECTOR_SIZE=${configured} does not match EMBEDDING_MODEL (${DEFAULT_MODEL}) which is ${modelSize}d. ` +
+      `Using ${modelSize} to match the model.`
+    );
+    return modelSize;
   }
-  return MODEL_VECTOR_SIZE || 384;
+  return configured || modelSize || 384;
 })();
 
-const DEFAULT_COLLECTION = `khabar_articles_${modelToTag(DEFAULT_MODEL)}_${VECTOR_SIZE}`;
+const VECTOR_TAG = USE_MODEL_EMBEDDINGS ? modelToTag(DEFAULT_MODEL) : 'hash';
+const DEFAULT_COLLECTION = `khabar_articles_${VECTOR_TAG}_${VECTOR_SIZE}`;
 const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION || DEFAULT_COLLECTION;
 const DISTANCE = process.env.QDRANT_DISTANCE || 'Cosine';
+const collectionPath = `/collections/${encodeURIComponent(QDRANT_COLLECTION)}`;
 
-const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER || 'transformers').toLowerCase();
-const EMBEDDING_STRICT = ['1', 'true', 'yes'].includes(String(process.env.EMBEDDING_STRICT || '').toLowerCase());
+const requestJson = async (method, path, body, { timeoutMs = REQUEST_TIMEOUT_MS } = {}) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-const requestJson = async (method, path, body) => {
-  const url = `${QDRANT_URL}${path}`;
-  const res = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined
-  });
+  let res;
+  let text;
+  try {
+    res = await fetch(`${QDRANT_URL}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(QDRANT_API_KEY ? { 'api-key': QDRANT_API_KEY } : {})
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal
+    });
+    text = await res.text();
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error(`Qdrant ${method} ${path} timed out after ${timeoutMs} ms`);
+      timeoutError.code = 'QDRANT_TIMEOUT';
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 
-  const text = await res.text();
   let json;
   try {
     json = text ? JSON.parse(text) : {};
@@ -82,19 +113,34 @@ const requestJson = async (method, path, body) => {
   return json;
 };
 
-const isQdrantReachable = async () => {
-  try {
-    await requestJson('GET', '/readyz');
-    return true;
-  } catch {
-    return false;
+// Health is cached briefly so a busy search endpoint does not add a /readyz
+// round trip to every request.
+let health = { ok: false, checkedAt: 0 };
+let healthCheck = null;
+
+const isQdrantReachable = async ({ force = false } = {}) => {
+  if (!force && health.checkedAt && Date.now() - health.checkedAt < HEALTH_TTL_MS) {
+    return health.ok;
   }
+  if (!healthCheck) {
+    healthCheck = requestJson('GET', '/readyz', undefined, { timeoutMs: 2000 })
+      .then(() => true, () => false)
+      .then((ok) => {
+        health = { ok, checkedAt: Date.now() };
+        healthCheck = null;
+        return ok;
+      });
+  }
+  return healthCheck;
 };
 
-const ensureCollection = async () => {
-  // Create collection if missing
+const markQdrantUnavailable = () => {
+  health = { ok: false, checkedAt: Date.now() };
+};
+
+const ensureCollectionUncached = async () => {
   try {
-    const info = await requestJson('GET', `/collections/${QDRANT_COLLECTION}`);
+    const info = await requestJson('GET', collectionPath);
 
     // Validate the existing vector size matches our configured size (prevents confusing runtime errors).
     const vectors = info?.result?.config?.params?.vectors;
@@ -116,13 +162,26 @@ const ensureCollection = async () => {
     if (err.status !== 404) throw err;
   }
 
-  await requestJson('PUT', `/collections/${QDRANT_COLLECTION}`, {
+  await requestJson('PUT', collectionPath, {
     vectors: { size: VECTOR_SIZE, distance: DISTANCE }
   });
 };
 
+let collectionReady = null;
+
+// The collection check runs once per process (and again after a failure).
+const ensureCollection = async () => {
+  if (!collectionReady) {
+    collectionReady = ensureCollectionUncached().catch((error) => {
+      collectionReady = null;
+      throw error;
+    });
+  }
+  return collectionReady;
+};
+
 // ───────────────────────────────────────────────────────────────
-// Local vectorizers (hash fallback + real embeddings)
+// Local vectorizers (hash vectors + real embeddings)
 // ───────────────────────────────────────────────────────────────
 
 const fnv1a32 = (str) => {
@@ -177,31 +236,16 @@ const textToHashVector = (text, dim = VECTOR_SIZE) => {
 };
 
 const textToVector = async (text, opts = {}) => {
-  if (EMBEDDING_PROVIDER === 'transformers') {
-    try {
-      const { embedText } = require('./embeddingService');
-      const vec = await embedText(text, opts);
+  if (!USE_MODEL_EMBEDDINGS) return textToHashVector(text, VECTOR_SIZE);
 
-      if (vec.length !== VECTOR_SIZE) {
-        throw new Error(
-          `Embedding dimension mismatch: got ${vec.length}, expected ${VECTOR_SIZE}. ` +
-          `Set QDRANT_VECTOR_SIZE to ${vec.length} (and recreate the Qdrant collection) or switch EMBEDDING_MODEL to a matching-dimension model.`
-        );
-      }
-
-      return vec;
-    } catch (err) {
-      // If transformers isn't installed / model can't load, fall back to hashing
-      if (EMBEDDING_STRICT) {
-        throw err;
-      }
-      console.warn(`⚠️ Embedding provider "transformers" unavailable (${err.message}). Falling back to hashing vectors.`);
-      return textToHashVector(text, VECTOR_SIZE);
-    }
+  const vec = await embedText(text, opts);
+  if (vec.length !== VECTOR_SIZE) {
+    throw new Error(
+      `Embedding dimension mismatch: got ${vec.length}, expected ${VECTOR_SIZE}. ` +
+      `Set QDRANT_VECTOR_SIZE to ${vec.length} (and recreate the Qdrant collection) or switch EMBEDDING_MODEL to a matching-dimension model.`
+    );
   }
-
-  // Explicit fallback
-  return textToHashVector(text, VECTOR_SIZE);
+  return vec;
 };
 
 // Qdrant PointId supports u64 or UUID. Mongo ObjectId is 24 hex chars.
@@ -234,9 +278,11 @@ const buildPoint = async (article) => {
   const mongoId = article._id.toString();
   const id = objectIdToUuid(mongoId);
   const vector = await textToVector(buildArticleText(article), { role: 'passage' });
+  // Semantic topic centroids live in the model's vector space; hash vectors
+  // cannot be compared against them.
   const topics = Array.isArray(article.topics) && article.topics.length > 0
     ? article.topics
-    : await getTopicsForArticleEnhanced(article, { vector });
+    : await getTopicsForArticleEnhanced(article, USE_MODEL_EMBEDDINGS ? { vector } : {});
   const publishedAtSec = Math.floor(new Date(article.publishedAt || Date.now()).getTime() / 1000);
 
   const payload = {
@@ -253,16 +299,26 @@ const buildPoint = async (article) => {
 };
 
 const upsertArticles = async (articles, { wait = true } = {}) => {
+  if (!articles?.length) return 0;
   await ensureCollection();
   const points = await Promise.all(articles.map((a) => buildPoint(a)));
-  await requestJson('PUT', `/collections/${QDRANT_COLLECTION}/points?wait=${wait ? 'true' : 'false'}`, {
+  await requestJson('PUT', `${collectionPath}/points?wait=${wait ? 'true' : 'false'}`, {
     points
   });
   return points.length;
 };
 
+const parseToSeconds = (v) => {
+  if (v === undefined || v === null || v === '') return undefined;
+  if (typeof v === 'number') return v > 1e12 ? Math.floor(v / 1000) : Math.floor(v);
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return Math.floor(d.getTime() / 1000);
+};
+
 const search = async ({
   query,
+  vector: precomputedVector,
   topics,
   category,
   source,
@@ -274,7 +330,9 @@ const search = async ({
 }) => {
   await ensureCollection();
 
-  const vector = await textToVector(query, { role: 'query' });
+  const vector = Array.isArray(precomputedVector) && precomputedVector.length
+    ? precomputedVector
+    : await textToVector(query, { role: 'query' });
 
   const must = [];
   if (category) {
@@ -286,14 +344,6 @@ const search = async ({
     else must.push({ key: 'source', match: { value: source } });
   }
   if (topics && topics.length > 0) must.push({ key: 'topics', match: { any: topics } });
-
-  const parseToSeconds = (v) => {
-    if (v === undefined || v === null || v === '') return undefined;
-    if (typeof v === 'number') return v > 1e12 ? Math.floor(v / 1000) : Math.floor(v);
-    const d = new Date(v);
-    if (Number.isNaN(d.getTime())) return undefined;
-    return Math.floor(d.getTime() / 1000);
-  };
 
   const gte = parseToSeconds(from);
   const lte = parseToSeconds(to);
@@ -315,7 +365,7 @@ const search = async ({
 
   const body = {
     vector,
-    limit: Math.min(Math.max(parseInt(limit, 10) || 10, 1), 50),
+    limit: Math.min(Math.max(parseInt(limit, 10) || 10, 1), MAX_SEARCH_LIMIT),
     offset: Math.max(parseInt(offset, 10) || 0, 0),
     with_payload: true,
     ...((must.length || must_not.length)
@@ -323,18 +373,97 @@ const search = async ({
       : {})
   };
 
-  const res = await requestJson('POST', `/collections/${QDRANT_COLLECTION}/points/search`, body);
+  const res = await requestJson('POST', `${collectionPath}/points/search`, body);
   return res.result || [];
 };
 
-module.exports = {
-  QDRANT_URL,
-  QDRANT_COLLECTION,
-  VECTOR_SIZE,
-  EMBEDDING_PROVIDER,
-  isQdrantReachable,
-  ensureCollection,
-  upsertArticles,
-  search
+/**
+ * Fetch stored article vectors by Mongo id (no re-embedding needed).
+ * @returns {Promise<Map<string, number[]>>}
+ */
+const retrieveArticleVectors = async (mongoIds = []) => {
+  const ids = Array.from(new Set(mongoIds.map(String))).filter(Boolean);
+  if (!ids.length) return new Map();
+  await ensureCollection();
+  const res = await requestJson('POST', `${collectionPath}/points`, {
+    ids: ids.map(objectIdToUuid),
+    with_payload: ['mongoId'],
+    with_vector: true
+  });
+  const vectors = new Map();
+  for (const point of res.result || []) {
+    const mongoId = point?.payload?.mongoId;
+    if (mongoId && Array.isArray(point.vector) && point.vector.length === VECTOR_SIZE) {
+      vectors.set(mongoId, point.vector);
+    }
+  }
+  return vectors;
 };
 
+const deleteArticlePoints = async (mongoIds = [], { wait = false } = {}) => {
+  const ids = Array.from(new Set(mongoIds.map(String))).filter(Boolean);
+  if (!ids.length) return 0;
+  try {
+    await requestJson('POST', `${collectionPath}/points/delete?wait=${wait ? 'true' : 'false'}`, {
+      points: ids.map(objectIdToUuid)
+    });
+  } catch (error) {
+    if (error.status === 404) return 0;
+    throw error;
+  }
+  return ids.length;
+};
+
+/**
+ * Walk the collection and delete points whose article no longer exists.
+ * @param {(mongoIds: string[]) => Promise<Set<string>>} findExistingIds
+ */
+const pruneOrphanPoints = async (findExistingIds, { batchSize = 256 } = {}) => {
+  let offset = null;
+  let scanned = 0;
+  let removed = 0;
+  do {
+    const res = await requestJson('POST', `${collectionPath}/points/scroll`, {
+      limit: batchSize,
+      with_payload: ['mongoId'],
+      with_vector: false,
+      ...(offset !== null ? { offset } : {})
+    });
+    const points = res?.result?.points || [];
+    offset = res?.result?.next_page_offset ?? null;
+    scanned += points.length;
+
+    const mongoIds = points.map((point) => point?.payload?.mongoId).filter(Boolean);
+    const existing = await findExistingIds(mongoIds);
+    const orphanIds = points
+      .filter((point) => !point?.payload?.mongoId || !existing.has(point.payload.mongoId))
+      .map((point) => point.id);
+    if (orphanIds.length) {
+      await requestJson('POST', `${collectionPath}/points/delete?wait=true`, { points: orphanIds });
+      removed += orphanIds.length;
+    }
+  } while (offset !== null);
+  return { scanned, removed };
+};
+
+module.exports = {
+  DEFAULT_COLLECTION,
+  EMBEDDING_PROVIDER,
+  MAX_SEARCH_LIMIT,
+  QDRANT_COLLECTION,
+  QDRANT_URL,
+  USE_MODEL_EMBEDDINGS,
+  VECTOR_SIZE,
+  buildArticleText,
+  deleteArticlePoints,
+  ensureCollection,
+  isQdrantReachable,
+  markQdrantUnavailable,
+  objectIdToUuid,
+  pruneOrphanPoints,
+  retrieveArticleVectors,
+  search,
+  textToHashVector,
+  textToVector,
+  upsertArticles
+};

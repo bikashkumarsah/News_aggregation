@@ -1,123 +1,82 @@
-const mongoose = require('mongoose');
-const { fetchAllNews, removeDuplicates } = require('./newsFetcher');
+#!/usr/bin/env node
+/**
+ * Keep the news database fresh: run the update immediately and then every
+ * NEWS_UPDATE_INTERVAL_MINUTES (default 30). A run that is still in progress
+ * when the next one is due is never overlapped.
+ *
+ * Usage: npm run schedule-news
+ */
 
-// Connect to MongoDB
-mongoose.connect('mongodb://localhost:27017/newsDB', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => console.log('✅ Connected to MongoDB'))
-.catch(err => console.error('❌ MongoDB connection error:', err));
+require('dotenv').config({ quiet: true });
 
-// Article Schema
-const articleSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  content: String,
-  topics: [String],
-  category: String,
-  source: String,
-  author: String,
-  url: {
-    type: String,
-    unique: true
-  },
-  urlToImage: String,
-  publishedAt: Date,
-  fetchedAt: Date,
-  createdAt: {
-    type: Date,
-    default: Date.now
+const Article = require('./models/Article');
+const { retentionDays, runNewsUpdate } = require('./services/newsIngestionService');
+const {
+  connectMongo,
+  disconnectMongo,
+  withMongoRetry
+} = require('./features/marketGyan/services/mongoConnectionService');
+
+const intervalMinutes = Number.parseInt(process.env.NEWS_UPDATE_INTERVAL_MINUTES, 10) || 30;
+const UPDATE_INTERVAL = Math.max(intervalMinutes, 1) * 60 * 1000;
+
+let running = false;
+
+const updateNews = async () => {
+  if (running) {
+    console.log('⏭️  Previous update is still running; skipping this cycle');
+    return;
   }
-});
+  running = true;
 
-articleSchema.index({ category: 1, publishedAt: -1 });
-articleSchema.index({ topics: 1, publishedAt: -1 });
-articleSchema.index({ url: 1 });
-articleSchema.index({ publishedAt: 1 }); // Index for deletion query
-
-const Article = mongoose.model('Article', articleSchema);
-
-// Delete old articles (older than 1 week)
-async function deleteOldArticles() {
-  try {
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    
-    const result = await Article.deleteMany({
-      publishedAt: { $lt: oneWeekAgo }
-    });
-    
-    if (result.deletedCount > 0) {
-      console.log(`🗑️  Deleted ${result.deletedCount} old articles (older than 1 week)`);
-    } else {
-      console.log('✅ No old articles to delete');
-    }
-    
-    return result.deletedCount;
-  } catch (error) {
-    console.error('❌ Error deleting old articles:', error.message);
-    return 0;
-  }
-}
-
-// Update function
-async function updateNews() {
   try {
     const timestamp = new Date().toLocaleString();
     console.log(`\n${'='.repeat(60)}`);
     console.log(`🔄 News Update Started: ${timestamp}`);
     console.log('='.repeat(60));
-    
-    // First, delete old articles
-    await deleteOldArticles();
-    
-    // Then fetch new articles
-    const articles = await fetchAllNews();
-    const uniqueArticles = removeDuplicates(articles);
-    
-    let savedCount = 0;
-    let skippedCount = 0;
-    
-    for (const article of uniqueArticles) {
-      try {
-        const exists = await Article.findOne({ url: article.url });
-        
-        if (!exists) {
-          await Article.create(article);
-          savedCount++;
-        } else {
-          skippedCount++;
-        }
-      } catch (error) {
-        if (error.code === 11000) {
-          skippedCount++;
-        }
-      }
-    }
-    
-    console.log(`\n✅ Update Complete!`);
-    console.log(`   New: ${savedCount} | Skipped: ${skippedCount}`);
-    
-    const totalCount = await Article.countDocuments();
-    console.log(`   Total in DB: ${totalCount} articles`);
+
+    const result = await withMongoRetry(() => runNewsUpdate(), {
+      operationName: 'News update'
+    });
+
+    console.log('\n✅ Update Complete!');
+    console.log(`   New: ${result.saved} | Skipped: ${result.skipped} | Indexed: ${result.indexed}`);
+    console.log(`   Total in DB: ${await Article.countDocuments()} articles`);
     console.log('='.repeat(60));
-    
   } catch (error) {
     console.error('❌ Update error:', error.message);
+  } finally {
+    running = false;
   }
-}
+};
 
-// Run update every 30 minutes (1800000 ms)
-const UPDATE_INTERVAL = 30 * 60 * 1000;
+const main = async () => {
+  await withMongoRetry(() => connectMongo(), {
+    maxAttempts: Infinity,
+    operationName: 'Connecting the news scheduler to MongoDB'
+  });
+  console.log('✅ Connected to MongoDB');
 
-console.log('🚀 News Scheduler Started');
-console.log(`⏰ Updates every ${UPDATE_INTERVAL / 60000} minutes`);
-console.log('🗑️  Auto-deletes articles older than 1 week');
-console.log('Press Ctrl+C to stop\n');
+  console.log('🚀 News Scheduler Started');
+  console.log(`⏰ Updates every ${UPDATE_INTERVAL / 60000} minutes`);
+  console.log(`🗑️  Auto-deletes articles older than ${retentionDays()} days (bookmarked and Market Gyan articles are kept)`);
+  console.log('Press Ctrl+C to stop\n');
 
-// Run immediately on start
-updateNews();
+  // Run immediately on start, then periodically.
+  await updateNews();
+  setInterval(updateNews, UPDATE_INTERVAL);
+};
 
-// Schedule periodic updates
-setInterval(updateNews, UPDATE_INTERVAL);
+const shutdown = async () => {
+  console.log('\n👋 Stopping news scheduler...');
+  await disconnectMongo().catch(() => {});
+  process.exit(0);
+};
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+
+main().catch((error) => {
+  console.error('❌ News scheduler failed to start:', error);
+  process.exit(1);
+});

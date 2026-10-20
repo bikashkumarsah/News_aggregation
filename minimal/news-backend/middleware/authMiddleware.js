@@ -1,16 +1,26 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { getJwtSecret } = require('../config/authConfig');
+const { isValidObjectId } = require('../utils/validation');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'khabar-news-secret-key-2024';
+const extractBearerToken = (req) => {
+    const header = String(req.headers?.authorization || '');
+    const match = /^Bearer\s+(\S+)$/i.exec(header);
+    return match ? match[1] : null;
+};
+
+// Routes only need the identity of the caller; each route loads the fields it
+// works with, so the middleware avoids hydrating the full user document.
+const loadUserFromToken = async (token) => {
+    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] });
+    const id = decoded?.id ? String(decoded.id) : '';
+    if (!isValidObjectId(id)) return null;
+    return User.findById(id).select('name email darkMode').lean();
+};
 
 // Protect routes - verify JWT token
 const protect = async (req, res, next) => {
-    let token;
-
-    // Check for token in Authorization header
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-        token = req.headers.authorization.split(' ')[1];
-    }
+    const token = extractBearerToken(req);
 
     if (!token) {
         return res.status(401).json({
@@ -20,43 +30,33 @@ const protect = async (req, res, next) => {
     }
 
     try {
-        // Verify token
-        const decoded = jwt.verify(token, JWT_SECRET);
-
-        // Get user from token
-        req.user = await User.findById(decoded.id);
-
-        if (!req.user) {
-            return res.status(401).json({
-                success: false,
-                error: 'User not found'
-            });
-        }
-
-        next();
+        req.user = await loadUserFromToken(token);
     } catch (error) {
-        console.error('Auth middleware error:', error.message);
         return res.status(401).json({
             success: false,
             error: 'Not authorized - invalid token'
         });
     }
+
+    if (!req.user) {
+        return res.status(401).json({
+            success: false,
+            error: 'User not found'
+        });
+    }
+
+    return next();
 };
 
 // Optional auth - doesn't fail if no token, but attaches user if present
 const optionalAuth = async (req, res, next) => {
-    let token;
-
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-        token = req.headers.authorization.split(' ')[1];
-    }
+    const token = extractBearerToken(req);
+    req.user = null;
 
     if (token) {
         try {
-            const decoded = jwt.verify(token, JWT_SECRET);
-            req.user = await User.findById(decoded.id);
+            req.user = await loadUserFromToken(token);
         } catch (error) {
-            // Token invalid, but we don't fail - just continue without user
             req.user = null;
         }
     }
@@ -64,4 +64,4 @@ const optionalAuth = async (req, res, next) => {
     next();
 };
 
-module.exports = { protect, optionalAuth, JWT_SECRET };
+module.exports = { extractBearerToken, optionalAuth, protect };

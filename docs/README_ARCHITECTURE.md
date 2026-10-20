@@ -45,7 +45,7 @@ This document explains the **conceptual system architecture**: components, respo
 
 ### E) External integrations
 - **RSS providers**: source of raw news data (`newsFetcher.js`)
-- **AI Summarization**: Gemini/Gemma endpoint (used in `/api/news/:id/summarize`)
+- **AI Summarization**: Gemini API first, local mBART worker as fallback (`/api/news/:id/summarize`)
 - **TTS**: local Python + ONNX models (`tts_service.py`)
 - **Email**: SMTP via Nodemailer (`emailService.js`)
 
@@ -101,10 +101,10 @@ This document explains the **conceptual system architecture**: components, respo
    - `services/topicService.js`
 5. Store in **MongoDB**:
    - `Article` collection
-6. Index into **Qdrant** (conceptually part of ingestion; currently done via script):
-   - `npm run index-qdrant` (backfill/index)
+6. Index into **Qdrant** right after saving (`services/newsIngestionService.js`); expired articles are removed from both stores:
+   - `npm run index-qdrant` re-indexes everything and prunes orphaned points
 
-> Production ideal: index to Qdrant immediately after saving an article (async worker/queue).
+> Retention cleanup never deletes bookmarked articles or articles referenced by the Market Gyan corpus.
 
 ---
 
@@ -133,7 +133,7 @@ Why both MongoDB + Qdrant?
 3. Preference learning builds a profile from last 30 days:
    - `services/preferenceService.js` → `updateUserPreferences(userId)`
    - Produces: `categoryScores`, `preferredSources`, `topKeywords`
-4. Newsletter scheduler runs hourly and sends at user’s digest hour (default 07:00):
+4. Newsletter scheduler runs hourly and sends at the user’s digest hour (default 07:00) in `NEWSLETTER_TIMEZONE` (Asia/Kathmandu):
    - `services/newsletterScheduler.js`
 5. It selects recommended articles:
    - `getRecommendations(userId, limit)`

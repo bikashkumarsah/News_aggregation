@@ -1,0 +1,22 @@
+{
+  "name": "khabar-ai",
+  "version": "3.2.0",
+  "private": true,
+  "description": "Khabar AI news platform with Market Gyan NEPSE intelligence",
+  "scripts": {
+    "setup": "npm --prefix minimal/news-backend ci && npm --prefix minimal/news-aggregator ci",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "dev:api": "npm --prefix minimal/news-backend run dev",
+    "dev:web": "npm --prefix minimal/news-aggregator start",
+    "seed": "npm --prefix minimal/news-backend run seed",
+    "update-news": "npm --prefix minimal/news-backend run update-news",
+    "index-qdrant": "npm --prefix minimal/news-backend run index-qdrant",
+    "build": "npm --prefix minimal/news-aggregator run build",
+    "start": "npm --prefix minimal/news-backend run start:app",
+    "test": "npm run test:api && npm run test:web && npm run test:ml",
+    "test:api": "npm --prefix minimal/news-backend test",
+    "test:web": "npm --prefix minimal/news-aggregator run test:ci",
+    "test:ml": "cd ml/marketGyan && python3 -m unittest discover -s tests"
+  }
+}

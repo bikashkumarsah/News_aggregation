@@ -1,6 +1,5 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { EventEmitter } = require('node:events');
 
 const {
   hasDevanagari,
@@ -86,30 +85,32 @@ test('TTS helpers sanitize text, select voices, and reject unsafe paths', () => 
   assert.throws(() => getAudioTarget('../sample.wav'), /Invalid audio file name/);
 });
 
-test('shared TTS synthesis invokes one bounded process contract', async () => {
-  let spawnArgs;
-  const spawnImpl = (...args) => {
-    spawnArgs = args;
-    const processHandle = new EventEmitter();
-    processHandle.stderr = new EventEmitter();
-    process.nextTick(() => processHandle.emit('close', 0));
-    return processHandle;
+test('shared TTS synthesis sends one bounded worker request and publishes atomically', async () => {
+  let request;
+  const renamed = [];
+  const worker = {
+    request: async (payload) => {
+      request = payload;
+      return { ok: true };
+    }
   };
   const fsImpl = {
-    mkdirSync: () => {}
+    mkdirSync: () => {},
+    renameSync: (from, to) => renamed.push([from, to])
   };
 
   const target = await synthesizeAudio({
     text: '# बजार अपडेट',
     fileName: 'generated.wav',
     fsImpl,
-    spawnImpl
+    worker
   });
 
   assert.equal(target.audioUrl, '/audio/generated.wav');
-  assert.equal(spawnArgs[0], 'python3');
-  assert.equal(spawnArgs[1][1], 'बजार अपडेट');
-  assert.match(spawnArgs[1][3], /ne_NP-google-medium\.onnx$/);
+  assert.equal(request.text, 'बजार अपडेट');
+  assert.match(request.model_path, /ne_NP-google-medium\.onnx$/);
+  assert.match(request.output_path, /generated\.wav\.\d+\.\d+\.tmp$/);
+  assert.deepEqual(renamed, [[request.output_path, target.outputPath]]);
 });
 
 test('unique article and user fields declare one MongoDB index each', () => {

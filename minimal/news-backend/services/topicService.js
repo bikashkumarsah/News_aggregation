@@ -465,6 +465,12 @@ const getTopicCentroids = async () => {
         return centroids;
     })();
 
+    // Do not cache a failure (e.g. the model could not load yet); the next
+    // call retries.
+    centroidCachePromise.catch(() => {
+        centroidCachePromise = null;
+    });
+
     return centroidCachePromise;
 };
 

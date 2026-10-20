@@ -1,5 +1,6 @@
 const { marketGyanConfig } = require('../config');
 const { isLoopbackAddress } = require('./reviewAccess');
+const { isProxiedRequest, safeEqual } = require('../../../utils/security');
 
 const isInternalRequestAllowed = (req, {
     token = marketGyanConfig.agentServiceToken
@@ -7,7 +8,9 @@ const isInternalRequestAllowed = (req, {
     if (!token) return false;
     const supplied = String(req?.get?.('x-market-gyan-token') || '');
     const address = req?.socket?.remoteAddress || req?.ip;
-    return supplied === token && isLoopbackAddress(address);
+    return safeEqual(supplied, token)
+        && isLoopbackAddress(address)
+        && !isProxiedRequest(req);
 };
 
 const requireInternalAccess = (req, res, next) => {

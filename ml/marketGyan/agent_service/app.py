@@ -1,3 +1,4 @@
+import hmac
 from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -11,7 +12,9 @@ app = FastAPI(title="MarketGyan Agent Service", version="1.0.0")
 
 
 def require_token(x_market_gyan_token: Optional[str] = Header(default=None)):
-    if not settings.service_token or x_market_gyan_token != settings.service_token:
+    supplied = (x_market_gyan_token or "").encode("utf-8")
+    expected = (settings.service_token or "").encode("utf-8")
+    if not expected or not hmac.compare_digest(supplied, expected):
         raise HTTPException(status_code=404, detail="Service is not available")
 
 

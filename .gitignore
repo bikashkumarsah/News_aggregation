@@ -11,6 +11,7 @@ minimal/news-aggregator/build/
 
 # Runtime output
 minimal/news-backend/public/audio/*.wav
+minimal/news-backend/public/audio/*.tmp
 tmp/
 
 # LaTeX and document QA output

@@ -1,4 +1,7 @@
 const nodemailer = require('nodemailer');
+const { DEFAULT_TIMEZONE, zonedHour } = require('./timeService');
+
+const EMAIL_TIMEZONE = process.env.NEWSLETTER_TIMEZONE || DEFAULT_TIMEZONE;
 
 // Create transporter based on environment variables
 const createTransporter = () => {
@@ -68,9 +71,29 @@ const escapeHtml = (value) => String(value || '')
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#039;');
 
+// Only http(s) links are rendered in emails; anything else becomes '#'.
+const safeUrl = (value) => {
+  try {
+    const url = new URL(String(value || ''));
+    return url.protocol === 'http:' || url.protocol === 'https:' ? escapeHtml(url.toString()) : '#';
+  } catch {
+    return '#';
+  }
+};
+
+// RFC 8058 one-click unsubscribe headers for mail clients.
+const listUnsubscribeHeaders = (unsubscribeUrl) => (
+  unsubscribeUrl
+    ? {
+      'List-Unsubscribe': `<${unsubscribeUrl}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+    }
+    : undefined
+);
+
 // Get greeting based on time
-const getGreeting = () => {
-  const hour = new Date().getHours();
+const getGreeting = (date = new Date()) => {
+  const hour = zonedHour(date, EMAIL_TIMEZONE);
   if (hour < 12) return { text: 'Good morning', emoji: '☀️' };
   if (hour < 17) return { text: 'Good afternoon', emoji: '🌤️' };
   return { text: 'Good evening', emoji: '🌙' };
@@ -79,6 +102,7 @@ const getGreeting = () => {
 // Format date nicely
 const formatDate = () => {
   return new Date().toLocaleDateString('en-US', {
+    timeZone: EMAIL_TIMEZONE,
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -150,7 +174,7 @@ const emailWrapper = (content, preheader = '') => `
 <body style="margin: 0; padding: 0; background-color: ${colors.background};">
   <!-- Preheader text (hidden) -->
   <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">
-    ${preheader}
+    ${escapeHtml(preheader)}
     ${'&nbsp;'.repeat(100)}
   </div>
   
@@ -204,10 +228,10 @@ const components = {
           <tr>
             <td style="padding: 40px 32px; text-align: center;">
               <h2 style="margin: 0 0 8px 0; font-family: 'Inter', sans-serif; font-size: 28px; font-weight: 700; color: white;">
-                ${title}
+                ${escapeHtml(title)}
               </h2>
               <p style="margin: 0; font-family: 'Inter', sans-serif; font-size: 16px; color: rgba(255,255,255,0.9);">
-                ${subtitle}
+                ${escapeHtml(subtitle)}
               </p>
             </td>
           </tr>
@@ -224,7 +248,7 @@ const components = {
           <tr>
             <td style="font-size: 18px; padding-right: 8px;">${icon}</td>
             <td style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; color: ${colors.muted}; text-transform: uppercase; letter-spacing: 1.5px;" class="dark-muted">
-              ${title}
+              ${escapeHtml(title)}
             </td>
           </tr>
         </table>
@@ -240,8 +264,8 @@ const components = {
           ${article.urlToImage ? `
           <tr>
             <td>
-              <a href="${article.url}" style="display: block;">
-                <img src="${article.urlToImage}" alt="" width="100%" style="display: block; max-height: 200px; object-fit: cover;" />
+              <a href="${safeUrl(article.url)}" style="display: block;">
+                <img src="${safeUrl(article.urlToImage)}" alt="" width="100%" style="display: block; max-height: 200px; object-fit: cover;" />
               </a>
             </td>
           </tr>
@@ -253,12 +277,12 @@ const components = {
                 <tr>
                   <td style="background-color: ${getCategoryColor(article.category)}; padding: 4px 10px; border-radius: 6px;">
                     <span style="font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700; color: white; text-transform: uppercase; letter-spacing: 0.5px;">
-                      ${article.category || 'News'}
+                      ${escapeHtml(article.category || 'News')}
                     </span>
                   </td>
                   <td style="padding-left: 10px;">
                     <span style="font-family: 'Inter', sans-serif; font-size: 12px; color: ${colors.light};" class="dark-muted">
-                      ${article.source || 'Unknown'}
+                      ${escapeHtml(article.source || 'Unknown')}
                     </span>
                   </td>
                 </tr>
@@ -266,18 +290,18 @@ const components = {
               
               <!-- Title -->
               <h3 style="margin: 0 0 10px 0; font-family: 'Inter', sans-serif; font-size: ${isFeature ? '20px' : '16px'}; font-weight: 600; line-height: 1.4; color: ${colors.dark};" class="dark-text">
-                <a href="${article.url}" style="color: inherit; text-decoration: none;">
-                  ${article.title}
+                <a href="${safeUrl(article.url)}" style="color: inherit; text-decoration: none;">
+                  ${escapeHtml(article.title)}
                 </a>
               </h3>
               
               <!-- Description -->
               <p style="margin: 0 0 16px 0; font-family: 'Inter', sans-serif; font-size: 14px; line-height: 1.6; color: ${colors.text};" class="dark-muted">
-                ${(article.description || '').substring(0, isFeature ? 180 : 120)}${(article.description?.length || 0) > (isFeature ? 180 : 120) ? '...' : ''}
+                ${escapeHtml((article.description || '').substring(0, isFeature ? 180 : 120))}${(article.description?.length || 0) > (isFeature ? 180 : 120) ? '...' : ''}
               </p>
               
               <!-- Read more link -->
-              <a href="${article.url}" style="font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: ${colors.primary}; text-decoration: none;" class="hover-underline">
+              <a href="${safeUrl(article.url)}" style="font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: ${colors.primary}; text-decoration: none;" class="hover-underline">
                 Read full article →
               </a>
             </td>
@@ -300,13 +324,13 @@ const components = {
             </td>
             <td>
               <p style="margin: 0 0 4px 0; font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 600; color: ${getCategoryColor(article.category)}; text-transform: uppercase; letter-spacing: 0.5px;">
-                ${article.category || 'News'}
+                ${escapeHtml(article.category || 'News')}
               </p>
-              <a href="${article.url}" style="font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 500; color: ${colors.dark}; text-decoration: none; line-height: 1.4;" class="dark-text hover-underline">
-                ${article.title}
+              <a href="${safeUrl(article.url)}" style="font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 500; color: ${colors.dark}; text-decoration: none; line-height: 1.4;" class="dark-text hover-underline">
+                ${escapeHtml(article.title)}
               </a>
               <p style="margin: 6px 0 0 0; font-family: 'Inter', sans-serif; font-size: 12px; color: ${colors.light};" class="dark-muted">
-                ${article.source || 'Unknown'}
+                ${escapeHtml(article.source || 'Unknown')}
               </p>
             </td>
           </tr>
@@ -330,7 +354,7 @@ const components = {
                   ${categories.map(({ category, score }) => `
                     <td style="padding-right: 8px; padding-bottom: 8px;">
                       <span style="display: inline-block; background: linear-gradient(135deg, ${getCategoryColor(category)}22 0%, ${getCategoryColor(category)}11 100%); border: 1px solid ${getCategoryColor(category)}33; color: ${getCategoryColor(category)}; padding: 6px 14px; border-radius: 20px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; text-transform: capitalize;">
-                        ${category} ${score}%
+                        ${escapeHtml(category)} ${escapeHtml(score)}%
                       </span>
                     </td>
                   `).join('')}
@@ -350,8 +374,8 @@ const components = {
         <table role="presentation" cellpadding="0" cellspacing="0">
           <tr>
             <td style="background: ${style === 'primary' ? `linear-gradient(135deg, ${colors.primary} 0%, #7c3aed 100%)` : colors.white}; border-radius: 12px; ${style !== 'primary' ? `border: 2px solid ${colors.border};` : ''}" class="hover-bg">
-              <a href="${url}" style="display: inline-block; padding: 16px 40px; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; color: ${style === 'primary' ? 'white' : colors.dark}; text-decoration: none;">
-                ${text}
+              <a href="${safeUrl(url)}" style="display: inline-block; padding: 16px 40px; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; color: ${style === 'primary' ? 'white' : colors.dark}; text-decoration: none;">
+                ${escapeHtml(text)}
               </a>
             </td>
           </tr>
@@ -369,10 +393,10 @@ const components = {
             ${stats.map(stat => `
               <td width="${100 / stats.length}%" style="text-align: center; padding: 20px; background-color: ${stat.bgColor || colors.background}; border-radius: 12px;" class="mobile-stack dark-card">
                 <p style="margin: 0; font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; color: ${stat.color || colors.primary};">
-                  ${stat.value}
+                  ${escapeHtml(stat.value)}
                 </p>
                 <p style="margin: 6px 0 0 0; font-family: 'Inter', sans-serif; font-size: 12px; color: ${colors.muted}; text-transform: uppercase; letter-spacing: 0.5px;" class="dark-muted">
-                  ${stat.label}
+                  ${escapeHtml(stat.label)}
                 </p>
               </td>
             `).join('<td width="16"></td>')}
@@ -383,7 +407,7 @@ const components = {
   `,
 
   // Footer
-  footer: (frontendUrl) => `
+  footer: (frontendUrl, unsubscribeUrl) => `
     <tr>
       <td style="padding-top: 32px; border-top: 1px solid ${colors.border};">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -398,22 +422,18 @@ const components = {
               <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="padding: 0 8px;">
-                    <a href="${frontendUrl}" style="font-family: 'Inter', sans-serif; font-size: 12px; color: ${colors.primary}; text-decoration: none;">
+                    <a href="${safeUrl(frontendUrl)}" style="font-family: 'Inter', sans-serif; font-size: 12px; color: ${colors.primary}; text-decoration: none;">
                       Open App
                     </a>
                   </td>
+                  ${unsubscribeUrl ? `
                   <td style="color: ${colors.border};">|</td>
                   <td style="padding: 0 8px;">
-                    <a href="${frontendUrl}/settings" style="font-family: 'Inter', sans-serif; font-size: 12px; color: ${colors.muted}; text-decoration: none;" class="dark-muted">
-                      Settings
-                    </a>
-                  </td>
-                  <td style="color: ${colors.border};">|</td>
-                  <td style="padding: 0 8px;">
-                    <a href="${frontendUrl}/unsubscribe" style="font-family: 'Inter', sans-serif; font-size: 12px; color: ${colors.muted}; text-decoration: none;" class="dark-muted">
+                    <a href="${safeUrl(unsubscribeUrl)}" style="font-family: 'Inter', sans-serif; font-size: 12px; color: ${colors.muted}; text-decoration: none;" class="dark-muted">
                       Unsubscribe
                     </a>
                   </td>
+                  ` : ''}
                 </tr>
               </table>
             </td>
@@ -492,7 +512,7 @@ const templates = {
   },
 
   // Daily Digest
-  dailyDigest: (name, articles) => {
+  dailyDigest: (name, articles, options = {}) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const greeting = getGreeting();
     
@@ -512,12 +532,13 @@ const templates = {
       ${articles.slice(1, 5).map(article => components.articleCard(article, false)).join('')}
       
       ${components.ctaButton('Explore All News →', frontendUrl)}
-      ${components.footer(frontendUrl)}
+      ${components.footer(frontendUrl, options.unsubscribeUrl)}
     `;
 
     return {
       subject: `📰 ${greeting.text}! Your Daily News Digest`,
-      html: emailWrapper(content, `${articles.length} curated stories waiting for you today.`)
+      html: emailWrapper(content, `${articles.length} curated stories waiting for you today.`),
+      headers: listUnsubscribeHeaders(options.unsubscribeUrl)
     };
   },
 
@@ -570,7 +591,7 @@ const templates = {
       ${components.header()}
       ${components.heroBanner(
         `Market Gyan Daily Report`,
-        `${escapeHtml(name)}, ${new Date(report.reportDate).toLocaleDateString('en-US')}`
+        `${name}, ${new Date(report.reportDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}`
       )}
       <tr>
         <td style="padding: 0 0 20px 0;">
@@ -599,7 +620,7 @@ const templates = {
           <h3 style="font-family: 'Inter', sans-serif;">Sources</h3>
           <ul style="font-family: 'Inter', sans-serif; line-height: 1.7;">
             ${evidence.map((item) => `
-              <li><a href="${escapeHtml(item.sourceUrl)}">${escapeHtml(item.title)}</a></li>
+              <li><a href="${safeUrl(item.sourceUrl)}">${escapeHtml(item.title)}</a></li>
             `).join('')}
           </ul>
           <p style="font-family: 'Inter', sans-serif; color: ${colors.muted}; font-size: 12px;">
@@ -617,7 +638,7 @@ const templates = {
   },
 
   // Personalized Newsletter (Main daily email)
-  personalizedNewsletter: (name, articles, preferences) => {
+  personalizedNewsletter: (name, articles, preferences, options = {}) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const greeting = getGreeting();
     
@@ -656,7 +677,7 @@ const templates = {
             <tr>
               <td style="padding: 16px 20px;">
                 <p style="margin: 0; font-family: 'Inter', sans-serif; font-size: 13px; color: #92400e;">
-                  <strong>🔥 Hot topics for you:</strong> ${topKeywords.map(k => k.keyword).join(' • ')}
+                  <strong>🔥 Hot topics for you:</strong> ${topKeywords.map(k => escapeHtml(k.keyword)).join(' • ')}
                 </p>
               </td>
             </tr>
@@ -666,7 +687,7 @@ const templates = {
       ` : ''}
       
       ${components.ctaButton('Explore More News →', frontendUrl)}
-      ${components.footer(frontendUrl)}
+      ${components.footer(frontendUrl, options.unsubscribeUrl)}
     `;
 
     return {
@@ -674,7 +695,8 @@ const templates = {
       html: emailWrapper(
         content, 
         `${greeting.text}! We found ${articles.length} articles matching your interests: ${topCategories.map(c => c.category).join(', ')}.`
-      )
+      ),
+      headers: listUnsubscribeHeaders(options.unsubscribeUrl)
     };
   }
 };
@@ -695,10 +717,11 @@ const sendEmail = async (to, template, data) => {
     const emailContent = templates[template](...data);
 
     await transport.sendMail({
-      from: `"Khabar AI" <${process.env.SMTP_USER}>`,
+      from: process.env.EMAIL_FROM || `"Khabar AI" <${process.env.SMTP_USER}>`,
       to,
       subject: emailContent.subject,
-      html: emailContent.html
+      html: emailContent.html,
+      ...(emailContent.headers ? { headers: emailContent.headers } : {})
     });
 
     console.log(`✅ Email sent: ${template} to ${to}`);
@@ -711,14 +734,17 @@ const sendEmail = async (to, template, data) => {
 
 // Convenience functions
 const sendWelcomeEmail = (email, name) => sendEmail(email, 'welcome', [name]);
-const sendDailyDigest = (email, name, articles) => sendEmail(email, 'dailyDigest', [name, articles]);
+const sendDailyDigest = (email, name, articles, options) => sendEmail(email, 'dailyDigest', [name, articles, options]);
 const sendWeeklyDigest = (email, name, articles, stats) => sendEmail(email, 'weeklyDigest', [name, articles, stats]);
-const sendPersonalizedNewsletter = (email, name, articles, preferences) =>
-  sendEmail(email, 'personalizedNewsletter', [name, articles, preferences]);
+const sendPersonalizedNewsletter = (email, name, articles, preferences, options) =>
+  sendEmail(email, 'personalizedNewsletter', [name, articles, preferences, options]);
 const sendMarketGyanDigest = (email, name, report) =>
   sendEmail(email, 'marketGyanDigest', [name, report]);
 
 module.exports = {
+  escapeHtml,
+  safeUrl,
+  templates,
   sendEmail,
   sendWelcomeEmail,
   sendDailyDigest,

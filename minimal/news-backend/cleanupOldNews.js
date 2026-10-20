@@ -1,85 +1,46 @@
-const mongoose = require('mongoose');
+#!/usr/bin/env node
+/**
+ * Delete articles older than NEWS_RETENTION_DAYS (default 7). Bookmarked
+ * articles and articles referenced by the Market Gyan corpus are kept, and
+ * deleted articles are removed from the Qdrant index as well.
+ *
+ * Usage: npm run cleanup-old
+ */
 
-// Connect to MongoDB
-mongoose.connect('mongodb://localhost:27017/newsDB', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => console.log('✅ Connected to MongoDB'))
-.catch(err => console.error('❌ MongoDB connection error:', err));
+require('dotenv').config({ quiet: true });
 
-// Article Schema
-const articleSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  content: String,
-  category: String,
-  source: String,
-  author: String,
-  url: String,
-  urlToImage: String,
-  publishedAt: Date,
-  fetchedAt: Date,
-  createdAt: Date
-});
+const Article = require('./models/Article');
+const { deleteOldArticles, retentionDays } = require('./services/newsIngestionService');
+const {
+  connectMongo,
+  disconnectMongo
+} = require('./features/marketGyan/services/mongoConnectionService');
 
-const Article = mongoose.model('Article', articleSchema);
+const main = async () => {
+  await connectMongo();
+  console.log('✅ Connected to MongoDB');
+  console.log(`\n🗑️  Starting cleanup of articles older than ${retentionDays()} days...\n`);
 
-// Delete old articles
-async function cleanupOldArticles() {
-  try {
-    console.log('\n🗑️  Starting cleanup of old articles...\n');
-    
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    
-    console.log(`Deleting articles older than: ${oneWeekAgo.toLocaleString()}`);
-    
-    // Find articles to be deleted
-    const articlesToDelete = await Article.find({
-      publishedAt: { $lt: oneWeekAgo }
-    }).select('title publishedAt category');
-    
-    if (articlesToDelete.length === 0) {
-      console.log('✅ No old articles found. Database is clean!');
-      mongoose.connection.close();
-      return;
-    }
-    
-    console.log(`\nFound ${articlesToDelete.length} old articles:\n`);
-    
-    // Show breakdown by category
-    const categoryBreakdown = {};
-    articlesToDelete.forEach(article => {
-      if (!categoryBreakdown[article.category]) {
-        categoryBreakdown[article.category] = 0;
-      }
-      categoryBreakdown[article.category]++;
-    });
-    
-    console.log('Articles to delete by category:');
-    Object.entries(categoryBreakdown).forEach(([category, count]) => {
+  const { deleted, byCategory, cutoff } = await deleteOldArticles();
+  console.log(`Cutoff: ${cutoff.toLocaleString()}`);
+
+  if (deleted) {
+    console.log('\nDeleted articles by category:');
+    Object.entries(byCategory).forEach(([category, count]) => {
       console.log(`  - ${category}: ${count} articles`);
     });
-    
-    // Delete the articles
-    const result = await Article.deleteMany({
-      publishedAt: { $lt: oneWeekAgo }
-    });
-    
-    console.log(`\n✅ Successfully deleted ${result.deletedCount} old articles`);
-    
-    // Show remaining articles
-    const remainingCount = await Article.countDocuments();
-    console.log(`📰 Remaining articles in database: ${remainingCount}\n`);
-    
-  } catch (error) {
-    console.error('❌ Error during cleanup:', error.message);
-  } finally {
-    mongoose.connection.close();
-    console.log('✅ Database connection closed');
   }
-}
 
-// Run the cleanup
-cleanupOldArticles();
+  console.log(`\n📰 Remaining articles in database: ${await Article.countDocuments()}\n`);
+};
+
+main()
+  .catch((error) => {
+    console.error('❌ Error during cleanup:', error.message);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await disconnectMongo().catch(() => {});
+    console.log('✅ Database connection closed');
+    process.exit(process.exitCode || 0);
+  });

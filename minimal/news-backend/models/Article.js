@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const ARTICLE_CATEGORIES = ['technology', 'business', 'sports', 'entertainment', 'health', 'science', 'general'];
+
 const articleSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -19,7 +21,8 @@ const articleSchema = new mongoose.Schema({
     category: {
         type: String,
         required: true,
-        enum: ['technology', 'business', 'sports', 'entertainment', 'health', 'science']
+        // "general" holds front-page stories that match no specific category.
+        enum: ARTICLE_CATEGORIES
     },
     source: {
         type: String,
@@ -47,5 +50,7 @@ const articleSchema = new mongoose.Schema({
 // Create indexes for better performance
 articleSchema.index({ category: 1, publishedAt: -1 });
 articleSchema.index({ topics: 1, publishedAt: -1 });
+// Feed pagination sorts on (publishedAt, _id); retention cleanup scans publishedAt.
+articleSchema.index({ publishedAt: -1, _id: -1 });
 
 module.exports = mongoose.model('Article', articleSchema);

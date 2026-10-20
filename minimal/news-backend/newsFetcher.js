@@ -1,32 +1,36 @@
 const Parser = require('rss-parser');
+const cheerio = require('cheerio');
 const fetch = require('node-fetch');
-const { getTopicsForArticleEnhanced } = require('./services/topicService');
+
+const FEED_TIMEOUT_MS = 15000;
+const FEED_MAX_BYTES = 10 * 1024 * 1024;
+// An honest feed-reader agent: some publishers (e.g. ESPN) serve a bot challenge
+// instead of RSS to browser-like agents that do not run JavaScript.
+const FEED_USER_AGENT = 'KhabarAI/3.2 (RSS reader)';
 
 const parser = new Parser({
-  timeout: 10000,
   customFields: {
     item: ['media:content', 'media:thumbnail', 'enclosure', 'content:encoded']
   }
 });
 
 // RSS Feed Sources - USA and Nepal (English & Nepali)
+// Verified October 2026. Kathmandu Post section feeds and several OnlineKhabar
+// category feeds now return HTML, so Nepal coverage comes from the working
+// category feeds plus the front-page feeds classified by content.
 const RSS_FEEDS = {
   technology: [
     // USA Sources
     'https://techcrunch.com/feed/',
     'https://www.theverge.com/rss/index.xml',
-    'https://www.wired.com/feed/rss',
-    // Nepal Sources
-    'https://english.onlinekhabar.com/feed',
-    'https://kathmandupost.com/science-technology/feed' // This one might still work if the general /rss works
+    'https://www.wired.com/feed/rss'
   ],
   business: [
     // USA Sources
     'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10001147',
     'https://www.marketwatch.com/rss/topstories',
     // Nepal Sources
-    'https://www.onlinekhabar.com/content/business/feed',
-    'https://kathmandupost.com/money/rss'
+    'https://www.onlinekhabar.com/content/business/feed'
   ],
   sports: [
     // USA Sources
@@ -34,39 +38,38 @@ const RSS_FEEDS = {
     'https://sports.yahoo.com/rss/',
     'https://www.cbssports.com/rss/headlines/',
     // Nepal Sources
-    'https://english.onlinekhabar.com/sports/feed',
-    'https://www.onlinekhabar.com/content/sports/feed',
-    'https://kathmandupost.com/sports/rss'
+    'https://english.onlinekhabar.com/category/sports/feed'
   ],
   entertainment: [
     // USA Sources
     'https://variety.com/feed/',
     'https://www.hollywoodreporter.com/feed/',
-    'https://ew.com/feed/',
+    'https://deadline.com/feed/',
     // Nepal Sources
-    'https://english.onlinekhabar.com/entertainment/feed',
-    'https://kathmandupost.com/art-entertainment/rss',
+    'https://english.onlinekhabar.com/category/entertainment/feed',
     'https://www.onlinekhabar.com/content/entertainment/feed'
   ],
   health: [
-    // USA Sources
-    'https://www.medicalnewstoday.com/rss/news.xml',
-    'http://feeds.feedburner.com/oceanofweb',
+    // International Sources
+    'https://www.sciencedaily.com/rss/health_medicine.xml',
+    'https://www.who.int/rss-feeds/news-english.xml',
     // Nepal Sources
-    'https://english.onlinekhabar.com/health/feed',
-    'https://www.onlinekhabar.com/content/health/feed',
-    'https://kathmandupost.com/health/rss'
+    'https://english.onlinekhabar.com/category/health/feed'
   ],
   science: [
     // USA Sources
     'https://www.sciencedaily.com/rss/all.xml',
     'https://www.nasa.gov/rss/dyn/breaking_news.rss',
-    'https://www.sciencenews.org/feed',
-    // Nepal Sources
+    'https://www.sciencenews.org/feed'
+  ],
+  // Front-page feeds that mix every subject. Their items are classified by
+  // content only, and fall back to "general" when nothing matches.
+  general: [
+    'https://english.onlinekhabar.com/feed',
     'https://kathmandupost.com/rss',
     'https://www.onlinekhabar.com/feed',
     'https://ratopati.com/feed',
-    'https://setopati.com/feed',
+    'https://www.setopati.com/feed',
     'https://thehimalayantimes.com/rssFeed/15'
   ]
 };
@@ -112,28 +115,48 @@ const CATEGORY_KEYWORDS = {
   ]
 };
 
-// Classify article into category based on content
-function classifyArticle(title, description, contentSnippet) {
-  const text = `${title} ${description} ${contentSnippet}`.toLowerCase();
-  const scores = {};
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const WORD_CHAR = '[\\p{L}\\p{M}\\p{N}_]';
 
-  // Calculate score for each category
-  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    scores[category] = 0;
-    keywords.forEach(keyword => {
-      const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
-      const matches = text.match(regex);
-      if (matches) {
-        scores[category] += matches.length;
-      }
-    });
-  }
+// `\b` only understands ASCII word characters, so it never matched Devanagari
+// keywords. Use Unicode-aware boundaries instead. Nepali attaches
+// postpositions to words (बजार → बजारमा), so Devanagari keywords match as word
+// prefixes while Latin keywords must match whole words.
+const keywordPattern = (keyword) => {
+  const devanagari = /[\u0900-\u097F]/.test(keyword);
+  const body = escapeRegex(keyword.toLowerCase());
+  return new RegExp(
+    `(?<!${WORD_CHAR})${body}${devanagari ? '' : `(?!${WORD_CHAR})`}`,
+    'gu'
+  );
+};
 
-  // Find category with highest score
-  let bestCategory = 'technology'; // default
+// Compiled once instead of once per article.
+const CATEGORY_PATTERNS = Object.fromEntries(
+  Object.entries(CATEGORY_KEYWORDS).map(([category, keywords]) => [
+    category,
+    keywords.map(keywordPattern)
+  ])
+);
+
+const FALLBACK_CATEGORY = 'general';
+
+// Classify article into category based on content. A category-specific
+// feed's category acts as a tie-breaking prior and as the default.
+function classifyArticle(title, description, contentSnippet, suggestedCategory) {
+  const text = `${title || ''} ${description || ''} ${contentSnippet || ''}`.toLowerCase();
+  const prior = CATEGORY_PATTERNS[suggestedCategory] ? suggestedCategory : null;
+
+  let bestCategory = prior || FALLBACK_CATEGORY;
   let maxScore = 0;
 
-  for (const [category, score] of Object.entries(scores)) {
+  for (const [category, patterns] of Object.entries(CATEGORY_PATTERNS)) {
+    let score = category === prior ? 1 : 0;
+    for (const pattern of patterns) {
+      pattern.lastIndex = 0;
+      const matches = text.match(pattern);
+      if (matches) score += matches.length;
+    }
     if (score > maxScore) {
       maxScore = score;
       bestCategory = category;
@@ -143,7 +166,13 @@ function classifyArticle(title, description, contentSnippet) {
   return bestCategory;
 }
 
-// Extract image from RSS item
+// Convert feed HTML to plain text, decoding entities such as &amp; and &#8217;.
+const htmlToText = (html) => {
+  const raw = String(html || '');
+  if (!raw.includes('<') && !raw.includes('&')) return raw.replace(/\s+/g, ' ').trim();
+  return cheerio.load(raw).text().replace(/\s+/g, ' ').trim();
+};
+
 // Extract image from RSS item or content
 function extractImage(item, content) {
   // 1. Try different image fields in RSS item
@@ -160,121 +189,134 @@ function extractImage(item, content) {
   // 2. Try to find image in content/description using Regex
   const imgRegex = /<img[^>]+src="([^">]+)"/i;
 
-  if (content) {
-    const match = content.match(imgRegex);
-    if (match && match[1]) {
-      return match[1];
-    }
-  }
-
-  if (item.contentSnippet) {
-    const match = item.contentSnippet.match(imgRegex);
-    if (match && match[1]) return match[1];
-  }
-
-  if (item.description) {
-    const match = item.description.match(imgRegex);
+  for (const candidate of [content, item.contentSnippet, item.description]) {
+    const match = candidate ? String(candidate).match(imgRegex) : null;
     if (match && match[1]) return match[1];
   }
 
   return null;
 }
 
-// Fetch news from a single RSS feed
-async function fetchFeedNews(feedUrl, suggestedCategory) {
+const isHttpUrl = (value) => {
   try {
-    const feed = await parser.parseURL(feedUrl);
-    const articles = [];
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
 
-    for (const item of feed.items) {
-      // Skip items without title or link
-      if (!item.title || !item.link) continue;
+// Feeds occasionally publish invalid or future dates; never let an item claim
+// to be newer than the moment it was fetched.
+const parsePublishedAt = (item, now = new Date()) => {
+  for (const value of [item.isoDate, item.pubDate]) {
+    if (!value) continue;
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) return date > now ? now : date;
+  }
+  return now;
+};
 
-      const title = item.title.trim();
-      const description = (item.contentSnippet || item.description || '').trim();
+// Turn one RSS item into an Article document (without topics).
+function buildArticleFromItem(item, { feedTitle, suggestedCategory, now = new Date() } = {}) {
+  // Skip items without title or link
+  const link = String(item.link || '').trim();
+  const title = String(item.title || '').trim();
+  if (!title || !isHttpUrl(link)) return null;
 
-      // Get full content - try multiple fields for maximum content
-      let content = '';
-      if (item['content:encoded']) {
-        // Many RSS feeds put full content in content:encoded
-        content = item['content:encoded'];
-      } else if (item.content) {
-        content = item.content;
-      } else if (item.description) {
-        content = item.description;
-      } else if (item.contentSnippet) {
-        content = item.contentSnippet;
-      }
+  // Get full content - try multiple fields for maximum content
+  const content = item['content:encoded'] || item.content || item.description || item.contentSnippet || '';
+  const cleanContent = htmlToText(content);
 
-      // Clean HTML tags from content but keep the text
-      const cleanContent = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  // Only include articles with substantial content
+  if (cleanContent.length < 50) return null;
 
-      // Cleanup description - remove HTML tags
-      const cleanDescription = description.replace(/<[^>]*>/g, '').trim();
+  // The description is required by the Article schema; fall back to the body.
+  const cleanDescription = htmlToText(item.contentSnippet || item.description || '') || cleanContent;
 
-      // Only include articles with substantial content
-      if (cleanContent.length < 50) {
-        // If content is too short, skip (Nepali feeds are often short)
-        continue;
-      }
+  return {
+    title,
+    description: cleanDescription.substring(0, 500), // Limit description
+    content: cleanContent.substring(0, 5000), // Store more content (5000 chars)
+    category: classifyArticle(title, cleanDescription, cleanContent, suggestedCategory),
+    source: feedTitle || 'Unknown Source',
+    author: item.creator || item.author || null,
+    url: link,
+    urlToImage: extractImage(item, content),
+    publishedAt: parsePublishedAt(item, now),
+    fetchedAt: now
+  };
+}
 
-      // Classify the article
-      const category = classifyArticle(title, cleanDescription, cleanContent);
+const fetchFeedXml = async (feedUrl, { fetchImpl = fetch } = {}) => {
+  const response = await fetchImpl(feedUrl, {
+    headers: {
+      'User-Agent': FEED_USER_AGENT,
+      Accept: 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.5'
+    },
+    timeout: FEED_TIMEOUT_MS,
+    size: FEED_MAX_BYTES
+  });
+  if (!response.ok) throw new Error(`Status code ${response.status}`);
+  return response.text();
+};
 
-      const imageUrl = extractImage(item, content);
+// Escape "&" that does not start an entity, the most common XML defect in news feeds.
+const escapeBareAmpersands = (xml) => String(xml).replace(/&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
 
-      const article = {
-        title: title,
-        description: cleanDescription.substring(0, 500), // Limit description
-        content: cleanContent.substring(0, 5000), // Store more content (5000 chars)
-        category: category,
-        source: feed.title || 'Unknown Source',
-        author: item.creator || item.author || null,
-        url: item.link,
-        urlToImage: imageUrl,
-        publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
-        fetchedAt: new Date()
-      };
-
-      // Add topic tags for advanced filtering (finance/politics/art/culture/international/etc.)
-      article.topics = await getTopicsForArticleEnhanced(article);
-
-      articles.push(article);
-    }
-
-    console.log(`✅ Fetched ${articles.length} articles from ${feed.title || feedUrl}`);
-    return articles;
-
+const parseFeedXml = async (xml) => {
+  try {
+    return await parser.parseString(xml);
   } catch (error) {
-    console.error(`❌ Error fetching ${feedUrl}:`, error.message);
+    // Retry once with bare ampersands escaped; valid feeds never take this path.
+    return parser.parseString(escapeBareAmpersands(xml));
+  }
+};
+
+// Fetch news from a single RSS feed
+async function fetchFeedNews(feedUrl, suggestedCategory, { logger = console, fetchImpl = fetch } = {}) {
+  try {
+    const feed = await parseFeedXml(await fetchFeedXml(feedUrl, { fetchImpl }));
+    const now = new Date();
+    const articles = (feed.items || [])
+      .map((item) => buildArticleFromItem(item, { feedTitle: feed.title, suggestedCategory, now }))
+      .filter(Boolean);
+
+    logger.log(`✅ Fetched ${articles.length} articles from ${feed.title || feedUrl}`);
+    return articles;
+  } catch (error) {
+    logger.error(`❌ Error fetching ${feedUrl}: ${error.message}`);
     return [];
   }
 }
 
-// Fetch news from all RSS feeds
-async function fetchAllNews() {
-  const allArticles = [];
+// Fetch news from all RSS feeds, a few feeds at a time.
+async function fetchAllNews({ concurrency = 4, logger = console } = {}) {
+  logger.log('🔄 Starting to fetch news from all RSS feeds...\n');
 
-  console.log('🔄 Starting to fetch news from all RSS feeds...\n');
+  const jobs = Object.entries(RSS_FEEDS).flatMap(([category, feeds]) => (
+    feeds.map((feedUrl) => ({ feedUrl, category }))
+  ));
+  const results = new Array(jobs.length);
+  let next = 0;
 
-  for (const [category, feeds] of Object.entries(RSS_FEEDS)) {
-    console.log(`\n📰 Fetching ${category.toUpperCase()} news...`);
-
-    for (const feedUrl of feeds) {
-      const articles = await fetchFeedNews(feedUrl, category);
-      allArticles.push(...articles);
-
-      // Small delay to avoid overwhelming servers
-      await new Promise(resolve => setTimeout(resolve, 500));
+  const worker = async () => {
+    while (next < jobs.length) {
+      const index = next;
+      next += 1;
+      const { feedUrl, category } = jobs[index];
+      results[index] = await fetchFeedNews(feedUrl, category, { logger });
     }
-  }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, jobs.length)) }, worker));
 
-  console.log(`\n✅ Total articles fetched: ${allArticles.length}`);
+  const allArticles = results.flat();
+  logger.log(`\n✅ Total articles fetched: ${allArticles.length}`);
   return allArticles;
 }
 
 // Remove duplicate articles based on URL
-function removeDuplicates(articles) {
+function removeDuplicates(articles, { logger = console } = {}) {
   const seen = new Set();
   const unique = [];
 
@@ -285,13 +327,20 @@ function removeDuplicates(articles) {
     }
   }
 
-  console.log(`🗑️  Removed ${articles.length - unique.length} duplicate articles`);
+  logger.log(`🗑️  Removed ${articles.length - unique.length} duplicate articles`);
   return unique;
 }
 
 module.exports = {
-  fetchAllNews,
-  removeDuplicates,
+  CATEGORY_KEYWORDS,
+  RSS_FEEDS,
+  buildArticleFromItem,
   classifyArticle,
-  RSS_FEEDS
+  escapeBareAmpersands,
+  fetchAllNews,
+  fetchFeedNews,
+  parseFeedXml,
+  htmlToText,
+  parsePublishedAt,
+  removeDuplicates
 };

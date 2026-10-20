@@ -1,50 +1,49 @@
 # 📰 Khabar AI
 
-A modern, AI-powered news aggregation platform with personalized recommendations, text-to-speech, AI summaries, and automated email newsletters.
+A modern, AI-powered news aggregation platform with personalized recommendations, semantic search, text-to-speech, AI summaries, automated email newsletters, and **Market Gyan**, a NEPSE market-intelligence workspace.
 
 ![Khabar AI](https://img.shields.io/badge/Khabar-AI-6366f1?style=for-the-badge&logo=newspaper&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=node.js&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
-![MongoDB](https://img.shields.io/badge/MongoDB-Local-47A248?style=flat-square&logo=mongodb&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-8-47A248?style=flat-square&logo=mongodb&logoColor=white)
 
 ## ✨ Features
 
 ### 🤖 AI-Powered
 
-- **AI Summaries** - Local mBART-powered bullet summaries (Nepali-first, English → Nepali)
-- **AI Translation** - One-click English → Nepali translation for any article
-- **Personalized Recommendations** - ML-based article suggestions based on your reading history
-- **Smart Classification** - Automatic categorization using NLP (English & Nepali)
-- **Semantic Search** - Qdrant-backed search with multilingual embeddings + topic filters
+- **AI Summaries** - Gemini API summaries in the article's language, with an automatic fallback to the local mBART model (Nepali-first)
+- **AI Translation** - One-click English → Nepali translation (local mBART, results cached)
+- **Personalized Recommendations** - Semantic (Qdrant) recommendations from your reading history, with a keyword/category fallback
+- **Smart Classification** - Categories and topics from English and Nepali keywords plus multilingual embeddings
+- **Semantic Search** - Qdrant-backed search with multilingual embeddings, Nepali query expansion, and topic/source/date filters
+- **Market Gyan** - NEPSE dashboard, evidence search, and citation-grounded questions and reports (see [docs/market-gyan](docs/market-gyan/README.md))
 
 ### 📱 User Experience
 
-- **Dark Mode** - Beautiful dark theme that syncs across devices
-- **Text-to-Speech** - Listen to summaries and translations (English & Nepali voices)
-- **Responsive Design** - Works perfectly on desktop, tablet, and mobile
-- **Network Access** - Access from any device on your local network
+- **Dark Mode** - Dark theme that syncs across devices
+- **Text-to-Speech** - Listen to summaries and translations (English & Nepali Piper voices)
+- **Responsive Design** - Sidebar on desktop, swipeable section bar and account menu on phones and tablets
+- **Network Access** - Use it from any device on your local network
 
 ### 👤 User Features
 
-- **Authentication** - Secure JWT-based login and registration
-- **Bookmarks** - Save articles for later reading
-- **Reading History** - Track what you've read
-- **Custom RSS Feeds** - Add your own news sources
-- **Quality Ratings** - Rate summaries + translations (MOS) to improve models
+- **Authentication** - JWT-based login and registration
+- **Bookmarks** - Save articles for later; bookmarked articles are never removed by cleanup
+- **Reading History** - The last 100 articles you read
+- **Quality Ratings** - Rate summaries + translations (MOS) to evaluate the models
 
 ### 📧 Email Newsletters
 
-- **Daily Digest** - Automated personalized newsletters at 7 AM (Nepal time)
-- **Beautiful Templates** - Modern, dark-mode compatible email designs
-- **Interest Tags** - Shows your top categories and reading preferences
-- **One-Click Access** - Open articles directly from email
+- **Daily Digest** - Personalized newsletter at your digest time (default 7 AM Nepal time, regardless of the server's time zone)
+- **One-click unsubscribe** - Every digest carries a working unsubscribe link and `List-Unsubscribe` headers
+- **Beautiful Templates** - Dark-mode compatible, mobile responsive, with all feed content safely escaped
 
 ### 📰 News Aggregation
 
-- **36+ RSS Sources** - Trusted feeds from USA & Nepal
-- **Real-time Updates** - Fresh news every 30 minutes
-- **Full Content** - Up to 5000 characters per article
-- **Auto Cleanup** - Removes articles older than 7 days
+- **27 RSS Sources** - Verified feeds from the USA, Nepal, and the WHO, fetched concurrently (malformed feeds are repaired, not dropped)
+- **Real-time Updates** - Fresh news every 30 minutes, indexed into Qdrant as it arrives
+- **Full Content** - Up to 5000 characters per article; full pages are fetched on demand for summaries
+- **Auto Cleanup** - Removes articles older than 7 days (keeps bookmarks and the Market Gyan corpus)
 
 ## 🗞️ News Sources
 
@@ -53,20 +52,22 @@ A modern, AI-powered news aggregation platform with personalized recommendations
 | Category          | Sources                                           |
 | ----------------- | ------------------------------------------------- |
 | **Technology**    | TechCrunch, The Verge, Wired                      |
-| **Business**      | CNBC, Fortune, MarketWatch                        |
+| **Business**      | CNBC, MarketWatch                                 |
 | **Sports**        | ESPN, Yahoo Sports, CBS Sports                    |
-| **Entertainment** | Variety, Hollywood Reporter, Entertainment Weekly |
-| **Health**        | Medical News Today, Healthline, US News Health    |
+| **Entertainment** | Variety, Hollywood Reporter, Deadline            |
+| **Health**        | ScienceDaily Health, World Health Organization    |
 | **Science**       | Science Daily, NASA, Science News                 |
 
 ### Nepal Sources
 
 | Source              | Languages        |
 | ------------------- | ---------------- |
-| Online Khabar       | English & Nepali |
+| Online Khabar (front page, business, sports, entertainment, health) | English & Nepali |
+| The Kathmandu Post  | English          |
 | The Himalayan Times | English          |
-| My Republica        | English          |
-| Kathmandu Post      | English          |
+| Ratopati, Setopati  | Nepali           |
+
+Front-page feeds are classified by content; stories that match no specific category are filed as **general** and appear under *All News* and *Local News*.
 
 ## 🛠️ Tech Stack
 
@@ -81,191 +82,141 @@ A modern, AI-powered news aggregation platform with personalized recommendations
 
 ### Backend
 
-| Technology | Version | Purpose              |
-| ---------- | ------- | -------------------- |
-| Node.js    | 18+     | Runtime              |
-| Express.js | 4.x     | API Server           |
-| MongoDB    | Local   | Database             |
-| Nodemailer | Latest  | Email Service        |
-| Node-Cron  | Latest  | Scheduled Jobs       |
-| Python 3   | 3.x     | mBART + TTS services |
-| Natural    | 6.x     | NLP Classification   |
+| Technology | Version | Purpose                          |
+| ---------- | ------- | -------------------------------- |
+| Node.js    | 18+     | Runtime                          |
+| Express.js | 5.x     | API Server                       |
+| MongoDB    | 8.x     | Database                         |
+| Qdrant     | 1.16    | Vector search                    |
+| Nodemailer | Latest  | Email Service                    |
+| Node-Cron  | Latest  | Scheduled Jobs                   |
+| Python 3   | 3.10+   | mBART + TTS workers, Market Gyan |
 
 ### AI Services
 
-| Service                                            | Purpose                                      |
-| -------------------------------------------------- | -------------------------------------------- |
-| mBART (sagunrai/mbart-large-50-nepali-finetuned-1) | Summarization + English → Nepali Translation |
-| Transformers.js                                    | Multilingual embeddings for Qdrant search    |
-| Piper TTS                                          | Text-to-Speech (English + Nepali models)     |
+| Service                                            | Purpose                                         |
+| -------------------------------------------------- | ----------------------------------------------- |
+| Gemini API (`gemini-3.5-flash-lite` by default)    | Article summaries                               |
+| mBART (sagunrai/mbart-large-50-nepali-finetuned-1) | Summary fallback + English → Nepali translation |
+| Transformers.js (distiluse-base-multilingual-cased-v2) | 768-d multilingual embeddings for Qdrant    |
+| Piper TTS                                          | Text-to-Speech (English + Nepali models)        |
+
+The mBART and Piper models run in long-lived Python worker processes: each model loads once, requests are queued with timeouts, and the process is released after 10 minutes of inactivity.
 
 ## 📁 Project Structure
 
 ```
 khabar/
-├── docs/
-│   ├── README_ARCHITECTURE.md                 # Theoretical architecture overview
-│   ├── README_QDRANT_EXPLAINER.md             # Qdrant concepts (presentation-friendly)
-│   ├── README_EMBEDDING_MODEL_EVAL.md         # Manual Precision@5 eval across embedding models
-│   ├── README_SEARCH_BAR_EVAL.md              # Manual Precision@5 eval for the search bar
-│   ├── README_SEARCH_QDRANT.md                # Qdrant search + classification flow
-│   └── README_NEWSLETTER_PERSONALIZATION.md   # History → preferences → newsletter flow
+├── docker-compose.yml             # MongoDB + Qdrant for local development
+├── package.json                   # One-command scripts for the whole repo
+├── docs/                          # Architecture, search, newsletter, Market Gyan docs
 ├── minimal/
-│   ├── news-aggregator/          # React Frontend
-│   │   ├── src/
-│   │   │   ├── App.js            # Main application
-│   │   │   ├── config.js         # Dynamic API configuration
-│   │   │   ├── context/
-│   │   │   │   └── AuthContext.js # Authentication state
-│   │   │   └── components/
-│   │   │       └── AuthModal.js   # Login/Register modal
-│   │   ├── public/
-│   │   ├── tailwind.config.js
-│   │   └── package.json
-│   │
-│   └── news-backend/             # Node.js Backend
-│       ├── models/
-│       │   ├── Article.js        # Article schema
-│       │   ├── User.js           # User schema
-│       │   ├── en_US-*.onnx      # English TTS model
-│       │   └── ne_NP-*.onnx      # Nepali TTS model
-│       ├── routes/
-│       │   ├── authRoutes.js     # Authentication endpoints
-│       │   ├── userRoutes.js     # User data endpoints
-│       │   ├── searchRoutes.js   # Semantic search + filters
-│       │   └── feedbackRoutes.js # Summary/translation feedback
-│       ├── services/
-│       │   ├── emailService.js   # Email templates & sending
-│       │   ├── newsletterScheduler.js # 7 AM daily emails
-│       │   ├── preferenceService.js   # AI recommendations
-│       │   ├── embeddingService.js # Multilingual embeddings
-│       │   ├── qdrantService.js    # Qdrant client helpers
-│       │   └── topicService.js     # Topic tagging
-│       ├── middleware/
-│       │   └── authMiddleware.js # JWT verification
-│       ├── server.js             # Main API server
-│       ├── newsFetcher.js        # RSS feed processor
-│       ├── updateNews.js         # Manual news update
-│       ├── scheduleNews.js       # Automated updates
-│       ├── testEmail.js          # Email testing utility
-│       ├── updateIP.js           # Network IP helper
-│       ├── tts_service.py        # Python TTS service (Piper)
-│       ├── mbart_service.py      # mBART summarize/translate
-│       ├── .env                  # Environment config
-│       └── package.json
-│
-└── README.md
+│   ├── news-aggregator/           # React frontend
+│   │   └── src/
+│   │       ├── App.js             # Main application
+│   │       ├── config.js          # API URL resolution (dev server, same origin, or env)
+│   │       ├── context/AuthContext.js
+│   │       └── components/        # Auth modal, Market Gyan dashboard + review panel
+│   └── news-backend/              # Node.js backend
+│       ├── app.js                 # Express app (routes, middleware) — importable for tests
+│       ├── server.js              # Process entry: MongoDB, listen, schedulers, shutdown
+│       ├── config/                # Auth secret and CORS policy
+│       ├── middleware/            # Auth, admin token, rate limits, security headers, errors
+│       ├── models/                # Article, User, Feedback (+ ONNX voice models)
+│       ├── routes/                # news, auth, user, search, feedback, email
+│       ├── services/              # summaries, mBART/TTS workers, Qdrant, ingestion, email
+│       ├── features/marketGyan/   # Market Gyan pipeline, review tools, retrieval, reports
+│       ├── scripts/               # Qdrant indexing, topic backfill, evaluations
+│       ├── tests/                 # Unit tests + MongoDB integration tests
+│       ├── newsFetcher.js         # RSS fetching and classification
+│       ├── updateNews.js          # One-shot news update
+│       ├── scheduleNews.js        # 30-minute update loop
+│       ├── cleanupOldNews.js      # Retention cleanup
+│       ├── addSampleData.js       # Demo articles (idempotent)
+│       ├── mbart_service.py       # mBART worker (summarize / translate)
+│       └── tts_service.py         # Piper TTS worker
+└── ml/marketGyan/                 # Market Gyan datasets, training, FastAPI agent service
 ```
 
-## 🚀 Installation
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18 or higher)
-- [MongoDB](https://www.mongodb.com/try/download/community) (Local)
-- [Python 3](https://www.python.org/) (for mBART + TTS)
-- Git
+- [Node.js](https://nodejs.org/) 18.18 or newer
+- [Docker](https://www.docker.com/) (for MongoDB + Qdrant), or local installs of both
+- [Python 3.10+](https://www.python.org/) for translation, the summary fallback, and TTS
 
-### 1. Clone the Repository
+### 1. Start the databases
 
 ```bash
-git clone <your-repository-url>
-cd khabar
+docker compose up -d
 ```
 
-### 2. Install MongoDB
+This runs MongoDB on `localhost:27017` and Qdrant on `localhost:6333`. Already running MongoDB via Homebrew (`brew services start mongodb-community`)? Then start only Qdrant: `docker compose up -d qdrant`.
 
-**Mac:**
-
-```bash
-brew tap mongodb/brew
-brew install mongodb-community
-brew services start mongodb-community
-```
-
-**Windows:**
-
-- Download from https://www.mongodb.com/try/download/community
-- Install and run as a service
-
-**Linux:**
+### 2. Install dependencies
 
 ```bash
-sudo apt-get install mongodb
-sudo systemctl start mongodb
-```
-
-### 3. Backend Setup
-
-```bash
-cd minimal/news-backend
-
-# Install dependencies
-npm install
-
-# Create environment file
-touch .env
-# Add your settings (see Configuration section below)
-
-# Start the server
-npm run dev
-```
-
-### 3.1 Install Python Dependencies (mBART + TTS)
-
-```bash
-python3 -m pip install --upgrade pip
+npm run setup
 python3 -m pip install torch transformers piper-tts
 ```
 
-### 4. Frontend Setup
+### 3. Configure the backend
 
 ```bash
-cd minimal/news-aggregator
-
-# Install dependencies
-npm install
-
-# Start the app
-npm start
+cp minimal/news-backend/.env.example minimal/news-backend/.env
 ```
 
-### 5. Fetch Initial News
+Set at least `JWT_SECRET` (and `GEMINI_API_KEY` for API summaries). See [Configuration](#️-configuration).
+
+### 4. Load news
 
 ```bash
-cd minimal/news-backend
-npm run update-news
+npm run update-news      # fetch all RSS feeds once (and index into Qdrant)
+npm run seed             # optional: add 8 demo articles
 ```
+
+### 5. Run in development
+
+```bash
+npm run dev:api          # API on http://localhost:5001 (auto-reload)
+npm run dev:web          # React app on http://localhost:3000
+```
+
+Open `http://localhost:3000`, or `http://<your-LAN-IP>:3000` from a phone on the same network.
+
+### Production: one process, one port
+
+```bash
+npm run build            # build the React app
+npm start                # API + React build on http://localhost:5001
+```
+
+`npm start` runs `node server.js --serve-frontend`. For a public deployment, set `NODE_ENV=production`, a strong `JWT_SECRET`, `TRUST_PROXY` when behind a reverse proxy, and `PUBLIC_API_URL`/`FRONTEND_URL` to the public URL. Keep the news scheduler running alongside with `npm --prefix minimal/news-backend run schedule-news`.
 
 ## ⚙️ Configuration
 
-### Environment Variables (`.env`)
+All settings live in `minimal/news-backend/.env`; [.env.example](minimal/news-backend/.env.example) documents every variable. The most important ones:
 
-```env
-# MongoDB Connection
-MONGODB_URI=mongodb://localhost:27017/newsDB
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MONGODB_URI` | `mongodb://localhost:27017/newsDB` | Database (used by the API and every script) |
+| `JWT_SECRET` | random per process in development | Token signing secret — **required** when `NODE_ENV=production` |
+| `ADMIN_API_TOKEN` | empty (disabled) | Enables `POST/DELETE /api/news` via the `x-admin-token` header |
+| `CORS_ORIGINS` | any origin in dev, same-origin in prod | Comma-separated allowed browser origins |
+| `TRUST_PROXY` | unset | Express trust-proxy setting behind nginx etc. |
+| `SERVE_FRONTEND` | `false` | Serve the React build from the API (`npm start` turns it on) |
+| `QDRANT_URL` | `http://localhost:6333` | Vector database |
+| `EMBEDDING_PROVIDER` | `transformers` | `transformers` (multilingual model) or `hash` (offline); each uses its own collection |
+| `GEMINI_API_KEY` | empty | Enables API summaries (otherwise mBART is used) |
+| `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Summary model |
+| `MBART_DEVICE` | `auto` | `cpu`, `cuda`, or `mps` for the mBART worker |
+| `NEWS_RETENTION_DAYS` | `7` | Article retention (bookmarks and Market Gyan articles are kept) |
+| `NEWSLETTER_TIMEZONE` | `Asia/Kathmandu` | Time zone for digest times |
+| `PUBLIC_API_URL` | `FRONTEND_URL` host on `PORT` | Base URL for unsubscribe links in emails |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` | — | Outgoing email (Gmail App Password works) |
 
-# JWT Secret
-JWT_SECRET=your_secret_key_here
-
-# Server
-PORT=5001
-FRONTEND_URL=http://192.168.x.x:3000  # Your local network IP
-
-# SMTP Email (Gmail)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password  # Gmail App Password
-
-# mBART (summarization + translation)
-MBART_MODEL=sagunrai/mbart-large-50-nepali-finetuned-1
-
-# Qdrant (Vector Database) - for semantic search + filtered retrieval
-QDRANT_URL=http://localhost:6333
-QDRANT_COLLECTION=khabar_articles
-QDRANT_VECTOR_SIZE=384
-```
+The frontend finds the API automatically: on the React dev server (port 3000) it calls port 5001 on the same host; otherwise it uses the page's own origin. Override with `REACT_APP_API_BASE_URL` at build time.
 
 ### Gmail App Password Setup
 
@@ -276,82 +227,25 @@ QDRANT_VECTOR_SIZE=384
 
 ### Network Access (Cross-Device)
 
-To access the app from phones/tablets on the same network:
-
-```bash
-# Auto-detect and update your IP
-cd minimal/news-backend
-node updateIP.js
-```
-
-Then access:
-
-- **Frontend:** `http://YOUR_IP:3000`
-- **Backend:** `http://YOUR_IP:5001`
-
-### Vector Search (Qdrant) - Advanced Search & Topic Filtering
-
-Qdrant is used to power:
-
-- **Semantic search** (search by meaning, not just keywords)
-- **Fast filtering** using payload fields like `topics`, `category`, `source`, `publishedAt`
-
-#### Start Qdrant (Docker)
-
-```bash
-docker run -p 6333:6333 -p 6334:6334 --name qdrant -d qdrant/qdrant
-```
-
-#### Index existing articles into Qdrant
-
-After you already have articles in MongoDB:
-
 ```bash
 cd minimal/news-backend
-npm install
-npm run index-qdrant
+node updateIP.js         # writes FRONTEND_URL with your LAN IP
 ```
 
-#### Enable real multilingual embeddings (English + Nepali)
+Then open `http://YOUR_IP:3000` on any device. The API prints its LAN addresses on startup.
 
-By default, the code will try to use a real multilingual embedding model (Transformers.js) and fall back to hashing vectors if the model cannot load.
+## 🔎 Semantic Search (Qdrant)
 
-Environment variables:
+Qdrant powers semantic search ("search by meaning") and fast filtering by `topics`, `category`, `source`, and `publishedAt`.
 
-- `EMBEDDING_PROVIDER=transformers` (default)
-- `EMBEDDING_MODEL=Xenova/paraphrase-multilingual-MiniLM-L12-v2` (default)
+- New articles are indexed automatically by `update-news` / `schedule-news` when Qdrant is reachable, and deleted articles are removed from the index.
+- `npm run index-qdrant` (re)indexes everything and prunes points whose article no longer exists.
+- If Qdrant or the embedding model is unavailable, search falls back to MongoDB keyword search instead of failing.
+- Results are re-ranked as one fixed pool, so paging through results never repeats or skips articles.
 
-After enabling embeddings, re-index Qdrant:
+Embeddings come from `Xenova/distiluse-base-multilingual-cased-v2` (768 dimensions, English + Nepali), downloaded on first use. Use `EMBEDDING_PROVIDER=hash` for a fully offline setup (lower quality); hash vectors and model vectors are kept in separate collections.
 
-```bash
-cd minimal/news-backend
-npm run index-qdrant
-```
-
-#### Backfill topics for existing articles (optional)
-
-If your DB already has articles from before topic tagging was added:
-
-```bash
-cd minimal/news-backend
-npm run backfill-topics
-```
-
-To recompute topics for all articles:
-
-```bash
-cd minimal/news-backend
-node scripts/backfillTopics.js --force
-```
-
-#### Search API
-
-The backend exposes:
-
-- `GET /api/search?q=...` (semantic search via Qdrant if available)
-- `GET /api/search?topics=finance,politics` (filter-only via MongoDB)
-
-Examples:
+Backfill topics for older articles with `npm --prefix minimal/news-backend run backfill-topics` (add `--force` to recompute all).
 
 ```bash
 # Semantic search (vector)
@@ -360,49 +254,30 @@ curl "http://localhost:5001/api/search?q=interest%20rates&limit=12&page=1"
 # Semantic search + topic filter
 curl "http://localhost:5001/api/search?q=budget&topics=finance&limit=12&page=1"
 
-# Filter-only feed by topic (latest first)
-curl "http://localhost:5001/api/search?topics=politics&limit=12&page=1"
+# Filter-only feed by topic and source (latest first)
+curl "http://localhost:5001/api/search?topics=politics&source=kathmandu&limit=12&page=1"
 ```
-
-> Note: Current implementation uses a **local hashing vectorizer** (works offline).
-> For higher-quality semantic embeddings (English + Nepali), the backend supports a real multilingual embedding model via Transformers.js.
 
 ## 📧 Email Newsletter System
 
-### Daily Newsletter Schedule
-
-Newsletters are sent automatically at **7:00 AM Nepal Time** to users with daily digest enabled.
-
-### Email Templates
+Newsletters are sent hourly to users whose digest hour (`emailPreferences.digestTime`, default `07:00`) matches the current hour in `NEWSLETTER_TIMEZONE`, at most once per day in that time zone. Each email includes a one-click unsubscribe link (`/api/email/unsubscribe`), which asks for confirmation so link scanners cannot unsubscribe anyone by accident.
 
 | Template     | Trigger     | Description                     |
 | ------------ | ----------- | ------------------------------- |
 | Welcome      | User signup | Feature introduction            |
-| Daily Digest | 7 AM daily  | Standard news digest            |
-| Personalized | 7 AM daily  | AI-curated based on preferences |
+| Daily Digest | Digest time | Standard news digest            |
+| Personalized | Digest time | AI-curated based on preferences |
 | Weekly       | Weekly      | Stats + top stories             |
 
 ### Testing Emails
 
 ```bash
 cd minimal/news-backend
-
-# Send test email to yourself
-node testEmail.js
-
-# Send to specific email
-node testEmail.js user@example.com
-
-# Send to all eligible users
-node testEmail.js --all
-
-# Send to specific user from database
+node testEmail.js                       # send a test email to SMTP_USER
+node testEmail.js user@example.com      # send to a specific address
+node testEmail.js --all                 # send to all eligible users
 node testEmail.js --user user@example.com
-
-# List all users
-node testEmail.js --list
-
-# Enable daily digest for a user
+node testEmail.js --list                # list users
 node testEmail.js --enable user@example.com
 ```
 
@@ -410,18 +285,28 @@ node testEmail.js --enable user@example.com
 
 ### Public Endpoints
 
-| Method | Endpoint                        | Description                     |
-| ------ | ------------------------------- | ------------------------------- |
-| GET    | `/api/news`                     | Get all articles                |
-| GET    | `/api/news?category=technology` | Filter by category              |
-| GET    | `/api/news?page=1&limit=12`     | Pagination                      |
-| GET    | `/api/news/:id`                 | Get single article              |
-| POST   | `/api/news/:id/summarize`       | AI summarize article            |
-| POST   | `/api/news/:id/tts`             | Generate TTS audio              |
-| POST   | `/api/tts`                      | Generate TTS for arbitrary text |
-| POST   | `/api/translate`                | English → Nepali translation    |
-| GET    | `/api/search`                   | Semantic search + filters       |
-| GET    | `/api/categories`               | Get category counts             |
+| Method | Endpoint                        | Description                              |
+| ------ | ------------------------------- | ---------------------------------------- |
+| GET    | `/api/health`                   | MongoDB/Qdrant status                    |
+| GET    | `/api/news`                     | Articles (`category`, `page`, `limit≤50`) |
+| GET    | `/api/news/:id`                 | Single article                           |
+| POST   | `/api/news/:id/summarize`       | AI summary (cached on the article)       |
+| POST   | `/api/news/:id/tts`             | Speech for the article summary           |
+| POST   | `/api/tts`                      | Speech for arbitrary text (cached)       |
+| POST   | `/api/translate`                | English → Nepali translation (cached)    |
+| GET    | `/api/search`                   | Semantic search + filters                |
+| GET    | `/api/categories`               | Category counts                          |
+| GET/POST | `/api/email/unsubscribe?token=` | Unsubscribe confirmation / action      |
+
+Model-backed endpoints are rate limited per client (summaries 20/min, translation 10/min, speech 20/min, search 90/min).
+
+### Admin Endpoints (`x-admin-token: $ADMIN_API_TOKEN`)
+
+| Method | Endpoint          | Description           |
+| ------ | ----------------- | --------------------- |
+| POST   | `/api/news`       | Add an article        |
+| POST   | `/api/news/bulk`  | Add up to 500 articles |
+| DELETE | `/api/news/:id`   | Delete an article     |
 
 ### Authentication Endpoints
 
@@ -429,21 +314,25 @@ node testEmail.js --enable user@example.com
 | ------ | -------------------- | ---------------- |
 | POST   | `/api/auth/register` | Create account   |
 | POST   | `/api/auth/login`    | Login            |
-| GET    | `/api/auth/me`       | Get current user |
+| GET    | `/api/auth/me`       | Current user     |
 | PUT    | `/api/auth/profile`  | Update profile   |
+| PUT    | `/api/auth/password` | Change password  |
+
+Login and registration are limited to 30 attempts per 15 minutes per client.
 
 ### User Endpoints (Protected)
 
-| Method | Endpoint                         | Description            |
-| ------ | -------------------------------- | ---------------------- |
-| GET    | `/api/user/bookmarks`            | Get bookmarks          |
-| POST   | `/api/user/bookmarks/:id`        | Add bookmark           |
-| DELETE | `/api/user/bookmarks/:id`        | Remove bookmark        |
-| GET    | `/api/user/history`              | Get reading history    |
-| POST   | `/api/user/history/:id`          | Add to history         |
-| GET    | `/api/user/recommendations`      | Get AI recommendations |
-| PUT    | `/api/user/email-preferences`    | Update email settings  |
-| POST   | `/api/user/test/send-newsletter` | Trigger newsletter     |
+| Method | Endpoint                         | Description                                  |
+| ------ | -------------------------------- | -------------------------------------------- |
+| GET    | `/api/user/bookmarks`            | Bookmarks (newest first)                     |
+| POST   | `/api/user/bookmarks/:id`        | Add bookmark (idempotent)                    |
+| DELETE | `/api/user/bookmarks/:id`        | Remove bookmark                              |
+| GET    | `/api/user/history?limit=20`     | Reading history                              |
+| POST   | `/api/user/history/:id`          | Record a read                                |
+| DELETE | `/api/user/history`              | Clear history                                |
+| GET    | `/api/user/recommendations`      | Recommendations                              |
+| GET/PUT | `/api/user/email-preferences`   | `dailyDigest`, `weeklyDigest`, `digestTime` (HH:MM) |
+| POST   | `/api/user/test/send-newsletter` | Send yourself the digest (3 per 10 minutes)  |
 
 ### Feedback Endpoints (Protected)
 
@@ -453,77 +342,65 @@ node testEmail.js --enable user@example.com
 | POST   | `/api/feedback/translation`                    | Rate translation (1–5 MOS)               |
 | GET    | `/api/feedback/mos?articleId=...&kind=summary` | Aggregate MOS stats                      |
 
+Market Gyan endpoints live under `/api/market-gyan`; see [docs/market-gyan](docs/market-gyan/README.md).
+
 ## 📜 Available Scripts
 
-### Backend (`news-backend/`)
+### Repository root
 
 ```bash
-npm start              # Start server
-npm run dev            # Start with auto-reload (nodemon)
-npm run update-news    # Fetch news once
-npm run schedule-news  # Start scheduled updates (30 min)
-npm run cleanup-old    # Delete articles > 7 days old
+npm run setup          # install backend + frontend dependencies
+npm run infra:up       # docker compose up -d (MongoDB + Qdrant)
+npm run dev:api        # API with auto-reload
+npm run dev:web        # React dev server
+npm run update-news    # fetch news once
+npm run seed           # demo articles
+npm run build          # production React build
+npm start              # API + React build on one port
+npm test               # backend, frontend, and Market Gyan ML tests
 ```
 
-### Frontend (`news-aggregator/`)
+### Backend (`minimal/news-backend/`)
 
 ```bash
-npm start    # Start development server
-npm run build # Build for production
-npm test     # Run tests
+npm start              # start the API
+npm run start:app      # API + React build (production)
+npm run dev            # API with auto-reload (nodemon)
+npm run update-news    # fetch news once
+npm run schedule-news  # fetch news every 30 minutes
+npm run cleanup-old    # delete expired articles
+npm run index-qdrant   # (re)index Qdrant and prune orphaned points
+npm run backfill-topics
+npm run seed           # demo articles (node addSampleData.js --remove to delete them)
+npm test               # unit tests + Market Gyan tests
 ```
 
-### Utility Scripts
+### Frontend (`minimal/news-aggregator/`)
 
 ```bash
-# Email Testing
-node testEmail.js --help
-
-# Network IP Update
-node updateIP.js
+npm start              # development server
+npm run build          # production build
+npm run test:ci        # run tests once
 ```
 
-## 🎨 Features Showcase
+## 🧪 Testing
 
-### AI Summary
+```bash
+npm test                                   # everything (from the repository root)
+npm --prefix minimal/news-backend test     # backend unit + Market Gyan tests
+MONGODB_TEST_URI=mongodb://127.0.0.1:27017/khabar_api_test \
+  npm --prefix minimal/news-backend run test:integration   # HTTP tests against a real MongoDB
+```
 
-Click "AI Summary" on any article to get:
+The integration suite drops the database named in `MONGODB_TEST_URI` before and after it runs — never point it at real data.
 
-- Bullet-point summary
-- Key facts highlighted in **bold**
-- Nepali-first output (English articles are translated then summarized)
+## 🔐 Security Notes
 
-### Text-to-Speech
-
-After generating a summary:
-
-- Click "Listen to Summary"
-- English & Nepali voices powered by Piper TTS
-
-### Translation (English → Nepali)
-
-- Translate full articles into Nepali with one click
-- Optional TTS playback for translated text
-
-### Quality Ratings
-
-- Rate summaries (fluency/adequacy/coverage)
-- Rate translations (1–5 MOS)
-- Feedback is stored for evaluation and model tuning
-
-### Dark Mode
-
-- Toggle in sidebar or header
-- Syncs to your account
-- Email templates auto-adapt to system preference
-
-### Personalized Recommendations
-
-Based on your reading history:
-
-- Category preferences (%)
-- Preferred sources
-- Top keywords/topics
+- Passwords are bcrypt-hashed; JWTs are HS256-signed with `JWT_SECRET` (the server refuses to start in production without one).
+- Request bodies are validated as plain strings before reaching MongoDB, closing operator-injection paths such as `{"email": {"$ne": null}}`.
+- Article create/delete endpoints require `ADMIN_API_TOKEN`; Market Gyan review tools only answer local, non-proxied, non-production requests.
+- The article scraper only fetches public http(s) URLs and re-validates every redirect.
+- Email content from feeds and users is HTML-escaped and links are restricted to http(s).
 
 ## 🔧 Troubleshooting
 
@@ -531,18 +408,21 @@ Based on your reading history:
 
 | Problem               | Solution                                                  |
 | --------------------- | --------------------------------------------------------- |
-| MongoDB won't connect | Run `mongod` or check if service is running               |
+| MongoDB won't connect | `docker compose up -d mongo` or start your local `mongod`; check `MONGODB_URI` |
 | Port 5001 in use      | Change `PORT` in `.env`                                   |
-| SMTP errors           | Verify Gmail App Password                                 |
-| mBART/TTS errors      | Install Python deps: `torch`, `transformers`, `piper-tts` |
+| `JWT_SECRET must be set` | Set a long random `JWT_SECRET` (required with `NODE_ENV=production`) |
+| Search says `mongo_fallback` | Start Qdrant and run `npm run index-qdrant`; the first run downloads the embedding model |
+| Summaries are slow    | Set `GEMINI_API_KEY`; otherwise the local mBART model is used (first use downloads ~2.4 GB) |
+| mBART/TTS errors      | Install Python deps: `torch`, `transformers`, `piper-tts`; set `PYTHON_BIN` if needed |
+| `403 Admin access required` | Send `x-admin-token: $ADMIN_API_TOKEN` for article create/delete |
 
 ### Frontend Issues
 
-| Problem                    | Solution                                 |
-| -------------------------- | ---------------------------------------- |
-| API connection failed      | Check backend is running on correct port |
-| Network access not working | Run `node updateIP.js` and restart       |
-| Styles not loading         | Run `npm install` and restart            |
+| Problem                    | Solution                                                   |
+| -------------------------- | ---------------------------------------------------------- |
+| API connection failed      | Check the backend is running on port 5001 (or set `REACT_APP_API_BASE_URL`) |
+| Network access not working | Run `node updateIP.js` and restart; allow port 5001 in your firewall |
+| Blocked by CORS            | Add your site's origin to `CORS_ORIGINS`                   |
 
 ### Email Issues
 
@@ -550,9 +430,18 @@ Based on your reading history:
 | ----------------------- | ---------------------------------------------- |
 | Emails not sending      | Check SMTP settings in `.env`                  |
 | "Less secure app" error | Use Gmail App Password, not regular password   |
-| Newsletter not arriving | Check `emailPreferences.dailyDigest` is `true` |
+| Newsletter not arriving | Check `emailPreferences.dailyDigest` is `true` and the digest hour (Nepal time) |
 
 ## 🗓️ Version History
+
+### v3.2 (October 2026)
+
+- ✅ **Security hardening** - admin-only article mutations, injection-safe auth, required production JWT secret, rate limits, CORS policy, safe email templates, SSRF-safe scraping
+- ✅ **Persistent model workers** - mBART and Piper load once instead of on every request; TTS and translations are cached
+- ✅ **Correct schedules** - digests follow Nepal time on any server; working unsubscribe links
+- ✅ **Data safety** - cleanup keeps bookmarks and the Market Gyan corpus; ingestion indexes new articles and prunes deleted ones from Qdrant
+- ✅ **Better search and ingestion** - stable pagination, MongoDB fallback, case-insensitive source filter, Nepali classification fixes, 27 verified feeds, no re-ingestion of expired items
+- ✅ **Mobile navigation** and many UI fixes; single-process production mode; Docker Compose for MongoDB + Qdrant
 
 ### v3.1 (January 2026)
 
@@ -595,7 +484,7 @@ This project is licensed under the ISC License.
 - **News Sources** - RSS feeds from USA & Nepal publishers
 - **Hugging Face** - mBART model fine-tuned for Nepali
 - **Piper TTS** - High-quality voice synthesis
-- **MongoDB** - Database engine
+- **MongoDB** and **Qdrant** - Storage and vector search
 - **React & Node.js** - Framework communities
 
 ## 📬 Contact
@@ -611,4 +500,4 @@ For questions or support, please open an issue in the repository.
 
 ---
 
-**Disclaimer:** This project is for educational purposes. Respect the terms of service of news sources. All articles link to original publishers.
+**Disclaimer:** This project is for educational purposes. Respect the terms of service of news sources. All articles link to original publishers. Market Gyan output is informational analysis based on public data, not investment advice.

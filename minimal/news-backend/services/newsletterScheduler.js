@@ -1,16 +1,31 @@
 const cron = require('node-cron');
-const mongoose = require('mongoose');
 const User = require('../models/User');
 const { updateUserPreferences, getNewsletterRecommendations } = require('./preferenceService');
 const { sendPersonalizedNewsletter } = require('./emailService');
+const { DEFAULT_TIMEZONE, startOfZonedDay, zonedHour } = require('./timeService');
+const { buildUnsubscribeUrl } = require('./unsubscribeService');
 
 /**
  * Newsletter Scheduler Service
  * Sends personalized daily newsletters to users at their preferred time (default 7 AM)
+ * in NEWSLETTER_TIMEZONE (default Asia/Kathmandu), independent of the server's time zone.
  */
+
+const NEWSLETTER_TIMEZONE = process.env.NEWSLETTER_TIMEZONE || DEFAULT_TIMEZONE;
+const SEND_DELAY_MS = 1000;
+const USER_FIELDS = 'name email emailPreferences preferences lastNewsletterSent';
 
 // Store the cron job reference
 let newsletterJob = null;
+let processing = false;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const digestHourOf = (user) => {
+    const [hour] = String(user?.emailPreferences?.digestTime || '07:00').split(':');
+    const parsed = Number.parseInt(hour, 10);
+    return Number.isFinite(parsed) ? parsed : 7;
+};
 
 /**
  * Send newsletter to a single user
@@ -18,7 +33,7 @@ let newsletterJob = null;
 const sendNewsletterToUser = async (user) => {
     try {
         // Update user preferences first
-        await updateUserPreferences(user._id);
+        const preferences = await updateUserPreferences(user._id);
 
         // Get personalized recommendations
         const recommendations = await getNewsletterRecommendations(user._id, 5);
@@ -33,46 +48,68 @@ const sendNewsletterToUser = async (user) => {
             user.email,
             user.name,
             recommendations,
-            user.preferences
+            preferences || user.preferences,
+            { unsubscribeUrl: buildUnsubscribeUrl(user._id) }
         );
 
         if (result.success) {
             // Update last newsletter sent timestamp
-            await User.findByIdAndUpdate(user._id, {
-                lastNewsletterSent: new Date()
+            await User.updateOne({ _id: user._id }, {
+                $set: { lastNewsletterSent: new Date() }
             });
             console.log(`✅ Newsletter sent to ${user.email}`);
             return true;
-        } else {
-            console.error(`❌ Failed to send newsletter to ${user.email}:`, result.error);
-            return false;
         }
+        console.error(`❌ Failed to send newsletter to ${user.email}:`, result.error);
+        return false;
     } catch (error) {
         console.error(`Error sending newsletter to ${user.email}:`, error);
         return false;
     }
 };
 
+const sendToUsers = async (users, { sendToUser = sendNewsletterToUser, delayMs = SEND_DELAY_MS } = {}) => {
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const [index, user] of users.entries()) {
+        const success = await sendToUser(user);
+        if (success) successCount++;
+        else failCount++;
+
+        // Small delay between emails to avoid overwhelming SMTP
+        if (delayMs > 0 && index < users.length - 1) await sleep(delayMs);
+    }
+
+    return { sent: successCount, failed: failCount };
+};
+
 /**
  * Process all users who should receive newsletters at this time
  */
-const processNewsletters = async () => {
-    try {
-        const now = new Date();
-        const currentHour = now.getHours().toString().padStart(2, '0');
-        const currentMinute = now.getMinutes().toString().padStart(2, '0');
-        const currentTime = `${currentHour}:${currentMinute}`;
+const processNewsletters = async ({
+    now = new Date(),
+    timeZone = NEWSLETTER_TIMEZONE,
+    findUsers = (filter) => User.find(filter).select(USER_FIELDS).lean(),
+    sendToUser = sendNewsletterToUser,
+    delayMs = SEND_DELAY_MS
+} = {}) => {
+    if (processing) {
+        console.log('📧 Newsletter run already in progress; skipping this trigger');
+        return { sent: 0, failed: 0, skipped: true };
+    }
+    processing = true;
 
-        console.log(`\n📧 Processing newsletters for ${currentTime}...`);
+    try {
+        const currentHour = zonedHour(now, timeZone);
+        console.log(`\n📧 Processing newsletters for ${String(currentHour).padStart(2, '0')}:00 (${timeZone})...`);
 
         // Find users who:
         // 1. Have daily digest enabled
-        // 2. Have a digest time matching current hour
-        // 3. Haven't received a newsletter today
-        const startOfToday = new Date();
-        startOfToday.setHours(0, 0, 0, 0);
-
-        const users = await User.find({
+        // 2. Have a digest time matching the current hour in the newsletter time zone
+        // 3. Haven't received a newsletter today (in that time zone)
+        const startOfToday = startOfZonedDay(now, timeZone);
+        const users = await findUsers({
             'emailPreferences.dailyDigest': true,
             $or: [
                 { lastNewsletterSent: null },
@@ -80,32 +117,17 @@ const processNewsletters = async () => {
             ]
         });
 
-        // Filter users whose digest time matches current hour
-        const usersToNotify = users.filter(user => {
-            const digestTime = user.emailPreferences?.digestTime || '07:00';
-            const [digestHour] = digestTime.split(':');
-            return digestHour === currentHour;
-        });
-
+        const usersToNotify = users.filter((user) => digestHourOf(user) === currentHour);
         console.log(`Found ${usersToNotify.length} users to send newsletters to`);
 
-        let successCount = 0;
-        let failCount = 0;
-
-        for (const user of usersToNotify) {
-            const success = await sendNewsletterToUser(user);
-            if (success) successCount++;
-            else failCount++;
-
-            // Small delay between emails to avoid overwhelming SMTP
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
-        console.log(`📊 Newsletter results: ${successCount} sent, ${failCount} failed`);
-        return { sent: successCount, failed: failCount };
+        const result = await sendToUsers(usersToNotify, { sendToUser, delayMs });
+        console.log(`📊 Newsletter results: ${result.sent} sent, ${result.failed} failed`);
+        return result;
     } catch (error) {
         console.error('Error processing newsletters:', error);
         throw error;
+    } finally {
+        processing = false;
     }
 };
 
@@ -117,13 +139,17 @@ const startNewsletterScheduler = () => {
     // Run every hour at minute 0
     newsletterJob = cron.schedule('0 * * * *', async () => {
         console.log('\n⏰ Newsletter scheduler triggered');
-        await processNewsletters();
+        try {
+            await processNewsletters();
+        } catch (error) {
+            console.error('Newsletter run failed:', error.message);
+        }
     }, {
         scheduled: true,
-        timezone: 'Asia/Kathmandu' // Nepal timezone
+        timezone: NEWSLETTER_TIMEZONE
     });
 
-    console.log('📅 Newsletter scheduler started (runs every hour)');
+    console.log(`📅 Newsletter scheduler started (runs every hour, ${NEWSLETTER_TIMEZONE})`);
 
     return newsletterJob;
 };
@@ -134,6 +160,7 @@ const startNewsletterScheduler = () => {
 const stopNewsletterScheduler = () => {
     if (newsletterJob) {
         newsletterJob.stop();
+        newsletterJob = null;
         console.log('Newsletter scheduler stopped');
     }
 };
@@ -142,7 +169,7 @@ const stopNewsletterScheduler = () => {
  * Manually trigger newsletter for a specific user (for testing)
  */
 const triggerNewsletterForUser = async (userId) => {
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select(USER_FIELDS).lean();
     if (!user) {
         throw new Error('User not found');
     }
@@ -166,31 +193,15 @@ const sendToAllUsersNow = async () => {
         console.log(`\n📧 Sending newsletters to ALL eligible users (bypassing time check)...`);
 
         // Find all users with daily digest enabled
-        const users = await User.find({
-            'emailPreferences.dailyDigest': true
-        });
+        const users = await User.find({ 'emailPreferences.dailyDigest': true })
+            .select(USER_FIELDS)
+            .lean();
 
         console.log(`Found ${users.length} users with daily digest enabled`);
 
-        if (users.length === 0) {
-            return { sent: 0, failed: 0 };
-        }
-
-        let successCount = 0;
-        let failCount = 0;
-
-        for (const user of users) {
-            console.log(`\n📤 Sending to ${user.email}...`);
-            const success = await sendNewsletterToUser(user);
-            if (success) successCount++;
-            else failCount++;
-
-            // Small delay between emails to avoid overwhelming SMTP
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
-        console.log(`\n📊 Newsletter results: ${successCount} sent, ${failCount} failed`);
-        return { sent: successCount, failed: failCount };
+        const result = await sendToUsers(users);
+        console.log(`\n📊 Newsletter results: ${result.sent} sent, ${result.failed} failed`);
+        return result;
     } catch (error) {
         console.error('Error sending newsletters:', error);
         throw error;
@@ -198,6 +209,8 @@ const sendToAllUsersNow = async () => {
 };
 
 module.exports = {
+    NEWSLETTER_TIMEZONE,
+    digestHourOf,
     startNewsletterScheduler,
     stopNewsletterScheduler,
     processNewsletters,
