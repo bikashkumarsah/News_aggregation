@@ -1,7 +1,10 @@
 const User = require('../models/User');
 const Article = require('../models/Article');
 const {
+    buildArticleText,
     isQdrantReachable,
+    l2Normalize,
+    retrieveArticleVectors,
     search: qdrantSearch,
     textToVector
 } = require('./qdrantService');
@@ -14,6 +17,11 @@ const {
 const CATEGORY_KEYS = ['technology', 'business', 'sports', 'entertainment', 'health', 'science'];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const READ_FIELDS = 'title description category source topics';
+
+// The semantic interest vector averages the newest reads, each weighted by
+// 0.5^(age in days / half-life) so recent reading counts most.
+const INTEREST_MAX_READS = 50;
+const INTEREST_HALF_LIFE_DAYS = 3;
 
 const ENGLISH_STOP_WORDS = [
     'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
@@ -118,7 +126,7 @@ const buildPreferences = (reads) => {
  * Update user preferences based on their reading history
  * This should be called periodically (e.g., daily) or after significant reading activity
  */
-const updateUserPreferences = async (userId) => {
+const updateUserPreferences = async (userId, { now = Date.now() } = {}) => {
     try {
         const user = await User.findById(userId)
             .select('email readHistory')
@@ -131,7 +139,7 @@ const updateUserPreferences = async (userId) => {
         }
 
         // Get articles read in the last 30 days for preference calculation
-        const reads = recentReads(user.readHistory, 30);
+        const reads = recentReads(user.readHistory, 30, now);
         if (reads.length === 0) {
             console.log(`No recent reading history for user ${userId}`);
             return null;
@@ -244,59 +252,82 @@ const getRecommendations = async (userId, limit = 10, { now = Date.now() } = {})
 };
 
 /**
- * Semantic recommendations using Qdrant + multilingual embeddings.
+ * The user's interest vector: a recency-weighted mean of the vectors of their
+ * newest reads (each `{ article, readAt }`, newest first). Stored Qdrant
+ * vectors are reused; only articles missing from the index are embedded, from
+ * title + description. A single concatenated query would be truncated by the
+ * model after 512 tokens (about three articles), so here every read counts.
+ */
+const buildInterestVector = async (reads, {
+    now = Date.now(),
+    halfLifeDays = INTEREST_HALF_LIFE_DAYS
+} = {}, {
+    retrieveVectors = retrieveArticleVectors,
+    embed = textToVector
+} = {}) => {
+    const items = reads.filter((item) => item?.article?._id).slice(0, INTEREST_MAX_READS);
+    if (!items.length) return null;
+
+    const stored = await retrieveVectors(items.map(({ article }) => article._id.toString()));
+    const vectors = await Promise.all(items.map(async ({ article }) => {
+        const vector = stored.get(article._id.toString());
+        if (vector) return vector;
+        if (!article.title && !article.description) return null;
+        try {
+            const text = buildArticleText({ title: article.title, description: article.description });
+            return await embed(text, { role: 'passage' });
+        } catch {
+            return null; // a model outage only drops this read; stored vectors still count
+        }
+    }));
+
+    let sum = null;
+    vectors.forEach((vector, i) => {
+        if (!vector) return;
+        const readAt = new Date(items[i].readAt).getTime();
+        const ageDays = Number.isFinite(readAt) ? Math.max(0, now - readAt) / DAY_MS : 0;
+        const weight = 0.5 ** (ageDays / halfLifeDays);
+        sum = sum || new Array(vector.length).fill(0);
+        for (let d = 0; d < vector.length; d++) sum[d] += weight * vector[d];
+    });
+    return sum && l2Normalize(sum);
+};
+
+/**
+ * Semantic recommendations for a reading history (newest first).
  *
  * Approach:
- * - Build a "user interest query" from the user's recent reading history (titles/descriptions)
- * - Embed it once, then run Qdrant searches with filters (recency, top topics/categories)
+ * - Build the user's interest vector (`buildInterest`, by default the
+ *   recency-weighted mean of the read articles' vectors)
+ * - Run Qdrant searches with filters (recency, top topics/categories)
  * - Exclude articles the user already read
- * - Light rerank with source/category/topic preference
+ * - Light rerank with source/category/topic preference, then per-source diversity
+ *
+ * Returns up to `limit` articles; fewer when retrieval cannot fill the list.
  */
-const getSemanticRecommendations = async (userId, limit = 10) => {
-    const qdrantOk = await isQdrantReachable();
-    if (!qdrantOk) return null;
+const recommendFromReads = async (reads, {
+    preferences = {},
+    limit = 10,
+    now = Date.now(),
+    halfLifeDays,
+    buildInterest = buildInterestVector
+} = {}, {
+    searchVectors = qdrantSearch,
+    loadArticles = (ids) => Article.find({ _id: { $in: ids } }).lean(),
+    ...vectorDeps
+} = {}) => {
+    if (!reads.length) return [];
 
-    const user = await User.findById(userId)
-        .select('preferences readHistory')
-        .populate({ path: 'readHistory.article', select: READ_FIELDS })
-        .lean();
-    if (!user || !user.readHistory || user.readHistory.length === 0) return null;
-
-    // Use last 30 days of reads (same window as updateUserPreferences)
-    const recentHistory = recentReads(user.readHistory, 30);
-    if (recentHistory.length === 0) return null;
-
-    // Build a single text prompt representing the user's interests.
-    // We prioritize recency by repeating recent items slightly.
-    const MAX_ITEMS = 25;
-    const MAX_CHARS = 4000;
-    let queryText = '';
-
-    for (let i = 0; i < Math.min(MAX_ITEMS, recentHistory.length); i++) {
-        const article = recentHistory[i].article;
-        const snippet = `${article.title || ''}. ${article.description || ''}`.trim();
-        if (!snippet) continue;
-
-        // Recency weighting: first few items repeated more
-        const repeat = i < 3 ? 3 : i < 8 ? 2 : 1;
-        for (let r = 0; r < repeat; r++) {
-            if ((queryText.length + snippet.length + 2) > MAX_CHARS) break;
-            queryText += (queryText ? '\n' : '') + snippet;
-        }
-        if (queryText.length >= MAX_CHARS) break;
-    }
-
-    if (!queryText) return null;
-
-    // Embed the interest profile once; every filtered search below reuses it.
-    const interestVector = await textToVector(queryText, { role: 'query' });
+    // Built once; every filtered search below reuses it.
+    const interestVector = await buildInterest(reads, { now, halfLifeDays }, vectorDeps);
+    if (!interestVector) return [];
 
     // Build filters from learned preferences (if present)
-    const topCategories = topCategoriesFrom(user.preferences?.categoryScores);
+    const topCategories = topCategoriesFrom(preferences?.categoryScores);
 
     // Count topics from reading history and take top ones (optional filter)
     const topicCount = {};
-    for (const item of recentHistory.slice(0, 50)) {
+    for (const item of reads.slice(0, 50)) {
         const topics = Array.isArray(item.article?.topics) ? item.article.topics : [];
         for (const t of topics) {
             const key = String(t).toLowerCase();
@@ -309,14 +340,14 @@ const getSemanticRecommendations = async (userId, limit = 10) => {
         .map(([t]) => t);
 
     // Exclude already read articles (up to last 200)
-    const excludeMongoIds = recentHistory
+    const excludeMongoIds = reads
         .slice(0, 200)
         .map((i) => i.article?._id?.toString())
         .filter(Boolean);
 
     const candidateLimit = Math.min(Math.max(limit * 8, 30), 50);
     const runQdrant = async ({ fromDate, topics, category }) => {
-        const res = await qdrantSearch({
+        const res = await searchVectors({
             vector: interestVector,
             topics,
             category,
@@ -344,7 +375,7 @@ const getSemanticRecommendations = async (userId, limit = 10) => {
     ];
 
     for (const days of [1, 2, 7]) {
-        const fromDate = new Date(Date.now() - (days * DAY_MS));
+        const fromDate = new Date(now - (days * DAY_MS));
         // The four filter variants for a window run concurrently and are then
         // merged in priority order, exactly as the sequential loop did.
         const batches = await Promise.all(variants.map((v) => runQdrant({ fromDate, ...v })));
@@ -360,13 +391,13 @@ const getSemanticRecommendations = async (userId, limit = 10) => {
         if (ranked.length >= Math.min(80, limit * 10)) break;
     }
 
-    if (!ranked.length) return null;
+    if (!ranked.length) return [];
 
-    const docs = await Article.find({ _id: { $in: ranked.map((r) => r.mongoId) } }).lean();
+    const docs = await loadArticles(ranked.map((r) => r.mongoId));
     const byId = new Map(docs.map((d) => [d._id.toString(), d]));
 
     const preferredSourceSet = new Set(
-        (user.preferences?.preferredSources || []).slice(0, 8).map((s) => s.source)
+        (preferences?.preferredSources || []).slice(0, 8).map((s) => s.source)
     );
     const topCategorySet = new Set(topCategories);
     const topTopicSet = new Set(topTopics);
@@ -382,7 +413,7 @@ const getSemanticRecommendations = async (userId, limit = 10) => {
         bonus += Math.min(0.20, topicMatches * 0.10);
 
         // Recency bonus: prefer very recent articles
-        const hoursAgo = (Date.now() - new Date(doc.publishedAt).getTime()) / (1000 * 60 * 60);
+        const hoursAgo = (now - new Date(doc.publishedAt).getTime()) / (1000 * 60 * 60);
         bonus += Math.max(0, (24 - hoursAgo) / 24) * 0.05; // up to +0.05
 
         return (semanticScore || 0) + bonus;
@@ -410,9 +441,39 @@ const getSemanticRecommendations = async (userId, limit = 10) => {
         if (picked.length >= limit) break;
     }
 
-    // If semantic retrieval couldn't fill enough items, return null so caller can fall back.
-    if (picked.length < limit) return null;
     return picked;
+};
+
+/**
+ * Semantic recommendations for a user, from their last 30 days of reads.
+ * Options (`now`, `halfLifeDays`, `buildInterest`) pass through to
+ * `recommendFromReads`. Returns null when Qdrant is unavailable or the list
+ * cannot be filled, so callers can fall back.
+ */
+const getSemanticRecommendations = async (userId, limit = 10, options = {}) => {
+    const qdrantOk = await isQdrantReachable();
+    if (!qdrantOk) return null;
+
+    const user = await User.findById(userId)
+        .select('preferences readHistory')
+        .populate({ path: 'readHistory.article', select: READ_FIELDS })
+        .lean();
+    if (!user || !user.readHistory || user.readHistory.length === 0) return null;
+
+    // Use last 30 days of reads (same window as updateUserPreferences)
+    const { now = Date.now() } = options;
+    const reads = recentReads(user.readHistory, 30, now);
+    if (reads.length === 0) return null;
+
+    const picked = await recommendFromReads(reads, {
+        ...options,
+        preferences: user.preferences,
+        limit,
+        now
+    });
+
+    // If semantic retrieval couldn't fill enough items, return null so caller can fall back.
+    return picked.length >= limit ? picked : null;
 };
 
 /**
@@ -420,15 +481,15 @@ const getSemanticRecommendations = async (userId, limit = 10) => {
  * - Prefer semantic (Qdrant) recommendations if available
  * - Fallback to the existing keyword/category scoring logic
  */
-const getNewsletterRecommendations = async (userId, limit = 5) => {
+const getNewsletterRecommendations = async (userId, limit = 5, options = {}) => {
     try {
-        const semantic = await getSemanticRecommendations(userId, limit);
+        const semantic = await getSemanticRecommendations(userId, limit, options);
         if (semantic && semantic.length) return semantic;
-        return await getRecommendations(userId, limit);
+        return await getRecommendations(userId, limit, options);
     } catch (error) {
         // Never break newsletter sending because of search/index issues
         console.warn(`Newsletter semantic recommendations failed, falling back: ${error.message}`);
-        return await getRecommendations(userId, limit);
+        return await getRecommendations(userId, limit, options);
     }
 };
 
@@ -454,11 +515,14 @@ const updateAllUserPreferences = async () => {
 };
 
 module.exports = {
+    buildInterestVector,
     buildPreferences,
     updateUserPreferences,
     getRecommendations,
     getNewsletterRecommendations,
     getSemanticRecommendations,
+    recentReads,
+    recommendFromReads,
     updateAllUserPreferences,
     extractKeywords
 };

@@ -458,6 +458,7 @@ module.exports = {
   deleteArticlePoints,
   ensureCollection,
   isQdrantReachable,
+  l2Normalize,
   markQdrantUnavailable,
   objectIdToUuid,
   pruneOrphanPoints,

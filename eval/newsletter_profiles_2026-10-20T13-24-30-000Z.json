@@ -1,0 +1,1773 @@
+{
+  "generatedAt": "2026-10-20T13:21:16.595Z",
+  "anchor": "2026-01-24T09:00:00.000Z",
+  "note": "Real users as of the anchor plus seeded synthetic personas (see docs/README_NEWSLETTER_PERSONALIZATION.md).",
+  "profiles": [
+    {
+      "profileId": "real-1",
+      "kind": "real",
+      "baseUserId": "69724b6595aecb30a6fc0e0c",
+      "history": [
+        {
+          "articleId": "6972153547695a5cab55402f",
+          "readAt": "2026-01-23T09:26:28.173Z"
+        },
+        {
+          "articleId": "6972153647695a5cab55415e",
+          "readAt": "2026-01-23T08:44:49.746Z"
+        },
+        {
+          "articleId": "6972153547695a5cab55406b",
+          "readAt": "2026-01-23T08:44:25.511Z"
+        },
+        {
+          "articleId": "6972153647695a5cab554098",
+          "readAt": "2026-01-23T08:35:40.053Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fe5",
+          "readAt": "2026-01-23T08:35:18.685Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fce",
+          "readAt": "2026-01-23T08:34:45.286Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fcb",
+          "readAt": "2026-01-23T07:10:54.899Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fb6",
+          "readAt": "2026-01-23T07:09:34.563Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fc5",
+          "readAt": "2026-01-23T07:09:12.129Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fb9",
+          "readAt": "2026-01-23T07:06:39.132Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41dfd",
+          "readAt": "2026-01-23T07:06:19.916Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fbf",
+          "readAt": "2026-01-23T07:06:13.163Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fc2",
+          "readAt": "2026-01-23T07:06:04.346Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fbc",
+          "readAt": "2026-01-23T07:05:47.541Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fe8",
+          "readAt": "2026-01-23T06:46:48.317Z"
+        },
+        {
+          "articleId": "6972153647695a5cab5540aa",
+          "readAt": "2026-01-23T06:28:18.413Z"
+        },
+        {
+          "articleId": "6972153647695a5cab55417c",
+          "readAt": "2026-01-23T06:28:01.952Z"
+        },
+        {
+          "articleId": "6972153647695a5cab55419a",
+          "readAt": "2026-01-23T06:22:50.189Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff67",
+          "readAt": "2026-01-23T06:20:52.589Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41feb",
+          "readAt": "2026-01-23T06:20:30.583Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff6a",
+          "readAt": "2026-01-23T06:03:52.753Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40066",
+          "readAt": "2026-01-23T05:54:15.499Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff22",
+          "readAt": "2026-01-23T05:53:37.431Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40175",
+          "readAt": "2026-01-23T05:51:33.147Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40072",
+          "readAt": "2026-01-22T19:13:50.209Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a4017c",
+          "readAt": "2026-01-22T19:13:44.260Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553c00",
+          "readAt": "2026-01-22T19:13:26.727Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553f78",
+          "readAt": "2026-01-22T19:13:14.795Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553fd5",
+          "readAt": "2026-01-22T19:12:53.740Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553bf4",
+          "readAt": "2026-01-22T19:12:49.054Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40138",
+          "readAt": "2026-01-22T19:10:30.806Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a4016f",
+          "readAt": "2026-01-22T18:15:12.927Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a4017f",
+          "readAt": "2026-01-22T18:14:46.245Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff5b",
+          "readAt": "2026-01-22T18:00:50.542Z"
+        },
+        {
+          "articleId": "69725b6500c8723885a3ff0c",
+          "readAt": "2026-01-22T17:57:40.681Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a4013b",
+          "readAt": "2026-01-22T17:18:46.025Z"
+        },
+        {
+          "articleId": "69725b6500c8723885a3feb4",
+          "readAt": "2026-01-22T17:17:59.904Z"
+        },
+        {
+          "articleId": "6972153647695a5cab5540bc",
+          "readAt": "2026-01-22T16:35:46.577Z"
+        },
+        {
+          "articleId": "6972153547695a5cab554008",
+          "readAt": "2026-01-22T16:21:45.858Z"
+        },
+        {
+          "articleId": "6972153647695a5cab5540bf",
+          "readAt": "2026-01-22T16:20:36.374Z"
+        },
+        {
+          "articleId": "6972153647695a5cab5540b0",
+          "readAt": "2026-01-22T16:09:23.022Z"
+        },
+        {
+          "articleId": "6972153647695a5cab5540ce",
+          "readAt": "2026-01-22T16:09:00.156Z"
+        }
+      ]
+    },
+    {
+      "profileId": "real-2",
+      "kind": "real",
+      "baseUserId": "697252d7a8fb60c6e2ecd733",
+      "history": [
+        {
+          "articleId": "697472b23b5d6a1237dc9987",
+          "readAt": "2026-01-24T07:36:30.805Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc9a16",
+          "readAt": "2026-01-24T07:35:45.400Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc9984",
+          "readAt": "2026-01-24T07:35:38.718Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc998a",
+          "readAt": "2026-01-24T07:35:33.171Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41ff7",
+          "readAt": "2026-01-24T07:35:14.012Z"
+        },
+        {
+          "articleId": "6972153647695a5cab5540bf",
+          "readAt": "2026-01-22T16:40:42.551Z"
+        },
+        {
+          "articleId": "6972153647695a5cab5540ce",
+          "readAt": "2026-01-22T16:40:28.071Z"
+        },
+        {
+          "articleId": "6972153647695a5cab5540bc",
+          "readAt": "2026-01-22T16:40:21.567Z"
+        }
+      ]
+    },
+    {
+      "profileId": "real-3",
+      "kind": "real",
+      "baseUserId": "697474ed3fb43f3facdf82c8",
+      "history": [
+        {
+          "articleId": "6972153547695a5cab553ace",
+          "readAt": "2026-01-24T07:34:13.310Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41d31",
+          "readAt": "2026-01-24T07:34:06.284Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553b82",
+          "readAt": "2026-01-24T07:33:56.494Z"
+        },
+        {
+          "articleId": "6972153647695a5cab5540d1",
+          "readAt": "2026-01-24T07:32:41.206Z"
+        },
+        {
+          "articleId": "6972153647695a5cab55415e",
+          "readAt": "2026-01-24T07:32:38.521Z"
+        },
+        {
+          "articleId": "6972153547695a5cab55406b",
+          "readAt": "2026-01-24T07:32:35.825Z"
+        }
+      ]
+    },
+    {
+      "profileId": "real-4",
+      "kind": "real",
+      "baseUserId": "697475163fb43f3facdf82cd",
+      "history": [
+        {
+          "articleId": "69725b6500c8723885a3febd",
+          "readAt": "2026-01-24T07:31:38.405Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553c93",
+          "readAt": "2026-01-24T07:31:27.689Z"
+        },
+        {
+          "articleId": "6972153647695a5cab5540b0",
+          "readAt": "2026-01-24T07:31:20.489Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc9968",
+          "readAt": "2026-01-24T07:30:52.353Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc9956",
+          "readAt": "2026-01-24T07:30:49.574Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc9962",
+          "readAt": "2026-01-24T07:30:42.963Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-01-focused",
+      "kind": "focused",
+      "recipe": "nepal_election×10 + random×2",
+      "history": [
+        {
+          "articleId": "697472b23b5d6a1237dc9996",
+          "readAt": "2026-01-24T08:08:42.054Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc96d0",
+          "readAt": "2026-01-24T07:38:29.601Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc99d8",
+          "readAt": "2026-01-24T05:20:49.132Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc97c2",
+          "readAt": "2026-01-24T00:37:30.781Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fbc",
+          "readAt": "2026-01-24T00:12:25.206Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a401b4",
+          "readAt": "2026-01-23T23:23:07.418Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41feb",
+          "readAt": "2026-01-23T18:12:33.117Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ffd6",
+          "readAt": "2026-01-23T14:07:02.034Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41ffa",
+          "readAt": "2026-01-23T13:11:32.550Z"
+        },
+        {
+          "articleId": "6972153647695a5cab5540b3",
+          "readAt": "2026-01-23T12:56:50.976Z"
+        },
+        {
+          "articleId": "6972153647695a5cab55413a",
+          "readAt": "2026-01-23T05:45:25.498Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd42015",
+          "readAt": "2026-01-23T05:02:21.742Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-02-focused",
+      "kind": "focused",
+      "recipe": "nfl×10 + random×2",
+      "history": [
+        {
+          "articleId": "6972153547695a5cab553e0d",
+          "readAt": "2026-01-24T08:25:52.987Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9723",
+          "readAt": "2026-01-24T07:50:10.904Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc977d",
+          "readAt": "2026-01-24T07:41:35.745Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff88",
+          "readAt": "2026-01-24T00:12:39.969Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a4000f",
+          "readAt": "2026-01-23T21:55:58.568Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e52",
+          "readAt": "2026-01-23T10:15:51.059Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e06",
+          "readAt": "2026-01-23T09:26:11.044Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553d14",
+          "readAt": "2026-01-23T06:55:35.087Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff7f",
+          "readAt": "2026-01-23T05:59:22.051Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41ea6",
+          "readAt": "2026-01-22T22:33:54.211Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553d53",
+          "readAt": "2026-01-22T19:13:28.567Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553d23",
+          "readAt": "2026-01-21T20:13:46.139Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-03-focused",
+      "kind": "focused",
+      "recipe": "ai×10 + random×2",
+      "history": [
+        {
+          "articleId": "697472b13b5d6a1237dc97e7",
+          "readAt": "2026-01-24T06:55:45.902Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ac5",
+          "readAt": "2026-01-24T03:13:50.596Z"
+        },
+        {
+          "articleId": "69725b6500c8723885a3fe04",
+          "readAt": "2026-01-24T01:53:58.761Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40006",
+          "readAt": "2026-01-23T23:21:18.641Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41c74",
+          "readAt": "2026-01-23T17:53:26.018Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553c3f",
+          "readAt": "2026-01-23T16:16:13.209Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9605",
+          "readAt": "2026-01-23T15:42:42.221Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff31",
+          "readAt": "2026-01-23T10:47:28.965Z"
+        },
+        {
+          "articleId": "69725b6500c8723885a3fe2b",
+          "readAt": "2026-01-23T05:53:50.131Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41c50",
+          "readAt": "2026-01-23T03:38:22.245Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ac2",
+          "readAt": "2026-01-22T22:51:02.595Z"
+        },
+        {
+          "articleId": "69725b6500c8723885a3fe0a",
+          "readAt": "2026-01-22T17:10:51.625Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-04-focused",
+      "kind": "focused",
+      "recipe": "nba×10 + random×2",
+      "history": [
+        {
+          "articleId": "69730f3a366b7b527fd41e7e",
+          "readAt": "2026-01-24T07:10:01.561Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc97e4",
+          "readAt": "2026-01-24T04:17:49.007Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3fff1",
+          "readAt": "2026-01-24T04:00:47.808Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff3f",
+          "readAt": "2026-01-24T03:13:35.420Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e4b",
+          "readAt": "2026-01-24T02:55:02.624Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40009",
+          "readAt": "2026-01-24T02:47:24.712Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ffdc",
+          "readAt": "2026-01-24T01:55:01.851Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc964f",
+          "readAt": "2026-01-23T22:07:14.005Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3fff4",
+          "readAt": "2026-01-23T17:05:59.506Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40036",
+          "readAt": "2026-01-23T14:22:57.061Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41c53",
+          "readAt": "2026-01-23T05:27:12.100Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40018",
+          "readAt": "2026-01-22T17:21:17.598Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-05-focused",
+      "kind": "focused",
+      "recipe": "film×10 + random×2",
+      "history": [
+        {
+          "articleId": "697472b13b5d6a1237dc97b3",
+          "readAt": "2026-01-24T07:36:27.371Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc978c",
+          "readAt": "2026-01-24T07:27:16.118Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ea6",
+          "readAt": "2026-01-24T05:44:43.316Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e36",
+          "readAt": "2026-01-24T05:08:31.665Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e85",
+          "readAt": "2026-01-24T04:26:03.539Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9804",
+          "readAt": "2026-01-24T03:39:08.285Z"
+        },
+        {
+          "articleId": "6972153647695a5cab5540cb",
+          "readAt": "2026-01-24T03:38:02.805Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff7c",
+          "readAt": "2026-01-23T20:50:46.872Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e0a",
+          "readAt": "2026-01-23T13:16:21.160Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ffa6",
+          "readAt": "2026-01-23T10:21:55.338Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a4006f",
+          "readAt": "2026-01-23T06:47:21.484Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ae3",
+          "readAt": "2026-01-22T14:54:42.849Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-06-focused",
+      "kind": "focused",
+      "recipe": "space×10 + random×2",
+      "history": [
+        {
+          "articleId": "697472b13b5d6a1237dc973e",
+          "readAt": "2026-01-24T08:43:22.135Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc98e6",
+          "readAt": "2026-01-24T06:49:17.825Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41f65",
+          "readAt": "2026-01-24T05:42:18.513Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc98e3",
+          "readAt": "2026-01-24T05:38:39.232Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc97a4",
+          "readAt": "2026-01-24T02:20:39.924Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc98dd",
+          "readAt": "2026-01-23T23:54:04.529Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc97f2",
+          "readAt": "2026-01-23T23:00:42.721Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e78",
+          "readAt": "2026-01-23T21:20:32.451Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40108",
+          "readAt": "2026-01-23T18:12:52.078Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ace",
+          "readAt": "2026-01-23T06:30:01.508Z"
+        },
+        {
+          "articleId": "6972153547695a5cab554011",
+          "readAt": "2026-01-23T01:22:52.374Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a400cf",
+          "readAt": "2026-01-22T18:07:36.923Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-07-mixed",
+      "kind": "mixed",
+      "recipe": "ai×6 + nfl×6 + random×1",
+      "history": [
+        {
+          "articleId": "697472b13b5d6a1237dc96aa",
+          "readAt": "2026-01-24T08:39:19.102Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9527",
+          "readAt": "2026-01-24T08:14:10.579Z"
+        },
+        {
+          "articleId": "69725b6500c8723885a3fe1f",
+          "readAt": "2026-01-24T07:31:39.985Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff1f",
+          "readAt": "2026-01-24T07:23:19.657Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9557",
+          "readAt": "2026-01-24T01:58:29.980Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41c68",
+          "readAt": "2026-01-24T00:42:10.985Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff7f",
+          "readAt": "2026-01-23T23:09:00.513Z"
+        },
+        {
+          "articleId": "69725b6500c8723885a3fed7",
+          "readAt": "2026-01-23T17:35:26.229Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41db4",
+          "readAt": "2026-01-23T08:03:23.493Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ffd6",
+          "readAt": "2026-01-22T21:55:44.645Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41ca1",
+          "readAt": "2026-01-22T21:29:48.935Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff97",
+          "readAt": "2026-01-22T20:31:41.393Z"
+        },
+        {
+          "articleId": "69725b6500c8723885a3fec6",
+          "readAt": "2026-01-22T16:23:07.804Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-08-mixed",
+      "kind": "mixed",
+      "recipe": "nepal_election×6 + cricket×5 + random×1",
+      "history": [
+        {
+          "articleId": "697472b23b5d6a1237dc99c0",
+          "readAt": "2026-01-24T05:34:07.176Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fc8",
+          "readAt": "2026-01-24T04:21:16.763Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fb0",
+          "readAt": "2026-01-24T03:45:07.312Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ffdf",
+          "readAt": "2026-01-24T03:10:19.273Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc99e4",
+          "readAt": "2026-01-24T02:01:54.953Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fe8",
+          "readAt": "2026-01-23T09:16:54.707Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41ffa",
+          "readAt": "2026-01-23T08:13:55.674Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e3f",
+          "readAt": "2026-01-23T08:01:46.924Z"
+        },
+        {
+          "articleId": "6972153547695a5cab55406b",
+          "readAt": "2026-01-23T05:17:02.293Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40199",
+          "readAt": "2026-01-23T01:51:22.462Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a4019f",
+          "readAt": "2026-01-22T20:01:10.870Z"
+        },
+        {
+          "articleId": "6972153647695a5cab55406e",
+          "readAt": "2026-01-22T13:49:09.768Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-09-mixed",
+      "kind": "mixed",
+      "recipe": "film×6 + nba×6 + random×1",
+      "history": [
+        {
+          "articleId": "697472b13b5d6a1237dc9801",
+          "readAt": "2026-01-24T07:43:15.116Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc97fe",
+          "readAt": "2026-01-24T07:12:18.652Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc96b6",
+          "readAt": "2026-01-24T06:33:03.886Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9816",
+          "readAt": "2026-01-24T04:39:52.767Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e54",
+          "readAt": "2026-01-24T02:40:21.712Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e70",
+          "readAt": "2026-01-23T22:02:36.021Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e4b",
+          "readAt": "2026-01-23T21:51:47.994Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41edc",
+          "readAt": "2026-01-23T18:22:20.668Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41ebb",
+          "readAt": "2026-01-23T16:21:53.475Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41dca",
+          "readAt": "2026-01-23T14:10:44.181Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e9a",
+          "readAt": "2026-01-23T14:09:15.738Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff6d",
+          "readAt": "2026-01-22T19:21:37.089Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553c60",
+          "readAt": "2026-01-22T10:01:06.800Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-10-mixed",
+      "kind": "mixed",
+      "recipe": "space×6 + health×5 + random×1",
+      "history": [
+        {
+          "articleId": "697472b23b5d6a1237dc98ec",
+          "readAt": "2026-01-24T07:59:00.323Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9828",
+          "readAt": "2026-01-24T07:02:50.247Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc95ef",
+          "readAt": "2026-01-24T04:32:45.801Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc98f2",
+          "readAt": "2026-01-24T03:20:00.844Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc98f5",
+          "readAt": "2026-01-24T01:36:51.977Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40108",
+          "readAt": "2026-01-23T23:10:32.609Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc98e9",
+          "readAt": "2026-01-23T22:59:35.014Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e78",
+          "readAt": "2026-01-23T14:38:51.912Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ad4",
+          "readAt": "2026-01-23T09:47:14.565Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41f26",
+          "readAt": "2026-01-23T06:28:20.807Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a401a5",
+          "readAt": "2026-01-22T23:49:31.642Z"
+        },
+        {
+          "articleId": "6972153647695a5cab554146",
+          "readAt": "2026-01-22T17:48:09.701Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-11-mixed",
+      "kind": "mixed",
+      "recipe": "soccer×6 + us_markets×6 + random×1",
+      "history": [
+        {
+          "articleId": "697472b13b5d6a1237dc972c",
+          "readAt": "2026-01-24T07:36:13.975Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc973b",
+          "readAt": "2026-01-24T07:34:08.965Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9567",
+          "readAt": "2026-01-24T01:25:18.846Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc963d",
+          "readAt": "2026-01-24T00:06:19.550Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff5e",
+          "readAt": "2026-01-23T23:30:58.333Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9640",
+          "readAt": "2026-01-23T22:02:35.018Z"
+        },
+        {
+          "articleId": "69725b6500c8723885a3fec6",
+          "readAt": "2026-01-23T20:16:20.756Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41df1",
+          "readAt": "2026-01-23T19:27:55.911Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ffe2",
+          "readAt": "2026-01-23T13:32:41.002Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff9a",
+          "readAt": "2026-01-23T10:43:56.764Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41d3d",
+          "readAt": "2026-01-23T04:41:42.594Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41ec1",
+          "readAt": "2026-01-23T02:16:40.377Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553d1d",
+          "readAt": "2026-01-22T10:10:24.515Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-12-mixed",
+      "kind": "mixed",
+      "recipe": "geopolitics×6 + ai×6 + random×1",
+      "history": [
+        {
+          "articleId": "697472b23b5d6a1237dc9920",
+          "readAt": "2026-01-24T08:45:06.869Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc995f",
+          "readAt": "2026-01-24T08:44:40.513Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc9950",
+          "readAt": "2026-01-24T08:04:50.891Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9591",
+          "readAt": "2026-01-24T07:30:14.608Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40015",
+          "readAt": "2026-01-24T05:34:23.350Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc96d0",
+          "readAt": "2026-01-24T01:27:06.296Z"
+        },
+        {
+          "articleId": "6972153547695a5cab554002",
+          "readAt": "2026-01-23T23:34:03.477Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9573",
+          "readAt": "2026-01-23T19:42:09.493Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553c3f",
+          "readAt": "2026-01-23T16:55:56.939Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e9a",
+          "readAt": "2026-01-22T21:03:23.512Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553acb",
+          "readAt": "2026-01-22T17:11:40.114Z"
+        },
+        {
+          "articleId": "69725b6500c8723885a3fe2b",
+          "readAt": "2026-01-22T15:31:14.339Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553b55",
+          "readAt": "2026-01-22T11:19:12.068Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-13-mixed",
+      "kind": "mixed",
+      "recipe": "nepali_ent×5 + nepal_election×6 + random×1",
+      "history": [
+        {
+          "articleId": "697472b13b5d6a1237dc95e0",
+          "readAt": "2026-01-24T07:48:20.580Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc996b",
+          "readAt": "2026-01-24T07:39:44.283Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a4013b",
+          "readAt": "2026-01-24T06:27:52.953Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fee",
+          "readAt": "2026-01-24T06:00:51.923Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553bd3",
+          "readAt": "2026-01-24T05:26:44.813Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553eb8",
+          "readAt": "2026-01-24T04:51:12.718Z"
+        },
+        {
+          "articleId": "6972153647695a5cab554086",
+          "readAt": "2026-01-24T02:39:17.151Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9852",
+          "readAt": "2026-01-24T01:23:42.567Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9843",
+          "readAt": "2026-01-23T23:56:12.799Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc984c",
+          "readAt": "2026-01-23T22:05:42.697Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a4004b",
+          "readAt": "2026-01-23T08:36:47.038Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ebe",
+          "readAt": "2026-01-22T14:37:13.319Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-14-mixed",
+      "kind": "mixed",
+      "recipe": "nfl×5 + nba×5 + tennis×4 + random×1",
+      "history": [
+        {
+          "articleId": "697472b13b5d6a1237dc96ff",
+          "readAt": "2026-01-24T08:10:41.813Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9702",
+          "readAt": "2026-01-24T07:51:34.706Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ffeb",
+          "readAt": "2026-01-24T06:45:00.054Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553d3b",
+          "readAt": "2026-01-24T06:02:41.037Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc98f5",
+          "readAt": "2026-01-24T02:11:31.841Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40003",
+          "readAt": "2026-01-23T22:38:18.631Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e10",
+          "readAt": "2026-01-23T19:42:20.518Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40036",
+          "readAt": "2026-01-23T16:03:57.080Z"
+        },
+        {
+          "articleId": "6972153647695a5cab554116",
+          "readAt": "2026-01-23T16:01:58.038Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553db9",
+          "readAt": "2026-01-23T15:06:04.270Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e7e",
+          "readAt": "2026-01-23T12:37:41.980Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e81",
+          "readAt": "2026-01-23T12:28:48.211Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e78",
+          "readAt": "2026-01-23T08:01:41.907Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40060",
+          "readAt": "2026-01-23T06:52:41.927Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553cf0",
+          "readAt": "2026-01-22T12:32:46.168Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-15-drift",
+      "kind": "drift",
+      "recipe": "nba (2-6 days ago)×8 + nfl (last day)×5",
+      "history": [
+        {
+          "articleId": "69730f3a366b7b527fd41e81",
+          "readAt": "2026-01-24T03:44:16.859Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc96d3",
+          "readAt": "2026-01-24T00:50:02.118Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc97d1",
+          "readAt": "2026-01-23T22:43:37.784Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc97de",
+          "readAt": "2026-01-23T21:37:14.038Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e69",
+          "readAt": "2026-01-23T17:29:14.171Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e61",
+          "readAt": "2026-01-22T08:15:46.917Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e64",
+          "readAt": "2026-01-22T07:50:11.091Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e3d",
+          "readAt": "2026-01-22T05:24:27.356Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e46",
+          "readAt": "2026-01-22T04:06:38.812Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553d44",
+          "readAt": "2026-01-22T02:16:39.608Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e55",
+          "readAt": "2026-01-22T01:52:16.955Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e58",
+          "readAt": "2026-01-22T00:45:18.511Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553d3e",
+          "readAt": "2026-01-21T22:00:51.083Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-16-drift",
+      "kind": "drift",
+      "recipe": "ai (2-6 days ago)×8 + space (last day)×5",
+      "history": [
+        {
+          "articleId": "697472b23b5d6a1237dc98e6",
+          "readAt": "2026-01-24T04:16:53.488Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc98dd",
+          "readAt": "2026-01-24T03:27:10.135Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc98e0",
+          "readAt": "2026-01-24T02:49:49.910Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc98f5",
+          "readAt": "2026-01-24T02:41:09.405Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc98e3",
+          "readAt": "2026-01-24T01:23:35.208Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ae3",
+          "readAt": "2026-01-22T08:07:59.525Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ab3",
+          "readAt": "2026-01-22T06:54:18.674Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ac2",
+          "readAt": "2026-01-22T06:45:19.816Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553aef",
+          "readAt": "2026-01-22T05:30:37.291Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553b3d",
+          "readAt": "2026-01-22T04:22:06.370Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553b8e",
+          "readAt": "2026-01-22T03:38:21.536Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553acb",
+          "readAt": "2026-01-21T21:16:07.244Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553f93",
+          "readAt": "2026-01-21T10:39:12.489Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-17-drift",
+      "kind": "drift",
+      "recipe": "film (2-6 days ago)×8 + nepal_election (last day)×5",
+      "history": [
+        {
+          "articleId": "69730f3a366b7b527fd41feb",
+          "readAt": "2026-01-24T06:34:40.615Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc999f",
+          "readAt": "2026-01-24T05:51:01.108Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc99e1",
+          "readAt": "2026-01-24T02:53:39.910Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41fee",
+          "readAt": "2026-01-24T00:15:55.431Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd42006",
+          "readAt": "2026-01-23T12:44:28.391Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e97",
+          "readAt": "2026-01-22T08:54:28.029Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e91",
+          "readAt": "2026-01-22T08:48:36.202Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e88",
+          "readAt": "2026-01-22T07:57:08.869Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ae3",
+          "readAt": "2026-01-22T07:23:03.527Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e8b",
+          "readAt": "2026-01-22T07:06:54.163Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e9a",
+          "readAt": "2026-01-22T05:20:20.100Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ac8",
+          "readAt": "2026-01-22T00:06:02.759Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553fd5",
+          "readAt": "2026-01-20T11:24:05.416Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-18-drift",
+      "kind": "drift",
+      "recipe": "geopolitics (2-6 days ago)×6 + us_markets (last day)×4",
+      "history": [
+        {
+          "articleId": "697472b13b5d6a1237dc9567",
+          "readAt": "2026-01-24T02:04:34.777Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41d3a",
+          "readAt": "2026-01-24T01:59:53.450Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9548",
+          "readAt": "2026-01-23T17:00:25.180Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41d3d",
+          "readAt": "2026-01-23T16:53:32.161Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ae3",
+          "readAt": "2026-01-22T06:59:58.184Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e4c",
+          "readAt": "2026-01-22T06:25:13.000Z"
+        },
+        {
+          "articleId": "6972153547695a5cab554002",
+          "readAt": "2026-01-22T06:23:21.130Z"
+        },
+        {
+          "articleId": "6972153647695a5cab554170",
+          "readAt": "2026-01-22T01:44:28.618Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553f78",
+          "readAt": "2026-01-21T05:36:48.360Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553bca",
+          "readAt": "2026-01-20T11:41:14.326Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-19-drift",
+      "kind": "drift",
+      "recipe": "nepal_election (2-6 days ago)×8 + ai (last day)×5",
+      "history": [
+        {
+          "articleId": "697472b13b5d6a1237dc9527",
+          "readAt": "2026-01-24T06:33:13.020Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41c62",
+          "readAt": "2026-01-24T04:09:36.029Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9530",
+          "readAt": "2026-01-24T01:00:55.723Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc953f",
+          "readAt": "2026-01-23T23:24:21.991Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc97e7",
+          "readAt": "2026-01-23T21:18:42.531Z"
+        },
+        {
+          "articleId": "6972153647695a5cab554188",
+          "readAt": "2026-01-22T01:06:17.449Z"
+        },
+        {
+          "articleId": "6972153647695a5cab554170",
+          "readAt": "2026-01-22T00:08:41.699Z"
+        },
+        {
+          "articleId": "6972153647695a5cab55417c",
+          "readAt": "2026-01-21T21:51:22.342Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553bc1",
+          "readAt": "2026-01-21T19:19:16.600Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553bc4",
+          "readAt": "2026-01-21T08:44:53.777Z"
+        },
+        {
+          "articleId": "6972153647695a5cab55418b",
+          "readAt": "2026-01-20T22:27:33.042Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553cbd",
+          "readAt": "2026-01-20T20:46:24.195Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553cd5",
+          "readAt": "2026-01-20T17:26:03.356Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-20-drift",
+      "kind": "drift",
+      "recipe": "soccer (2-6 days ago)×7 + film (last day)×5",
+      "history": [
+        {
+          "articleId": "69730f3a366b7b527fd41faa",
+          "readAt": "2026-01-24T07:49:00.189Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9825",
+          "readAt": "2026-01-24T05:27:47.126Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9804",
+          "readAt": "2026-01-24T03:36:27.109Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9539",
+          "readAt": "2026-01-23T22:55:59.267Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41ec7",
+          "readAt": "2026-01-23T10:31:09.719Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553d6e",
+          "readAt": "2026-01-22T08:56:52.754Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553d2c",
+          "readAt": "2026-01-22T08:47:37.305Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553d2f",
+          "readAt": "2026-01-22T08:04:36.677Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553d65",
+          "readAt": "2026-01-22T06:20:07.489Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e3a",
+          "readAt": "2026-01-22T05:53:04.981Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e22",
+          "readAt": "2026-01-22T04:21:54.190Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e2b",
+          "readAt": "2026-01-22T03:36:07.974Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-21-burst",
+      "kind": "burst",
+      "recipe": "nepal_election×12 + nba (last 2 hours)×3",
+      "history": [
+        {
+          "articleId": "69725b6600c8723885a40012",
+          "readAt": "2026-01-24T08:23:42.550Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41d88",
+          "readAt": "2026-01-24T08:22:34.186Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40036",
+          "readAt": "2026-01-24T07:40:28.053Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41feb",
+          "readAt": "2026-01-24T04:27:36.104Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc96d0",
+          "readAt": "2026-01-24T04:22:21.743Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e7f",
+          "readAt": "2026-01-23T23:53:38.033Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a401c0",
+          "readAt": "2026-01-23T16:50:28.015Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553cbd",
+          "readAt": "2026-01-23T15:45:01.036Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc9a07",
+          "readAt": "2026-01-23T15:34:55.470Z"
+        },
+        {
+          "articleId": "6972153647695a5cab554158",
+          "readAt": "2026-01-23T15:27:32.268Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41edc",
+          "readAt": "2026-01-23T15:25:32.753Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e73",
+          "readAt": "2026-01-23T09:51:51.959Z"
+        },
+        {
+          "articleId": "6972153647695a5cab55416a",
+          "readAt": "2026-01-23T04:08:40.730Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e94",
+          "readAt": "2026-01-22T22:44:44.749Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40060",
+          "readAt": "2026-01-22T18:06:49.699Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-22-burst",
+      "kind": "burst",
+      "recipe": "ai×10 + soccer (last 2 hours)×3",
+      "history": [
+        {
+          "articleId": "697472b13b5d6a1237dc96dd",
+          "readAt": "2026-01-24T08:49:17.362Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41dfd",
+          "readAt": "2026-01-24T08:40:50.199Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc96f6",
+          "readAt": "2026-01-24T07:04:30.434Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9545",
+          "readAt": "2026-01-24T05:56:17.300Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553aef",
+          "readAt": "2026-01-24T03:41:16.186Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc9530",
+          "readAt": "2026-01-24T02:25:33.272Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553afe",
+          "readAt": "2026-01-24T00:48:12.451Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc95a0",
+          "readAt": "2026-01-24T00:10:42.898Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41c9b",
+          "readAt": "2026-01-23T13:55:15.737Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41cb9",
+          "readAt": "2026-01-23T02:23:43.048Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40015",
+          "readAt": "2026-01-22T18:18:50.681Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ab3",
+          "readAt": "2026-01-22T09:36:47.021Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553b8e",
+          "readAt": "2026-01-22T05:18:01.526Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-23-burst",
+      "kind": "burst",
+      "recipe": "nfl×10 + geopolitics (last 2 hours)×2",
+      "history": [
+        {
+          "articleId": "697472b13b5d6a1237dc953f",
+          "readAt": "2026-01-24T08:40:37.276Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc9950",
+          "readAt": "2026-01-24T07:35:27.474Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc97ef",
+          "readAt": "2026-01-24T05:34:07.443Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e07",
+          "readAt": "2026-01-24T01:11:57.486Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e63",
+          "readAt": "2026-01-24T00:50:27.334Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc97bc",
+          "readAt": "2026-01-24T00:35:05.153Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc97b9",
+          "readAt": "2026-01-23T23:58:35.136Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ffa9",
+          "readAt": "2026-01-23T18:51:34.316Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ffd6",
+          "readAt": "2026-01-23T16:20:08.883Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e91",
+          "readAt": "2026-01-23T16:14:25.776Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553df8",
+          "readAt": "2026-01-23T05:34:00.417Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff14",
+          "readAt": "2026-01-22T17:27:27.263Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-24-burst",
+      "kind": "burst",
+      "recipe": "film×10 + health (last 2 hours)×3",
+      "history": [
+        {
+          "articleId": "697472b23b5d6a1237dc99fd",
+          "readAt": "2026-01-24T08:21:02.528Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a400c3",
+          "readAt": "2026-01-24T08:12:06.554Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc981c",
+          "readAt": "2026-01-24T07:16:40.549Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc982b",
+          "readAt": "2026-01-24T04:33:49.978Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e0a",
+          "readAt": "2026-01-24T03:19:36.284Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ae3",
+          "readAt": "2026-01-23T18:16:43.013Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553e79",
+          "readAt": "2026-01-23T18:07:15.821Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a4007e",
+          "readAt": "2026-01-23T14:16:52.753Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41ecd",
+          "readAt": "2026-01-23T12:31:54.129Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40075",
+          "readAt": "2026-01-23T07:36:27.247Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41ec7",
+          "readAt": "2026-01-23T03:00:44.648Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ea6",
+          "readAt": "2026-01-22T09:02:45.188Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553b43",
+          "readAt": "2026-01-21T19:14:12.776Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-25-burst",
+      "kind": "burst",
+      "recipe": "space×10 + nepal_election (last 2 hours)×3",
+      "history": [
+        {
+          "articleId": "69725b6600c8723885a3ffd6",
+          "readAt": "2026-01-24T08:04:16.255Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc998a",
+          "readAt": "2026-01-24T07:38:48.697Z"
+        },
+        {
+          "articleId": "6972153647695a5cab5540ec",
+          "readAt": "2026-01-24T07:16:02.875Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41f62",
+          "readAt": "2026-01-24T03:46:10.021Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ffdf",
+          "readAt": "2026-01-24T03:33:25.467Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc98f2",
+          "readAt": "2026-01-24T01:18:35.754Z"
+        },
+        {
+          "articleId": "6972153547695a5cab554017",
+          "readAt": "2026-01-24T01:16:51.020Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc97f2",
+          "readAt": "2026-01-24T00:26:54.906Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc98f5",
+          "readAt": "2026-01-23T22:15:09.549Z"
+        },
+        {
+          "articleId": "697472b23b5d6a1237dc98ec",
+          "readAt": "2026-01-23T18:32:43.449Z"
+        },
+        {
+          "articleId": "6972153547695a5cab55400b",
+          "readAt": "2026-01-23T12:55:06.378Z"
+        },
+        {
+          "articleId": "6972153547695a5cab55401d",
+          "readAt": "2026-01-23T02:15:59.462Z"
+        },
+        {
+          "articleId": "6972153547695a5cab55400e",
+          "readAt": "2026-01-22T07:54:14.582Z"
+        }
+      ]
+    },
+    {
+      "profileId": "persona-26-burst",
+      "kind": "burst",
+      "recipe": "nba×10 + ai (last 2 hours)×2",
+      "history": [
+        {
+          "articleId": "697472b13b5d6a1237dc953f",
+          "readAt": "2026-01-24T07:53:11.351Z"
+        },
+        {
+          "articleId": "6972153547695a5cab553ab0",
+          "readAt": "2026-01-24T07:45:22.838Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41dc1",
+          "readAt": "2026-01-24T04:04:50.635Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e03",
+          "readAt": "2026-01-24T02:39:38.319Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a40009",
+          "readAt": "2026-01-24T02:24:09.042Z"
+        },
+        {
+          "articleId": "697472b13b5d6a1237dc97e4",
+          "readAt": "2026-01-24T00:01:57.623Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e4b",
+          "readAt": "2026-01-23T23:49:57.125Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e9d",
+          "readAt": "2026-01-23T16:48:08.229Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff70",
+          "readAt": "2026-01-23T12:32:28.052Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e15",
+          "readAt": "2026-01-23T11:21:06.136Z"
+        },
+        {
+          "articleId": "69730f3a366b7b527fd41e4e",
+          "readAt": "2026-01-23T06:23:57.779Z"
+        },
+        {
+          "articleId": "69725b6600c8723885a3ff3f",
+          "readAt": "2026-01-23T03:48:08.756Z"
+        }
+      ]
+    }
+  ]
+}

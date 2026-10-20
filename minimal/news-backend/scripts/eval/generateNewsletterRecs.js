@@ -10,6 +10,10 @@
  * Usage:
  *   EVAL_USER_IDS="id1,id2,..." EVAL_LIMIT=5 node scripts/eval/generateNewsletterRecs.js
  *
+ * Optional:
+ * - EVAL_NOW: ISO time to generate the newsletter at (default: now), for snapshots
+ * - EVAL_INTEREST: "vector" (default, production) or "text" (previous concatenated query)
+ *
  * Output:
  *   Prints JSON to stdout.
  */
@@ -26,6 +30,7 @@ const User = require('../../models/User');
 const { updateUserPreferences, getNewsletterRecommendations } = require('../../services/preferenceService');
 const { QDRANT_COLLECTION, VECTOR_SIZE, EMBEDDING_PROVIDER } = require('../../services/qdrantService');
 const { DEFAULT_MODEL } = require('../../services/embeddingService');
+const { interestBuilderFor } = require('./textInterestQuery');
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/newsDB';
 
@@ -59,6 +64,14 @@ async function main() {
     process.exit(1);
   }
 
+  const now = process.env.EVAL_NOW ? Date.parse(process.env.EVAL_NOW) : Date.now();
+  if (!Number.isFinite(now)) {
+    console.error(`Invalid EVAL_NOW: ${process.env.EVAL_NOW}`);
+    process.exit(1);
+  }
+  const interest = process.env.EVAL_INTEREST || 'vector';
+  const options = { now, buildInterest: interestBuilderFor(interest) };
+
   await mongoose.connect(MONGODB_URI);
 
   const users = await User.find({ _id: { $in: userIds } }, 'email name readHistory');
@@ -70,9 +83,9 @@ async function main() {
     if (!u) continue;
 
     // Mirror production flow: refresh preferences first
-    await updateUserPreferences(u._id);
+    await updateUserPreferences(u._id, { now });
 
-    const recs = await getNewsletterRecommendations(u._id, limit);
+    const recs = await getNewsletterRecommendations(u._id, limit, options);
     results.push({
       userId,
       email: u.email,
@@ -84,6 +97,8 @@ async function main() {
   const payload = {
     meta: {
       generatedAt: new Date().toISOString(),
+      now: new Date(now).toISOString(),
+      interest,
       embeddingProvider: EMBEDDING_PROVIDER,
       embeddingModel: DEFAULT_MODEL,
       qdrantCollection: QDRANT_COLLECTION,

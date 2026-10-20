@@ -11,6 +11,16 @@
  * Usage:
  *   node scripts/eval/runNewsletterModelComparison.js --users 20 --k 5 --index
  *
+ * Comparing interest profiles instead of models (one arm per model × interest):
+ *   node scripts/eval/runNewsletterModelComparison.js --models distiluse --interests text,vector \
+ *     --profiles ../../eval/newsletter_profiles_....json --now 2026-01-24T09:00:00Z
+ *
+ * Options:
+ *   --models <keys>      subset of minilm,e5_small,distiluse (default: all)
+ *   --interests <list>   text and/or vector (default: vector, the production profile)
+ *   --profiles <file>    reuse a profile file instead of sampling users
+ *   --now <ISO time>     generate the newsletters as of this time (for snapshots)
+ *
  * Outputs:
  *   eval/newsletter_eval_<timestamp>.json
  */
@@ -53,16 +63,35 @@ const MODEL_SET = [
 
 const parseArgs = () => {
   const args = process.argv.slice(2);
-  const out = { users: 20, k: 5, index: false, realUsers: false };
+  const out = {
+    users: 20,
+    k: 5,
+    index: false,
+    realUsers: false,
+    models: MODEL_SET.map((m) => m.key),
+    interests: ['vector'],
+    profiles: null,
+    now: null
+  };
+  const list = (value) => String(value || '').split(',').map((s) => s.trim()).filter(Boolean);
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--users') out.users = parseInt(args[++i], 10);
     if (a === '--k') out.k = parseInt(args[++i], 10);
     if (a === '--index') out.index = true;
     if (a === '--real-users') out.realUsers = true;
+    if (a === '--models') out.models = list(args[++i]);
+    if (a === '--interests') out.interests = list(args[++i]);
+    if (a === '--profiles') out.profiles = path.resolve(args[++i]);
+    if (a === '--now') out.now = new Date(args[++i]).toISOString();
   }
   out.users = Math.min(Math.max(out.users || 20, 1), 100);
   out.k = Math.min(Math.max(out.k || 5, 1), 10);
+  const unknown = out.models.filter((key) => !MODEL_SET.some((m) => m.key === key));
+  if (unknown.length || !out.models.length) throw new Error(`Unknown --models: ${unknown.join(', ') || '(none)'}`);
+  if (!out.interests.length || out.interests.some((x) => !['text', 'vector'].includes(x))) {
+    throw new Error('--interests takes text and/or vector');
+  }
   return out;
 };
 
@@ -70,6 +99,7 @@ const runNode = (scriptPath, env) => {
   const res = spawnSync('node', [scriptPath], {
     env: { ...process.env, ...env },
     encoding: 'utf-8',
+    maxBuffer: 64 * 1024 * 1024,
     stdio: ['ignore', 'pipe', 'pipe']
   });
   if (res.status !== 0) {
@@ -78,9 +108,12 @@ const runNode = (scriptPath, env) => {
   return res.stdout;
 };
 
-async function main() {
-  const { users: userCount, k, index, realUsers } = parseArgs();
+// Reading-history snapshots, newest first, with read times for recency weighting.
+const historyOf = (u) => (Array.isArray(u.readHistory) ? u.readHistory : [])
+  .filter((h) => h.article)
+  .map((h) => ({ articleId: h.article.toString(), readAt: h.readAt }));
 
+async function sampleProfiles({ userCount, realUsers }) {
   await mongoose.connect(MONGODB_URI);
 
   const usersWithHistory = await User.find(
@@ -113,37 +146,33 @@ async function main() {
         })();
 
     for (const u of pickedUsers) {
-      const history = Array.isArray(u.readHistory) ? u.readHistory : [];
-      const ids = history.map((h) => h.article?.toString()).filter(Boolean);
-      if (!ids.length) continue;
+      const history = historyOf(u);
+      if (!history.length) continue;
 
-      const slice = ids.slice(0, HISTORY_WINDOW); // most recent first
       profiles.push({
         profileId: u._id.toString(),
         baseUserId: u._id.toString(),
         email: u.email,
         name: u.name,
-        historyArticleIds: slice
+        history: history.slice(0, HISTORY_WINDOW) // most recent first
       });
     }
   } else {
     for (let i = 0; i < userCount; i++) {
       const u = usersWithHistory[i % usersWithHistory.length];
-      const history = Array.isArray(u.readHistory) ? u.readHistory : [];
-      const ids = history.map((h) => h.article?.toString()).filter(Boolean);
-      if (!ids.length) continue;
+      const history = historyOf(u);
+      if (!history.length) continue;
 
-      const win = Math.min(HISTORY_WINDOW, ids.length);
-      const maxStart = Math.max(1, ids.length - win + 1);
+      const win = Math.min(HISTORY_WINDOW, history.length);
+      const maxStart = Math.max(1, history.length - win + 1);
       const start = (i * 7) % maxStart;
-      const slice = ids.slice(start, start + win);
 
       profiles.push({
         profileId: `${u._id.toString()}-p${Math.floor(i / usersWithHistory.length) + 1}`,
         baseUserId: u._id.toString(),
         email: u.email,
         name: u.name,
-        historyArticleIds: slice
+        history: history.slice(start, start + win)
       });
     }
   }
@@ -152,6 +181,14 @@ async function main() {
     console.error('Could not build profiles from reading histories.');
     process.exit(1);
   }
+  return profiles;
+}
+
+async function main() {
+  const { users: userCount, k, index, realUsers, models, interests, profiles: profilesArg, now } = parseArgs();
+  const profiles = profilesArg
+    ? JSON.parse(fs.readFileSync(profilesArg, 'utf-8')).profiles
+    : await sampleProfiles({ userCount, realUsers });
 
   // Resolve repo root regardless of current working directory:
   // news-backend/scripts/eval -> repo root
@@ -161,13 +198,15 @@ async function main() {
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const outFile = path.join(evalDir, `newsletter_eval_${timestamp}.json`);
-  const profileFile = path.join(evalDir, `newsletter_profiles_${timestamp}.json`);
+  const profileFile = profilesArg || path.join(evalDir, `newsletter_profiles_${timestamp}.json`);
 
-  fs.writeFileSync(profileFile, JSON.stringify({ generatedAt: new Date().toISOString(), profiles }, null, 2));
+  if (!profilesArg) {
+    fs.writeFileSync(profileFile, JSON.stringify({ generatedAt: new Date().toISOString(), profiles }, null, 2));
+  }
 
   const perModel = {};
 
-  for (const m of MODEL_SET) {
+  for (const m of MODEL_SET.filter((model) => models.includes(model.key))) {
     console.log(`\n=== Model: ${m.key} ===`);
     console.log(`Embedding: ${m.embeddingModel}`);
     console.log(`Collection: ${m.collection}`);
@@ -190,39 +229,45 @@ async function main() {
       console.log('Index complete.');
     }
 
-    console.log('Generating newsletter recommendations...');
-    const raw = runNode(path.join(__dirname, 'generateNewsletterRecsFromProfiles.js'), {
-      QDRANT_URL,
-      QDRANT_COLLECTION: m.collection,
-      QDRANT_VECTOR_SIZE: String(m.vectorSize),
-      EMBEDDING_PROVIDER: 'transformers',
-      EMBEDDING_MODEL: m.embeddingModel,
-      EMBEDDING_STRICT: '1',
-      EVAL_PROFILE_FILE: profileFile,
-      EVAL_LIMIT: String(k)
-    });
+    for (const interest of interests) {
+      // Keep the plain model key when only the production profile runs.
+      const armKey = interests.length > 1 ? `${m.key}:${interest}` : m.key;
+      console.log(`Generating newsletter recommendations (${interest} interest)...`);
+      const raw = runNode(path.join(__dirname, 'generateNewsletterRecsFromProfiles.js'), {
+        QDRANT_URL,
+        QDRANT_COLLECTION: m.collection,
+        QDRANT_VECTOR_SIZE: String(m.vectorSize),
+        EMBEDDING_PROVIDER: 'transformers',
+        EMBEDDING_MODEL: m.embeddingModel,
+        EMBEDDING_STRICT: '1',
+        EVAL_PROFILE_FILE: profileFile,
+        EVAL_LIMIT: String(k),
+        EVAL_INTEREST: interest,
+        ...(now ? { EVAL_NOW: now } : {})
+      });
 
-    // Parse defensively in case any dependency writes extra logs to stdout.
-    const start = raw.indexOf('{');
-    const end = raw.lastIndexOf('}');
-    if (start === -1 || end === -1) {
-      throw new Error(`No JSON found in output for model ${m.key}`);
+      // Parse defensively in case any dependency writes extra logs to stdout.
+      const start = raw.indexOf('{');
+      const end = raw.lastIndexOf('}');
+      if (start === -1 || end === -1) {
+        throw new Error(`No JSON found in output for ${armKey}`);
+      }
+      const parsed = JSON.parse(raw.slice(start, end + 1));
+
+      // Attach empty labels for manual annotation
+      for (const p of parsed.profiles) {
+        p.recommendations = (p.recommendations || []).map((a) => ({
+          ...a,
+          relevant: null
+        }));
+      }
+
+      perModel[armKey] = {
+        meta: parsed.meta,
+        label: interests.length > 1 ? `${m.label}, ${interest} interest` : m.label,
+        profiles: parsed.profiles
+      };
     }
-    const parsed = JSON.parse(raw.slice(start, end + 1));
-
-    // Attach empty labels for manual annotation
-    for (const p of parsed.profiles) {
-      p.recommendations = (p.recommendations || []).map((a) => ({
-        ...a,
-        relevant: null
-      }));
-    }
-
-    perModel[m.key] = {
-      meta: parsed.meta,
-      label: m.label,
-      profiles: parsed.profiles
-    };
   }
 
   const payload = {
